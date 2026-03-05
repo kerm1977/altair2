@@ -3,10 +3,11 @@
 const API_URL = "https://kenth1977.pythonanywhere.com/api/Altair";  
 
 window.CloudDB = {
-    // 1. Función para LEER todos los usuarios (El Ranking) de la app actual
+    // 1. Función para LEER todos los usuarios de la app actual
     async obtenerUsuarios() {
         try {
-            const respuesta = await fetch(`${API_URL}/ranking`, { 
+            // 👇 CORRECCIÓN CRÍTICA: Cambiado de /ranking a /usuarios
+            const respuesta = await fetch(`${API_URL}/usuarios`, { 
                 headers: { 'Accept': 'application/json' }
             });
             
