@@ -66,7 +66,29 @@ try {
             xRange.addEventListener('input', updateAvatarTransform);
         }
 
-        // --- 2. FORMATEADORES DE TEXTO (Title Case) ---
+        // --- 2. VALIDACIÓN DE TELÉFONO ---
+        const telefonoInput = document.getElementById('regTelefono');
+        const telError = document.getElementById('telError');
+        
+        if(telefonoInput) {
+            telefonoInput.addEventListener('input', (e) => {
+                let val = e.target.value;
+                // Solo permitir números
+                val = val.replace(/[^0-9]/g, '');
+                e.target.value = val;
+                
+                // Validar que tenga exactamente 8 dígitos
+                if (val.length > 0 && val.length !== 8) {
+                    telError.classList.remove('d-none');
+                    telefonoInput.classList.add('is-invalid');
+                } else {
+                    telError.classList.add('d-none');
+                    telefonoInput.classList.remove('is-invalid');
+                }
+            });
+        }
+
+        // --- 3. FORMATEADORES DE TEXTO (Title Case) ---
         function toTitleCase(str) {
             return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
         }
@@ -97,6 +119,19 @@ try {
                 e.target.value = toTitleCase(val);
             });
         });
+
+        // --- 4. GENERADOR AUTOMÁTICO DE PIN ---
+        const pinInput = document.getElementById('regPin');
+        function generarPIN() {
+            // Generar PIN de 8 dígitos aleatorio
+            const pin = Math.floor(10000000 + Math.random() * 90000000);
+            if(pinInput) {
+                pinInput.value = pin.toString();
+            }
+        }
+        
+        // Generar PIN al cargar la vista
+        generarPIN();
 
         const inputEmail = document.getElementById('regEmail');
         if(inputEmail) {

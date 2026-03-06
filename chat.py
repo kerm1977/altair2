@@ -130,11 +130,11 @@ def enviar_mensaje(app_slug):
             file = request.files['file']
             if file and allowed_file(file.filename):
                 filename = secure_filename(f"{app_slug}_{datetime.now().timestamp()}_{file.filename}")
-                upload_path = os.path.join(current_app.root_path, 'static', 'uploads', 'chat')
+                upload_path = os.path.join('/home/kenth1977/myDBs/uploads', 'chat')
                 if not os.path.exists(upload_path): os.makedirs(upload_path)
                 
                 file.save(os.path.join(upload_path, filename))
-                file_url = f"/static/uploads/chat/{filename}"
+                file_url = f"https://kenth1977.pythonanywhere.com/static/uploads/chat/{filename}"
                 
                 ext = filename.rsplit('.', 1)[1].lower()
                 if ext in ['png', 'jpg', 'jpeg', 'gif']: f_type = 'image'

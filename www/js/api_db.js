@@ -1,13 +1,49 @@
 // Esta URL será actualizada automáticamente por el script configurar_proyecto.js
 // Ejemplo: https://kenth1977.pythonanywhere.com/api/MiAppSlug
-const API_URL = "https://kenth1977.pythonanywhere.com/api/Altair";  
+const API_URL = "https://kenth1977.pythonanywhere.com/api/Altair";
+
+// Función global para manejar errores de forma consistente
+window.handleError = function(error, context = 'Operación') {
+    console.error(`Error en ${context}:`, error);
+    
+    let mensaje = 'Error desconocido';
+    
+    if (typeof error === 'string') {
+        mensaje = error;
+    } else if (error.message) {
+        mensaje = error.message;
+    } else if (error.error) {
+        mensaje = error.error;
+    }
+    
+    // Mensajes amigables para errores comunes
+    const mensajesAmigables = {
+        'Failed to fetch': 'No se pudo conectar con el servidor. Verifica tu conexión a internet.',
+        'NetworkError': 'Error de conexión. Intenta nuevamente.',
+        'Credenciales incorrectas': 'El correo o la contraseña son incorrectos.',
+        'El correo ingresado ya se encuentra registrado': 'Este correo ya está registrado. Intenta con otro.',
+        'PIN no encontrado': 'El PIN ingresado no es válido.',
+        'Evento no encontrado': 'El evento seleccionado no existe.'
+    };
+    
+    const mensajeFinal = mensajesAmigables[mensaje] || mensaje;
+    
+    // Mostrar error de forma no intrusiva
+    if (typeof window.showToast === 'function') {
+        window.showToast(mensajeFinal, 'error');
+    } else {
+        alert(`${context}: ${mensajeFinal}`);
+    }
+    
+    return mensajeFinal;
+};  
 
 window.CloudDB = {
     // 1. Función para LEER todos los usuarios de la app actual
     async obtenerUsuarios() {
         try {
-            // 👇 CORRECCIÓN CRÍTICA: Cambiado de /ranking a /usuarios
-            const respuesta = await fetch(`${API_URL}/usuarios`, { 
+            // CORRECCIÓN: Cambiado de /usuarios a /admin/usuarios para coincidir con backend
+            const respuesta = await fetch(`${API_URL}/admin/usuarios`, { 
                 headers: { 'Accept': 'application/json' }
             });
             
@@ -17,7 +53,7 @@ window.CloudDB = {
             if (datos.error) return [];
             return datos;
         } catch (error) { 
-            console.error("Error al obtener usuarios:", error);
+            handleError(error, "obtener usuarios");
             return []; 
         }
     },
@@ -35,7 +71,7 @@ window.CloudDB = {
             if (datos.error) return [];
             return datos;
         } catch (error) { 
-            console.error("Error al obtener eventos:", error);
+            handleError(error, "obtener eventos");
             return []; 
         }
     },
@@ -59,7 +95,7 @@ window.CloudDB = {
             }
             return resultado; // Retorna status "ok" y el mensaje de éxito
         } catch (error) {
-            console.error("Error en la inscripción:", error);
+            handleError(error, "inscripción a evento");
             return { status: "error", message: "Error de conexión con el servidor" };
         }
     }

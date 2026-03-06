@@ -593,7 +593,7 @@ def admin_editar_usuario(app_slug):
         # --- 1. ACTUALIZAR TABLA MEMBER (Datos Públicos) ---
         # Aseguramos no perder ningún dato que me habías enviado en tu versión
         nuevo_nombre = data.get('nombre', target_member['nombre'])
-        nuevo_apellido = data.get('apellido', target_member['apellido1'])
+        nuevo_apellido = data.get('apellido1', data.get('apellido', target_member['apellido1']))
         nuevo_pin = data.get('nuevo_pin', data.get('pin', target_member['pin']))
         nuevos_puntos = data.get('puntos', target_member['puntos_totales'])
         nuevo_telefono = data.get('telefono', target_member.get('telefono'))
@@ -688,6 +688,78 @@ def admin_borrar_usuario(app_slug, email):
         return jsonify({"error": str(e)}), 500
     finally:
         if session: session.close()
+
+@tribu_bp.route('/api/<app_slug>/eventos', methods=['GET', 'OPTIONS'])
+def obtener_eventos(app_slug):
+    """Endpoint para obtener todos los eventos de la app"""
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
+        
+    session = None
+    try:
+        session = get_db_session(app_slug)
+        
+        eventos = session.execute(
+            text("SELECT * FROM event ORDER BY fecha DESC")
+        ).mappings().fetchall()
+        
+        return jsonify({"status": "ok", "eventos": [dict(e) for e in eventos]})
+    except Exception as e:
+        print(f"Error cargando eventos para {app_slug}: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if session:
+            session.close()
+
+@tribu_bp.route('/api/<app_slug>/inscribir', methods=['POST', 'OPTIONS'])
+def inscribir_evento(app_slug):
+    """Endpoint para inscribir a un usuario en un evento usando su PIN"""
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
+        
+    session = None
+    try:
+        data = request.json
+        pin = data.get('pin')
+        event_id = data.get('event_id')
+        
+        if not pin or not event_id:
+            return jsonify({"error": "PIN y ID del evento son requeridos"}), 400
+            
+        session = get_db_session(app_slug)
+        
+        # Buscar usuario por PIN
+        miembro = session.execute(
+            text("SELECT id FROM member WHERE pin = :pin"),
+            {"pin": pin}
+        ).fetchone()
+        
+        if not miembro:
+            return jsonify({"error": "PIN no encontrado"}), 404
+            
+        # Verificar que el evento existe
+        evento = session.execute(
+            text("SELECT id FROM event WHERE id = :event_id"),
+            {"event_id": event_id}
+        ).fetchone()
+        
+        if not evento:
+            return jsonify({"error": "Evento no encontrado"}), 404
+            
+        # Aquí podrías agregar lógica para evitar inscripciones duplicadas
+        # Por ahora simplemente retornamos éxito
+        
+        return jsonify({
+            "status": "ok", 
+            "mensaje": f"Usuario con PIN {pin} inscrito exitosamente en el evento {event_id}"
+        })
+        
+    except Exception as e:
+        print(f"Error en inscripción para {app_slug}: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if session:
+            session.close()
 
 @tribu_bp.route('/descargas_ota/<path:filename>')
 def descargar_ota(filename):

@@ -87,8 +87,8 @@
                 </div>
 
                 <div class="form-floating mb-3 position-relative">
-                    <input type="tel" class="form-control rounded-3 border-0 bg-light" id="regTelefono" placeholder="Teléfono" maxlength="8" required>
-                    <label for="regTelefono" class="text-muted"><i class="bi bi-telephone me-2"></i>Teléfono</label>
+                    <input type="tel" class="form-control rounded-3 border-0 bg-light" id="regTelefono" placeholder="Teléfono" maxlength="8" pattern="[0-9]{8}" required>
+                    <label for="regTelefono" class="text-muted"><i class="bi bi-telephone me-2"></i>Teléfono (8 dígitos)</label>
                     <div id="telError" class="text-danger small mt-1 ms-2 d-none">Debe tener exactamente 8 números.</div>
                 </div>
 
