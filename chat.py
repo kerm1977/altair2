@@ -1,14 +1,16 @@
 # ==============================================================================
 # ARCHIVO: chat.py
-# ROL: EL HIJO
-# DESCRIPCIÓN: Micro-módulo anidado en tribu.py, maneja la mensajería interna.
+# ROL: MÓDULO HIJO DE CHAT
+# DESCRIPCIÓN: Gestiona mensajes, archivos y notificaciones de chat
 # ==============================================================================
 
 import os
 import sqlite3
+import time
 from datetime import datetime
-from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
+from flask import Blueprint, request, jsonify, send_from_directory, make_response
+from flask_cors import cross_origin
 
 # Este es el blueprint hijo, que se registra dentro de tribu_bp
 chat_bp = Blueprint('chat_api', __name__)
@@ -61,6 +63,7 @@ def _init_chat_table(cursor):
 # ==============================================================================
 
 @chat_bp.route('/api/<app_slug>/chat/<mi_email>/<otro_email>', methods=['GET'])
+@cross_origin()
 def obtener_mensajes_privados(app_slug, mi_email, otro_email):
     db_path = get_chat_db_path(app_slug)
     if not os.path.exists(db_path):
@@ -108,6 +111,7 @@ def obtener_mensajes_privados(app_slug, mi_email, otro_email):
         return jsonify({"error": str(e)}), 500
 
 @chat_bp.route('/api/<app_slug>/chat/enviar', methods=['POST', 'OPTIONS'])
+@cross_origin()
 def enviar_mensaje(app_slug):
     # Manejo de CORS Preflight
     if request.method == 'OPTIONS':
@@ -158,6 +162,7 @@ def enviar_mensaje(app_slug):
         return jsonify({"error": str(e)}), 500
 
 @chat_bp.route('/api/<app_slug>/chat/unread/<mi_email>', methods=['GET'])
+@cross_origin()
 def notificaciones_globales(app_slug, mi_email):
     """Devuelve la cantidad total de mensajes sin leer en toda la app"""
     db_path = get_chat_db_path(app_slug)
