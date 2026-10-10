@@ -1,0 +1,670 @@
+/* ============================================================================
+   TRIBALs · media.css
+   Tema: tierra, fuego y obsidiana. Terracota / oro / turquesa sobre madera
+   oscura. Todos los estilos van scopeados bajo .tribal-root para no
+   contaminar el resto del SPA.
+   ============================================================================ */
+
+.tribal-root {
+    --tb-bg:      #160e07;
+    --tb-bg2:     #241708;
+    --tb-card:    #2b1c10;
+    --tb-card2:   #332213;
+    --tb-border:  #5a3a1c;
+    --tb-terra:   #e2602e;
+    --tb-terra2:  #b7441a;
+    --tb-gold:    #f0b429;
+    --tb-teal:    #2a9d8f;
+    --tb-cream:   #f3e6cf;
+    --tb-muted:   #b39372;
+    --tb-danger:  #e5484d;
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 100dvh;
+    overflow: hidden;
+    color: var(--tb-cream);
+    font-family: "Segoe UI", Roboto, system-ui, sans-serif;
+    background:
+        radial-gradient(1200px 500px at 50% -10%, rgba(224, 96, 46, 0.18), transparent 60%),
+        radial-gradient(900px 500px at 90% 110%, rgba(42, 157, 143, 0.10), transparent 60%),
+        linear-gradient(180deg, var(--tb-bg2), var(--tb-bg) 40%);
+}
+
+/* ---------------------------------------------------------------- header -- */
+.tribal-header {
+    flex-shrink: 0;
+    background:
+        linear-gradient(160deg, rgba(224, 96, 46, 0.16), rgba(22, 14, 7, 0) 55%),
+        linear-gradient(180deg, #2c1a09, #20140a);
+    border-bottom: 3px solid var(--tb-terra2);
+    padding: calc(env(safe-area-inset-top, 0px) + 18px) 18px 0;
+}
+
+.tribal-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.tribal-title {
+    margin: 0;
+    font-size: 1.9rem;
+    font-weight: 900;
+    letter-spacing: 0.22em;
+    line-height: 1;
+    color: var(--tb-cream);
+    text-shadow: 0 2px 0 var(--tb-terra2), 0 6px 18px rgba(224, 96, 46, 0.35);
+}
+
+.tribal-title .accent { color: var(--tb-gold); }
+
+.tribal-sub {
+    margin: 6px 0 0;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tb-muted);
+}
+
+.tribal-sun {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 14px rgba(240, 180, 41, 0.45));
+    animation: tribal-spin 40s linear infinite;
+}
+
+@keyframes tribal-spin { to { transform: rotate(360deg); } }
+
+/* banda difuminada: un halo espectral que fluye como viento */
+.tribal-band {
+    height: 18px;
+    margin: 16px -18px 0;
+    display: block;
+    overflow: hidden;
+    position: relative;
+}
+.tribal-halo {
+    position: absolute;
+    top: 6px; bottom: 0;
+    width: 200%;
+    background:
+        linear-gradient(90deg,
+            transparent 0%, #e2602e 12%, #f0b429 26%, #2a9d8f 38%,
+            #f0b429 50%, #e2602e 62%, #2a9d8f 74%, #f0b429 86%, transparent 100%);
+    background-size: 50% 100%;
+    background-repeat: repeat-x;
+    filter: blur(7px);
+    opacity: .85;
+    animation: tribal-wind 11s linear infinite;
+}
+.tribal-halo::after {
+    content: '';
+    position: absolute;
+    inset: -4px 0 auto;
+    height: 6px;
+    background: inherit;
+    filter: blur(5px);
+    opacity: .5;
+}
+@keyframes tribal-wind {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+}
+
+/* ------------------------------------------------------------- buscador -- */
+.tribal-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--tb-border);
+}
+.tribal-search i { color: var(--tb-gold); }
+.tribal-search input {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    color: var(--tb-cream);
+    font-size: 0.95rem;
+}
+.tribal-search input::placeholder { color: var(--tb-muted); }
+
+/* ----------------------------------------------------------------- tabs -- */
+.tribal-tabs {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.tribal-tabs::-webkit-scrollbar { display: none; }
+
+.tribal-tab {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--tb-border);
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--tb-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.tribal-tab i { font-size: 0.9rem; }
+.tribal-tab.active {
+    background: linear-gradient(135deg, var(--tb-terra), var(--tb-terra2));
+    border-color: var(--tb-gold);
+    color: #fff8ec;
+    box-shadow: 0 4px 14px rgba(224, 96, 46, 0.4);
+}
+
+/* ----------------------------------------------------------------- grid -- */
+.tribal-grid-wrap {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+    -webkit-overflow-scrolling: touch;
+}
+
+.tribal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+}
+
+.tribal-card {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    background: linear-gradient(170deg, var(--tb-card2), var(--tb-card));
+    border: 1px solid var(--tb-border);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.tribal-card:active { transform: scale(0.97); }
+.tribal-card:hover {
+    box-shadow: 0 6px 22px rgba(224, 96, 46, 0.25);
+    border-color: var(--tb-terra);
+}
+
+.tribal-thumb {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        repeating-linear-gradient(45deg, rgba(240, 180, 41, 0.07) 0 6px, transparent 6px 12px),
+        radial-gradient(circle at 50% 40%, rgba(224, 96, 46, 0.25), transparent 70%),
+        #1c1109;
+    overflow: hidden;
+}
+.tribal-thumb img, .tribal-thumb video {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.tribal-thumb .kind-icon {
+    font-size: 2.6rem;
+    color: var(--tb-gold);
+    text-shadow: 0 0 18px rgba(240, 180, 41, 0.5);
+}
+.tribal-thumb.audio .kind-icon { color: var(--tb-teal); text-shadow: 0 0 18px rgba(42, 157, 143, 0.55); }
+
+.tribal-kind-badge {
+    position: absolute;
+    top: 8px; left: 8px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--tb-border);
+    color: var(--tb-cream);
+}
+.tribal-kind-badge.audio { color: #7fd8cd; }
+.tribal-kind-badge.video { color: #f5b57a; }
+.tribal-kind-badge.image { color: #ffd97a; }
+
+.tribal-playing-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    color: var(--tb-gold);
+    font-size: 1rem;
+    animation: tribal-pulse 1s ease-in-out infinite;
+}
+@keyframes tribal-pulse { 50% { opacity: 0.35; transform: scale(0.85); } }
+
+.tribal-card-body {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 8px 10px 12px;
+}
+.tribal-card-name {
+    flex: 1;
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--tb-cream);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tribal-card-meta {
+    display: block;
+    font-size: 0.65rem;
+    color: var(--tb-muted);
+    margin-top: 2px;
+}
+.tribal-card-menu {
+    flex-shrink: 0;
+    width: 30px; height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--tb-muted);
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+}
+.tribal-card-menu:active { background: rgba(224, 96, 46, 0.25); color: var(--tb-gold); }
+
+/* -------------------------------------------------------------- empty ---- */
+.tribal-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 32px;
+    color: var(--tb-muted);
+}
+.tribal-empty .sun { width: 120px; height: 120px; opacity: 0.85; margin-bottom: 20px;
+    filter: drop-shadow(0 0 24px rgba(240, 180, 41, 0.35)); }
+.tribal-empty h3 {
+    color: var(--tb-cream);
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-size: 1rem;
+}
+.tribal-empty p { font-size: 0.85rem; max-width: 300px; }
+
+/* ------------------------------------------------------------------ fab -- */
+/* wrap: redondo → se expande en óvalo mostrando carpeta | sol | archivo */
+.tribal-fab-wrap {
+    position: absolute;
+    right: 20px;
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    z-index: 30;
+    display: flex; align-items: center; gap: 0;
+    padding: 3px;
+    border-radius: 42px;
+    border: 1px solid transparent;
+    transition: background 0.25s ease, border-color 0.25s ease,
+                box-shadow 0.25s ease, gap 0.25s ease;
+}
+.tribal-fab-wrap.open {
+    gap: 8px;
+    background: rgba(18, 9, 3, 0.9);
+    border-color: var(--tb-gold);
+    box-shadow: 0 10px 28px rgba(224, 96, 46, 0.4);
+    backdrop-filter: blur(8px);
+}
+.tribal-fab {
+    position: relative;
+    flex-shrink: 0;
+    width: 62px; height: 62px;
+    border-radius: 50%;
+    border: 2px solid var(--tb-gold);
+    background: radial-gradient(circle at 35% 30%, var(--tb-terra), var(--tb-terra2));
+    color: #fff8ec;
+    font-size: 1.6rem;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px rgba(224, 96, 46, 0.5), inset 0 2px 6px rgba(255,255,255,0.25);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+.tribal-fab:active { transform: scale(0.92); }
+.tribal-fab::before {
+    content: "";
+    position: absolute; inset: -8px;
+    border-radius: 50%;
+    border: 2px dashed rgba(240, 180, 41, 0.5);
+    animation: tribal-spin 18s linear infinite;
+    pointer-events: none;
+}
+.fab-opt {
+    width: 0; height: 56px;
+    border: none; border-radius: 28px;
+    background: linear-gradient(135deg, rgba(240,180,41,.18), rgba(224,96,46,.18));
+    color: var(--tb-gold);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-size: 1.15rem;
+    opacity: 0; overflow: hidden;
+    cursor: pointer;
+    transition: width 0.28s cubic-bezier(.34,1.4,.5,1), opacity 0.2s ease;
+}
+.fab-opt small {
+    font-size: 0.55rem; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--tb-cream);
+    white-space: nowrap;
+}
+.tribal-fab-wrap.open .fab-opt { width: 58px; opacity: 1; }
+.fab-opt:active { transform: scale(0.9); }
+@media (hover: hover) {
+    .tribal-fab-wrap:hover { gap: 8px; background: rgba(18,9,3,.9);
+        border-color: var(--tb-gold); box-shadow: 0 10px 28px rgba(224,96,46,.4); }
+    .tribal-fab-wrap:hover .fab-opt { width: 58px; opacity: 1; }
+}
+.tribal-root.has-player .tribal-fab-wrap { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+
+/* --------------------------------------------------------------- player -- */
+/* En flujo (no absoluto): queda anclado al fondo de la columna, centrado
+   y sin desbordar sobre la navegación ni el scroll vertical. */
+.tribal-player {
+    flex-shrink: 0;
+    width: min(720px, calc(100% - 24px));
+    margin: 0 auto calc(12px + env(safe-area-inset-bottom, 0px));
+    z-index: 25;
+    border-radius: 18px;
+    padding: 12px 14px 14px;
+    background: linear-gradient(160deg, #3a2410, #221507);
+    border: 1px solid var(--tb-gold);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(240, 180, 41, 0.12);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.tribal-player-cover {
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background:
+        repeating-linear-gradient(45deg, rgba(240,180,41,.12) 0 5px, transparent 5px 10px),
+        #1a0f06;
+    border: 1px solid var(--tb-border);
+    color: var(--tb-teal);
+    font-size: 1.3rem;
+}
+.tribal-player-info { flex: 1; min-width: 0; }
+.tribal-player-title {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--tb-cream);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tribal-player-progress {
+    margin-top: 6px;
+    height: 5px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+    cursor: pointer;
+}
+.tribal-player-progress > div {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--tb-teal), var(--tb-gold));
+    transition: width 0.2s linear;
+}
+.tribal-player-times {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    color: var(--tb-muted);
+    margin-top: 3px;
+}
+.tribal-player-controls { display: flex; align-items: center; gap: 4px; }
+.tribal-ctrl {
+    border: 0;
+    background: transparent;
+    color: var(--tb-cream);
+    font-size: 1.3rem;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+}
+.tribal-ctrl:active { color: var(--tb-gold); }
+.tribal-ctrl.play {
+    width: 46px; height: 46px;
+    font-size: 1.5rem;
+    background: linear-gradient(135deg, var(--tb-terra), var(--tb-terra2));
+    border: 1px solid var(--tb-gold);
+    color: #fff8ec;
+    box-shadow: 0 4px 14px rgba(224, 96, 46, 0.45);
+}
+
+/* -------------------------------------------------------------- overlays - */
+/* fixed (no absolute): centra contra el viewport REAL — si .tribal-root
+   fuera más alto que la pantalla, un overlay absolute quedaría "abajo" */
+.tribal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(8, 4, 1, 0.88);
+    backdrop-filter: blur(6px);
+    padding: 20px;
+}
+/* diálogos altos (slideshow cfg, colecciones…): nunca se salen de pantalla.
+   Se exceptúan las páginas completas (lector, P2P, libretilla, editor de
+   imagen) y el escenario/UI del slideshow — esos sí ocupan el 100%. */
+.tribal-overlay:not(.tribal-reader-ov):not(.tribal-p2p-ov):not(.tribal-ie-ov)
+    > *:not(.tslide-stage):not(.tslide-ui) {
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+}
+.tribal-overlay[hidden] { display: none !important; }
+
+.tribal-viewer {
+    width: 100%;
+    max-width: 720px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+.tribal-viewer video {
+    width: 100%;
+    max-height: 62vh;
+    border-radius: 14px;
+    border: 1px solid var(--tb-border);
+    background: #000;
+    box-shadow: 0 0 40px rgba(224, 96, 46, 0.25);
+}
+.tribal-viewer img {
+    max-width: 100%;
+    max-height: 72vh;
+    object-fit: contain;
+    border-radius: 14px;
+    border: 1px solid var(--tb-border);
+    box-shadow: 0 0 40px rgba(240, 180, 41, 0.2);
+}
+.tribal-viewer-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--tb-cream);
+    text-align: center;
+    letter-spacing: 0.05em;
+}
+.tribal-close {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 16px);
+    right: 18px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--tb-gold);
+    background: rgba(0, 0, 0, 0.5);
+    color: var(--tb-cream);
+    font-size: 1.2rem;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 5;
+}
+
+/* diálogo (renombrar / eliminar) */
+.tribal-dialog {
+    width: 100%;
+    max-width: 360px;
+    border-radius: 18px;
+    padding: 22px;
+    background: linear-gradient(165deg, #33200f, #201307);
+    border: 1px solid var(--tb-gold);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+}
+.tribal-dialog h4 {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--tb-gold);
+}
+.tribal-dialog p { font-size: 0.85rem; color: var(--tb-muted); margin: 0 0 16px; }
+.tribal-dialog input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--tb-border);
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--tb-cream);
+    font-size: 0.95rem;
+    outline: none;
+    margin-bottom: 16px;
+}
+.tribal-dialog input:focus { border-color: var(--tb-terra); }
+.tribal-dialog-actions { display: flex; gap: 10px; }
+.tribal-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--tb-border);
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--tb-cream);
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.tribal-btn.primary {
+    background: linear-gradient(135deg, var(--tb-terra), var(--tb-terra2));
+    border-color: var(--tb-gold);
+    color: #fff8ec;
+}
+.tribal-btn.danger {
+    background: linear-gradient(135deg, var(--tb-danger), #a5282c);
+    border-color: #ff8a8d;
+    color: #fff;
+}
+
+/* menú contextual de tarjeta: SIEMPRE centrado en el viewport + backdrop blur */
+.tribal-menu-bd {
+    position: fixed;
+    inset: 0;
+    z-index: 69;
+    background: rgba(10, 5, 2, 0.45);
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
+}
+.tribal-menu-bd[hidden] { display: none !important; }
+#card-menu {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%);
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.tribal-menu {
+    position: absolute;
+    z-index: 70;
+    min-width: 190px;
+    border-radius: 14px;
+    padding: 6px;
+    background: #2c1b0c;
+    border: 1px solid var(--tb-gold);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7);
+}
+.tribal-menu[hidden] { display: none !important; }
+.tribal-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--tb-cream);
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+.tribal-menu button:active { background: rgba(224, 96, 46, 0.22); }
+.tribal-menu button i { color: var(--tb-gold); width: 18px; }
+.tribal-menu button.danger { color: #ff9d9f; }
+.tribal-menu button.danger i { color: var(--tb-danger); }
+
+/* ---------------------------------------------------------------- toast -- */
+.tribal-toast {
+    position: absolute;
+    left: 50%;
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%) translateY(20px);
+    z-index: 90;
+    padding: 12px 22px;
+    border-radius: 999px;
+    background: #2c1b0c;
+    border: 1px solid var(--tb-gold);
+    color: var(--tb-cream);
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    white-space: nowrap;
+    max-width: 90%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tribal-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.tribal-root.has-player .tribal-toast { bottom: calc(130px + env(safe-area-inset-bottom, 0px)); }
+
+/* animación de entrada de tarjetas */
+.tribal-card { animation: tribal-in 0.25s ease both; }
+@keyframes tribal-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* utilidades locales */
+.tribal-root .d-none { display: none !important; }

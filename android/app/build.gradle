@@ -44,15 +44,15 @@ android {
     // SOLUCIÓN PARA FORZAR JAVA 17 Y EVITAR ERROR DE TOOLCHAIN 21
     // ========================================================
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
 }
 
 // Declaración global del Toolchain para el proyecto
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 // ========================================================

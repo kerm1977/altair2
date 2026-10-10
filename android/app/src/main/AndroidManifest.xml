@@ -5,15 +5,28 @@
     <!--       PERMISOS COMPLETOS - TRIBUPLAY       -->
     <!-- ========================================== -->
 
-    <!-- 1. ALMACENAMIENTO Y ARCHIVOS (Esencial para exportar reportes, imágenes y música) -->
-    <!-- Nota: En Android 13+ estos se gestionan diferente, pero es bueno mantenerlos por compatibilidad -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <!-- <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" /> -->
+    <!-- 1. ALMACENAMIENTO Y ARCHIVOS (subir música, videos, imágenes, libros) -->
+    <!-- Android 12 y anteriores -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <!-- Android 13+ (API 33): permisos de medios separados — SIN ESTOS el
+         selector de archivos no ve música/videos/fotos en Samsung modernos -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Android 14+: permite re-seleccionar fotos/videos con acceso parcial -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <!-- Acceso total a archivos (gestión completa de la biblioteca) -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
-    <!-- 2. CÁMARA Y FOTOS (Para perfil y evidencias de pago) -->
+    <!-- 2. CÁMARA, MICRÓFONO Y FOTOS -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FLASHLIGHT" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <!-- 3. RED Y CONECTIVIDAD (Sincronización y Verificar estado online) -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -32,7 +45,7 @@
     <!-- Ubicación aproximada (red) y precisa (GPS) -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-feature android:name="android.hardware.location.gps" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <!-- NOTA: 'ACCESS_BACKGROUND_LOCATION' es delicado y Google Play lo vigila mucho. 
           Solo actívalo si realmente vas a trackear rutas con la pantalla apagada en el futuro. -->
     <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> -->
@@ -49,6 +62,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 
     <!-- 8. EXTRAS (Feedback háptico/Vibración) -->
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -66,7 +80,7 @@
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
-            android:name="com.getcapacitor.BridgeActivity"
+            android:name=".MainActivity"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
@@ -74,6 +88,41 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- abrir enlaces magnet:// con TRIBALs -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="magnet" />
+            </intent-filter>
+
+            <!-- "Abrir con TRIBALs": audio, video, imágenes y documentos -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!-- "Compartir con TRIBALs": uno o varios archivos -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
 
         </activity>

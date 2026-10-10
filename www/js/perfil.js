@@ -104,9 +104,10 @@ try {
                         // Si el usuario subió una foto, la mostramos
                         avatarImg.src = usuario.avatar;
                     } else {
-                        // Si no tiene foto, usamos una API gratuita para generar una imagen con sus iniciales
-                        const nombreUrl = encodeURIComponent(usuario.nombre || usuario.username || 'Usuario');
-                        avatarImg.src = `https://ui-avatars.com/api/?name=${nombreUrl}&background=0d6efd&color=fff&size=150&font-size=0.4`;
+                        // Sin foto: avatar local con iniciales (offline, sin CDN)
+                        avatarImg.src = window.TribalAvatar
+                            ? TribalAvatar.svg(usuario.nombre || usuario.username || 'Usuario')
+                            : 'img/avatar-default.svg';
                     }
                 }
 

@@ -69,23 +69,28 @@
             }
         } catch(e) {}
 
-        // 2. Definir Accesos Directos por Defecto (Tus vistas actuales)
+        // 2. Definir Accesos Directos por Defecto (SOLO USUARIOS)
         const accesosPorDefecto = [
-            { nombre: 'Calendario', ruta: 'calendarioTribu', icono: 'bi-calendar-event', color: '#ff6b6b' },
-            { nombre: 'Rutas / Gráficas', ruta: 'rutas', icono: 'bi-map-fill', color: '#20c997' },
-            { nombre: 'Pagos JyK', ruta: 'tablapagosV1 (2)', icono: 'bi-cash-coin', color: '#ffc107' },
-            { nombre: 'Apartados', ruta: 'apartados', icono: 'bi-shop', color: '#fd7e14' },
-            { nombre: 'Usuarios', ruta: 'usuarios', icono: 'bi-people-fill', color: '#6f42c1' }
+            { nombre: 'Usuarios', ruta: 'usuarios', icono: 'bi-people-fill', color: '#6f42c1' },
+            { nombre: 'TRIBALs', ruta: 'media', icono: 'bi-music-note-beamed', color: '#e2602e', enBarra: true }
         ];
 
         // 3. Cargar accesos personalizados del LocalStorage
         let accesosPersonalizados = [];
         try {
             const guardados = localStorage.getItem('accesosPersonalizados');
-            if (guardados) accesosPersonalizados = JSON.parse(guardados);
+            if (guardados) {
+                accesosPersonalizados = JSON.parse(guardados);
+            }
         } catch(e) {}
 
-        const todosLosAccesos = [...accesosPorDefecto, ...accesosPersonalizados];
+        // DESTRUCCIÓN TOTAL: Si por algún motivo el celular guardó en caché los botones viejos, 
+        // esta línea los bloquea permanentemente para que no lleguen a la pantalla.
+        const accesosProhibidos = ['Calendario', 'Rutas / Gráficas', 'Pagos JyK', 'Apartados'];
+        
+        let todosLosAccesos = [...accesosPorDefecto, ...accesosPersonalizados];
+        todosLosAccesos = todosLosAccesos.filter(acc => !accesosProhibidos.includes(acc.nombre));
+
         const grid = document.getElementById('grid-accesos');
 
         // 4. Renderizar Cuadrícula

@@ -4,7 +4,10 @@
   "description": "alatir",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\"",
+    "template": "node scripts/use-template.js",
+    "build:android": "scripts\\build.bat",
+    "manager": "node scripts/project-manager.js"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +23,11 @@
     "@capacitor/ios": "^6.2.1",
     "@capacitor/share": "6.0.4",
     "@capgo/capacitor-native-biometric": "^8.3.6",
-    "@capgo/capacitor-updater": "^8.43.8"
+    "@capgo/capacitor-updater": "^8.43.8",
+    "epubjs": "^0.3.93",
+    "jszip": "^3.10.1",
+    "lamejs": "^1.2.1",
+    "pdfjs-dist": "^3.11.174",
+    "webtorrent": "^3.0.21"
   }
 }

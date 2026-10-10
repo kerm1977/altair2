@@ -37,6 +37,7 @@ window.renderNavBar = function() {
     // Lista temporal unida (Por defecto + Personalizados)
     const todosLosAccesos = [
         { nombre: 'Usuarios', ruta: 'usuarios', icono: 'bi-people-fill', color: '#6f42c1', enBarra: false },
+        { nombre: 'TRIBALs', ruta: 'media', icono: 'bi-music-note-beamed', color: '#e2602e', enBarra: true },
         ...accesosPersonalizados
     ];
 

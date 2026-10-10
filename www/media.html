@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#160e07">
+<title>TRIBALs</title>
+<!-- ============================================================================
+     VISTA: media.html · TRIBALs
+     Player de música / videos / imágenes con subida y CRUD completo.
+     Funciona inyectada en el SPA (index.html#media) o abierta directamente
+     en el navegador para la vista previa web.
+     ============================================================================ -->
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/media.css">
+<link rel="stylesheet" href="css/media-extras.css">
+</head>
+<body>
+
+<div class="tribal-root" id="tribal-root">
+
+    <!-- ============================= HEADER ============================= -->
+    <header class="tribal-header">
+        <div class="tribal-header-inner">
+            <div>
+                <h1 class="tribal-title">TRIBAL<span class="accent">s</span></h1>
+                <p class="tribal-sub">El fuego guarda tu música · videos · imágenes</p>
+            </div>
+            <!-- Sol tribal -->
+            <svg class="tribal-sun" viewBox="0 0 64 64" aria-hidden="true">
+                <g fill="#f0b429">
+                    <polygon points="32,0 36,10 28,10"/>
+                    <polygon points="32,0 36,10 28,10" transform="rotate(45 32 32)"/>
+                    <polygon points="32,0 36,10 28,10" transform="rotate(90 32 32)"/>
+                    <polygon points="32,0 36,10 28,10" transform="rotate(135 32 32)"/>
+                    <polygon points="32,0 36,10 28,10" transform="rotate(180 32 32)"/>
+                    <polygon points="32,0 36,10 28,10" transform="rotate(225 32 32)"/>
+                    <polygon points="32,0 36,10 28,10" transform="rotate(270 32 32)"/>
+                    <polygon points="32,0 36,10 28,10" transform="rotate(315 32 32)"/>
+                </g>
+                <circle cx="32" cy="32" r="15" fill="#e2602e" stroke="#f0b429" stroke-width="2"/>
+                <circle cx="32" cy="32" r="7" fill="none" stroke="#f3e6cf" stroke-width="2" stroke-dasharray="3 3"/>
+            </svg>
+        </div>
+
+        <div class="tribal-tabs" id="media-tabs">
+            <button class="tribal-tab tribal-ico active" data-filter="all" title="Todo"><i class="bi bi-stars"></i></button>
+            <button class="tribal-tab tribal-ico" data-filter="audio" title="Música"><i class="bi bi-music-note-beamed"></i></button>
+            <button class="tribal-tab tribal-ico" data-filter="video" title="Videos"><i class="bi bi-camera-video"></i></button>
+            <button class="tribal-tab tribal-ico" data-filter="image" title="Fotos"><i class="bi bi-image"></i></button>
+            <button class="tribal-tab tribal-ico" data-filter="doc" title="Libros"><i class="bi bi-book-half"></i></button>
+            <button class="tribal-tab tribal-ico" id="tab-cols" title="Colecciones"><i class="bi bi-folder2"></i></button>
+            <button class="tribal-ico-more" id="view-more" title="Opciones"><i class="bi bi-three-dots"></i></button>
+        </div>
+
+        <div class="tribal-search">
+            <i class="bi bi-search"></i>
+            <input id="media-search" type="text" placeholder="Buscar en la tribu…" autocomplete="off">
+        </div>
+
+        <!-- Línea difuminada tipo halo/viento -->
+        <div class="tribal-band" aria-hidden="true">
+            <div class="tribal-halo"></div>
+        </div>
+    </header>
+
+    <!-- ============================= GRID =============================== -->
+    <div class="tribal-grid-wrap" id="media-grid-wrap">
+        <div class="tribal-crumb" id="media-crumb" hidden>
+            <button id="crumb-back"><i class="bi bi-arrow-left"></i> Colecciones</button>
+            <span id="crumb-name"></span>
+        </div>
+        <div class="tribal-grid" id="media-grid"></div>
+    </div>
+    <!-- Paginación de la tribu -->
+    <div class="tribal-pager" id="media-pager" hidden>
+        <button class="tribal-btn tribal-btn-xs" id="pager-prev"><i class="bi bi-chevron-left"></i></button>
+        <span id="pager-info"></span>
+        <button class="tribal-btn tribal-btn-xs" id="pager-next"><i class="bi bi-chevron-right"></i></button>
+    </div>
+
+    <!-- Barra de selección múltiple -->
+    <div class="tribal-msbar" id="media-msbar" hidden>
+        <span id="ms-count">0 seleccionados</span>
+        <button class="tribal-btn" id="ms-art" title="Carátula a las seleccionadas"><i class="bi bi-image"></i> Carátula</button>
+        <button class="tribal-btn danger" id="ms-del"><i class="bi bi-trash3"></i> Eliminar</button>
+        <button class="tribal-btn" id="ms-exit" title="Salir de selección"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <input type="file" id="ms-art-input" accept="image/*" hidden>
+
+    <!-- Estado vacío -->
+    <div class="tribal-empty d-none" id="media-empty">
+        <svg class="sun" viewBox="0 0 64 64" aria-hidden="true">
+            <g fill="#e2602e" opacity="0.7">
+                <polygon points="32,0 36,10 28,10"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(30 32 32)"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(60 32 32)"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(90 32 32)"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(120 32 32)"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(150 32 32)"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(180 32 32)"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(210 32 32)"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(240 32 32)"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(270 32 32)"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(300 32 32)"/>
+                <polygon points="32,0 36,10 28,10" transform="rotate(330 32 32)"/>
+            </g>
+            <circle cx="32" cy="32" r="14" fill="none" stroke="#f0b429" stroke-width="2" stroke-dasharray="4 3"/>
+            <polygon points="32,24 40,40 24,40" fill="#f0b429"/>
+        </svg>
+        <h3>El fuego aún no arde</h3>
+        <p>Sube música, videos o imágenes desde tu dispositivo con el botón del sol.</p>
+    </div>
+
+    <!-- FAB de subida: redondo → se expande en óvalo con archivo/carpeta -->
+    <div class="tribal-fab-wrap" id="media-fab-wrap">
+        <button class="fab-opt" id="fab-dir" title="Subir carpeta (crea colección)">
+            <i class="bi bi-folder-fill"></i><small>Carpeta</small>
+        </button>
+        <button class="tribal-fab" id="media-fab" title="Subir" aria-label="Subir">
+            <i class="bi bi-cloud-arrow-up-fill"></i>
+        </button>
+        <button class="fab-opt" id="fab-file" title="Subir archivos">
+            <i class="bi bi-file-earmark-arrow-up-fill"></i><small>Archivos</small>
+        </button>
+    </div>
+    <input type="file" id="media-input" accept="audio/*,video/*,image/*,.pdf,.epub,.txt,.mobi,application/pdf,application/epub+zip,text/plain" multiple hidden>
+    <input type="file" id="media-dir-input" webkitdirectory directory multiple hidden>
+
+    <!-- ========================= REPRODUCTOR ============================ -->
+    <div class="tribal-player d-none" id="media-player">
+        <div class="tribal-player-cover"><i class="bi bi-soundwave"></i></div>
+        <div class="tribal-player-info">
+            <p class="tribal-player-title" id="player-title">—</p>
+            <div class="tribal-player-progress" id="player-progress">
+                <div id="player-progress-fill"></div>
+            </div>
+            <div class="tribal-player-times">
+                <span id="player-current">0:00</span>
+                <span id="player-badges"></span>
+                <span id="player-duration">0:00</span>
+            </div>
+        </div>
+        <div class="tribal-player-controls">
+            <button class="tribal-ctrl" id="player-prev" aria-label="Anterior"><i class="bi bi-skip-backward-fill"></i></button>
+            <button class="tribal-ctrl play" id="player-toggle" aria-label="Reproducir"><i class="bi bi-play-fill"></i></button>
+            <button class="tribal-ctrl" id="player-next" aria-label="Siguiente"><i class="bi bi-skip-forward-fill"></i></button>
+            <button class="tribal-ctrl" id="player-more" aria-label="Opciones"><i class="bi bi-three-dots"></i></button>
+            <button class="tribal-ctrl" id="player-close" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+        </div>
+
+    </div>
+    <audio id="media-audio" preload="metadata"></audio>
+
+    <!-- ========================= OVERLAYS =============================== -->
+    <!-- Visor de video -->
+    <div class="tribal-overlay" id="video-overlay" hidden>
+        <button class="tribal-close" id="video-close"><i class="bi bi-x-lg"></i></button>
+        <button class="tribal-vextras" id="video-more" title="Opciones del reproductor"><i class="bi bi-three-dots"></i></button>
+        <div class="tribal-rec" id="video-rec" hidden>
+            <span id="video-rec-label">● REC</span>
+            <button id="video-rec-pause" title="Pausar / reanudar"><i class="bi bi-pause-fill"></i></button>
+            <button id="video-rec-stop" title="Cancelar"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="tribal-viewer">
+            <div class="vf-stage">
+            <video id="video-viewer" controls playsinline preload="auto"></video>
+            <div class="vf-sticker" id="vf-sticker" hidden>
+                <img id="vf-sticker-img" alt="">
+                <div class="vf-sticker-bar">
+                    <input type="range" id="vf-sticker-size" min="8" max="70" value="25">
+                    <span>de</span><input type="number" id="vf-sticker-t0" min="0" step="0.5" placeholder="0">
+                    <span>a</span><input type="number" id="vf-sticker-t1" min="0" step="0.5" placeholder="fin">
+                    <button id="vf-sticker-x" title="Quitar sticker"><i class="bi bi-x"></i></button>
+                </div>
+            </div>
+            <div class="vf-text" id="vf-text" hidden>
+                <span id="vf-text-s"></span>
+                <div class="vf-sticker-bar">
+                    <input type="range" id="vf-text-size" min="3" max="20" value="8">
+                    <span>de</span><input type="number" id="vf-text-t0" min="0" step="0.5" placeholder="0">
+                    <span>a</span><input type="number" id="vf-text-t1" min="0" step="0.5" placeholder="fin">
+                    <button id="vf-text-x" title="Quitar texto"><i class="bi bi-x"></i></button>
+                </div>
+            </div>
+            <span class="vf-proxy-badge" id="vf-proxy-badge" hidden>PROXY</span>
+            <span class="vf-buffer-badge" id="vf-buffer-badge" hidden>
+                <b id="vf-buffer-txt">Cargando buffer…</b><i id="vf-buffer-fill"></i>
+            </span>
+            </div>
+            <div class="vf-cutter" id="vf-cutter" hidden>
+                <div class="vf-cut-track" id="vf-cut-track">
+                    <div class="vf-cut-fill" id="vf-cut-fill"></div>
+                    <div class="vf-cut-mark" id="vf-cut-ma" hidden></div>
+                    <div class="vf-cut-mark" id="vf-cut-mb" hidden></div>
+                    <div class="vf-cut-knob" id="vf-cut-knob"></div>
+                </div>
+                <div class="vf-cutter-acts">
+                    <button id="vf-cut-a" title="Marca A"><i class="bi bi-box-arrow-in-down"></i> A</button>
+                    <button id="vf-cut-b" title="Marca B"><i class="bi bi-box-arrow-in-up"></i> B</button>
+                    <button id="vf-cut-add" title="Guardar fragmento A–B"><i class="bi bi-scissors"></i> Guardar corte</button>
+                </div>
+                <div class="vf-cutter-clips" id="vf-cut-clips"></div>
+            </div>
+            <p class="tribal-viewer-title" id="video-title"></p>
+        </div>
+    </div>
+
+    <!-- Visor de imagen -->
+    <div class="tribal-overlay" id="image-overlay" hidden>
+        <button class="tribal-close" id="image-close"><i class="bi bi-x-lg"></i></button>
+        <div class="tribal-viewer">
+            <img id="image-viewer" alt="">
+            <p class="tribal-viewer-title" id="image-title"></p>
+        </div>
+    </div>
+
+    <!-- Diálogo renombrar -->
+    <div class="tribal-overlay" id="rename-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Renombrar</h4>
+            <p>El nuevo nombre se mantiene en la tribu.</p>
+            <input type="text" id="rename-input" autocomplete="off">
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="rename-cancel">Cancelar</button>
+                <button class="tribal-btn primary" id="rename-ok">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diálogo eliminar -->
+    <div class="tribal-overlay" id="delete-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Eliminar</h4>
+            <p id="delete-text">¿Devolver este archivo a las cenizas? No hay vuelta atrás.</p>
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="delete-cancel">Cancelar</button>
+                <button class="tribal-btn danger" id="delete-ok">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmación genérica de doble paso (colecciones, LUTs, clips…) -->
+    <div class="tribal-overlay" id="confirm-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4 id="confirm-title">Confirmar</h4>
+            <p id="confirm-text"></p>
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="confirm-cancel">Cancelar</button>
+                <button class="tribal-btn danger" id="confirm-ok">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diálogo: asignar a colecciones -->
+    <div class="tribal-overlay" id="cols-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Colecciones</h4>
+            <p>Elige dónde vive este archivo. Toca para marcar o quitar.</p>
+            <div class="tribal-col-list" id="cols-list"></div>
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="cols-new"><i class="bi bi-plus-lg"></i> Nueva</button>
+                <button class="tribal-btn primary" id="cols-ok">Listo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diálogo: nueva colección -->
+    <div class="tribal-overlay" id="newcol-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Nueva colección</h4>
+            <p>Una carpeta tribal: música, películas por género, lo que sea.</p>
+            <input type="text" id="newcol-name" placeholder="Ej. La tribu de los libres" autocomplete="off">
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="newcol-cancel">Cancelar</button>
+                <button class="tribal-btn primary" id="newcol-ok">Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menú contextual de tarjeta: siempre centrado + fondo con blur -->
+    <div class="tribal-menu-bd" id="card-menu-bd" hidden></div>
+    <div class="tribal-menu" id="card-menu" hidden>
+        <button id="menu-open"><i class="bi bi-play-circle"></i>Abrir</button>
+        <button id="menu-fav"><i class="bi bi-heart"></i>Favorito</button>
+        <button id="menu-col"><i class="bi bi-folder2"></i>Colecciones</button>
+        <button id="menu-multi"><i class="bi bi-check2-square"></i>Selección múltiple</button>
+        <button id="menu-info"><i class="bi bi-info-circle"></i>Información</button>
+        <button id="menu-meta"><i class="bi bi-tags"></i>Metadatos</button>
+        <button id="menu-cover"><i class="bi bi-image"></i>Buscar portada</button>
+        <button id="menu-imgedit"><i class="bi bi-brush"></i>Editar imagen</button>
+        <button id="menu-share"><i class="bi bi-share"></i>Compartir</button>
+        <button id="menu-conv"><i class="bi bi-arrow-left-right"></i>Convertir audio</button>
+        <button id="menu-rename"><i class="bi bi-pencil"></i>Renombrar</button>
+        <button id="menu-delete" class="danger"><i class="bi bi-trash3"></i>Eliminar</button>
+    </div>
+
+    <!-- Menú de extras del reproductor (⋮) -->
+    <div class="tribal-menu tribal-menu-wide" id="player-menu" hidden>
+        <p class="tribal-menu-sec">Biblioteca</p>
+        <button id="pm-fav"><i class="bi bi-heart"></i>Favorito<b></b></button>
+        <button id="pm-col"><i class="bi bi-folder2"></i>Guardar en colección</button>
+        <p class="tribal-menu-sec">Ecualizador</p>
+        <div class="tribal-eq-list" id="eq-list"></div>
+        <p class="tribal-menu-sec">Reproducción</p>
+        <button id="pm-repeat"><i class="bi bi-repeat"></i>Repetir<b>lista</b></button>
+        <button id="pm-shuffle"><i class="bi bi-shuffle"></i>Aleatorio<b>desactivado</b></button>
+        <p class="tribal-menu-sec">Velocidad</p>
+        <div class="tribal-speed-grid" id="speed-grid"></div>
+        <p class="tribal-menu-sec">Repetir fragmento</p>
+        <div class="tribal-ab-row">
+            <button id="pm-ab-a">A</button>
+            <button id="pm-ab-b">B</button>
+            <button id="pm-ab-clear"><i class="bi bi-x"></i></button>
+        </div>
+        <p class="tribal-ab-status" id="pm-ab-status">Sin fragmento</p>
+        <p class="tribal-menu-sec">Navegar</p>
+        <button id="pm-back10"><i class="bi bi-arrow-counterclockwise"></i>Retroceder 10 s</button>
+        <button id="pm-restart"><i class="bi bi-skip-start"></i>Volver al inicio</button>
+        <p class="tribal-menu-sec video-only">Imagen del video</p>
+        <div class="tribal-vfx video-only" id="vfx-box"></div>
+        <p class="tribal-menu-sec video-only">Transformar</p>
+        <div class="tribal-ab-row video-only">
+            <button id="vx-fliph" title="Voltear horizontal"><i class="bi bi-symmetry-vertical"></i></button>
+            <button id="vx-flipv" title="Voltear vertical"><i class="bi bi-symmetry-horizontal"></i></button>
+            <button id="vx-rotl" title="Rotar −90°"><i class="bi bi-arrow-counterclockwise"></i></button>
+            <button id="vx-rotr" title="Rotar +90°"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+        <button class="video-only" id="vx-sticker"><i class="bi bi-sticky"></i>Sticker<b id="vx-sticker-st"></b></button>
+        <button class="video-only" id="vx-text"><i class="bi bi-type"></i>Texto sobre el video<b id="vx-text-st"></b></button>
+        <button class="video-only" id="vx-lut"><i class="bi bi-palette2"></i>LUT (.cube)<b id="vx-lut-st"></b></button>
+        <button class="video-only" id="vx-cutter"><i class="bi bi-scissors"></i>Cortador (lista de fragmentos)<b id="vx-cutter-st"></b></button>
+        <p class="tribal-menu-sec video-only">Buffer</p>
+        <select class="tribal-select video-only" id="vx-buffer">
+            <option value="0">Automático</option>
+            <option value="5">5 s adelante</option>
+            <option value="15">15 s adelante</option>
+            <option value="30">30 s adelante</option>
+            <option value="60">60 s adelante</option>
+        </select>
+        <div class="vx-bufmeta video-only">
+            <div class="vx-bufbar"><div id="vx-buffill"></div></div>
+            <span id="vx-bufinfo">—</span>
+        </div>
+        <label class="tribal-menu-check video-only">
+            <input type="checkbox" id="vx-edgefade">
+            <span>Fundido en los bordes al exportar</span>
+        </label>
+        <p class="tribal-menu-sec video-only">Herramientas de video</p>
+        <button class="video-only" id="vx-shot"><i class="bi bi-camera"></i>Captura de pantalla</button>
+        <button class="video-only" id="vx-cut"><i class="bi bi-scissors"></i>Cortar fragmento A–B</button>
+        <button class="video-only" id="vx-gif"><i class="bi bi-filetype-gif"></i>Fragmento A–B → GIF</button>
+        <button class="video-only" id="vx-mp4"><i class="bi bi-filetype-mp4"></i>Exportar a MP4</button>
+        <button class="video-only" id="vx-proxy"><i class="bi bi-speedometer2"></i>Generar proxy 480p</button>
+    </div>
+
+    <!-- Menú de opciones generales (⋮ de la fila de filtros) -->
+    <div class="tribal-menu" id="view-menu" hidden>
+        <button id="vm-stats"><i class="bi bi-bar-chart"></i>Estadísticas</button>
+        <button id="vm-slide"><i class="bi bi-collection-play"></i>Slideshow de fotos</button>
+        <button id="vm-newcol"><i class="bi bi-folder-plus"></i>Nueva colección</button>
+        <button id="vm-batch"><i class="bi bi-input-cursor-text"></i>Renombrar en lote</button>
+        <button id="vm-undo"><i class="bi bi-arrow-counterclockwise"></i>Deshacer último cambio</button>
+        <button id="vm-p2p"><i class="bi bi-diagram-3"></i>P2P Torrents</button>
+        <button id="vm-links"><i class="bi bi-link-45deg"></i>Libretilla de enlaces</button>
+        <label class="tribal-menu-sort"><i class="bi bi-sort-alpha-down"></i>Ordenar
+            <select class="tribal-select" id="vm-sort">
+                <option value="az">A → Z</option>
+                <option value="za">Z → A</option>
+                <option value="size">Tamaño (mayor primero)</option>
+                <option value="size-asc">Tamaño (menor primero)</option>
+                <option value="fmt">Por formato</option>
+                <option value="col">Por colección</option>
+            </select>
+        </label>
+    </div>
+
+    <!-- Diálogo: estadísticas -->
+    <div class="tribal-overlay" id="stats-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Estadísticas</h4>
+            <div class="tmeta-rows" id="stats-rows"></div>
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn primary" id="stats-ok">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diálogo: LUTs (.cube de Premiere) -->
+    <div class="tribal-overlay" id="lut-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>LUTs de color</h4>
+            <p>Archivos .cube de Premiere. Se aplican al exportar, cortar o capturar fotogramas.</p>
+            <div class="tribal-col-list" id="lut-list"></div>
+            <input type="file" id="lut-file" accept=".cube" hidden>
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="lut-load"><i class="bi bi-upload"></i> Cargar .cube</button>
+                <button class="tribal-btn primary" id="lut-ok">Listo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diálogo: elegir sticker (fotos de la tribu) -->
+    <div class="tribal-overlay" id="stick-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Elegir sticker</h4>
+            <p>Una foto de la tribu flotando sobre el video. La puedes arrastrar.</p>
+            <div class="tribal-col-list" id="stick-list"></div>
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="stick-cancel">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diálogo: renombrar en lote -->
+    <div class="tribal-overlay" id="batch-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Renombrar en lote</h4>
+            <p id="batch-info">Nombra los archivos marcados de esta vista con numeración.</p>
+            <input type="text" id="batch-base" placeholder="Nombre base — ej. tribu_libre" autocomplete="off">
+            <div class="tribal-batch-row">
+                <label>Desde <input type="number" id="batch-start" min="0" value="1"></label>
+                <label>Cifras
+                    <select id="batch-digits">
+                        <option>2</option><option>3</option><option>4</option>
+                        <option selected>5</option><option>6</option>
+                        <option>7</option><option>8</option>
+                    </select>
+                </label>
+            </div>
+            <div class="tribal-batch-tools">
+                <button class="tribal-btn" id="batch-all">Todos</button>
+                <button class="tribal-btn" id="batch-none">Ninguno</button>
+            </div>
+            <div class="tribal-col-list tribal-batch-list" id="batch-list"></div>
+            <p class="tribal-batch-preview" id="batch-preview"></p>
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="batch-cancel">Cancelar</button>
+                <button class="tribal-btn primary" id="batch-ok">Renombrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diálogo: texto sobre el video -->
+    <div class="tribal-overlay" id="textov-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Texto sobre el video</h4>
+            <p>Se dibuja quemado en la exportación. Arrástralo para moverlo.</p>
+            <input type="text" id="textov-input" placeholder="Ej. La tribu de los libres" autocomplete="off">
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="textov-cancel">Cancelar</button>
+                <button class="tribal-btn primary" id="textov-ok">Poner</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diálogo: resolución del proxy -->
+    <div class="tribal-overlay" id="proxy-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Generar proxy</h4>
+            <p>Copia liviana para editar fluido en el celular. Las exportaciones siempre usan el original.</p>
+            <div class="tribal-col-list">
+                <button class="tribal-col-check" data-proxy="480"><i class="bi bi-circle"></i><span>480p · fluido</span></button>
+                <button class="tribal-col-check" data-proxy="360"><i class="bi bi-circle"></i><span>360p · más liviano</span></button>
+                <button class="tribal-col-check" data-proxy="240"><i class="bi bi-circle"></i><span>240p · muy liviano</span></button>
+                <button class="tribal-col-check" data-proxy="144"><i class="bi bi-circle"></i><span>144p · mínimo</span></button>
+            </div>
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="proxy-cancel">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diálogo: convertir audio -->
+    <div class="tribal-overlay" id="conv-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Convertir audio</h4>
+            <p id="conv-name"></p>
+            <div class="tribal-col-list" id="conv-list"></div>
+            <p class="tribal-batch-preview" id="conv-status"></p>
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="conv-cancel">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="tribal-toast" id="media-toast"></div>
+</div>
+
+<script src="js/media/store-io.js"></script>
+<script src="js/media-store.js"></script>
+<script src="js/media/store-extra.js"></script>
+<script src="js/media-eq.js"></script>
+<script src="js/media-viz.js"></script>
+<script src="js/media-vinyl.js"></script>
+<script src="js/media-meta.js"></script>
+<script src="js/media-videofx.js"></script>
+<script src="js/media-lut.js"></script>
+<script src="js/media-editexport.js"></script>
+<script src="js/media-gifcap.js"></script>
+<script src="js/media-slideshow.js"></script>
+<script src="js/media-slidecfg.js"></script>
+<script src="js/media-slideplay.js"></script>
+<script src="js/media-slideexport.js"></script>
+<script src="js/media-webp.js"></script>
+<script src="js/media-convert.js"></script>
+<script src="js/vendor/gif.js"></script>
+<script src="js/vendor/lame.all.js"></script>
+<script src="js/vendor/jszip.min.js"></script>
+<script src="js/vendor/pdf.min.js"></script>
+<script src="js/vendor/epub.min.js"></script>
+<script type="module">
+    // webtorrent.min.js es ESM: lo importamos y exponemos como global
+    import WebTorrent from './js/vendor/webtorrent.min.js';
+    window.WebTorrent = WebTorrent;
+</script>
+<script src="js/media/rangeguard.js"></script>
+<script src="js/media/readerfx.js"></script>
+<script src="js/media/readerbm.js"></script>
+<script src="js/media/readertxt.js"></script>
+<script src="js/media/readerpdf.js"></script>
+<script src="js/media/readerepub.js"></script>
+<script src="js/media/readermusic.js"></script>
+<script src="js/media/reader.js"></script>
+<script src="js/media/shelf.js"></script>
+<script src="js/media/cover.js"></script>
+<script src="js/media/imgedit.js"></script>
+<script src="js/media/imgeditui.js"></script>
+<script src="js/media/imgedittouch.js"></script>
+<script src="js/media/p2p.js"></script>
+<script src="js/media/p2pcfg.js"></script>
+<script src="js/media/p2pextra.js"></script>
+<script src="js/media/p2pjobs.js"></script>
+<script src="js/media/p2pwire.js"></script>
+<script src="js/media/p2pui.js"></script>
+<script src="js/media/core.js"></script>
+<script src="js/media/sort.js"></script>
+<script src="js/media/render.js"></script>
+<script src="js/media/collections.js"></script>
+<script src="js/media/player.js"></script>
+<script src="js/media/pmenu.js"></script>
+<script src="js/media/vtools.js"></script>
+<script src="js/media/vfxtools.js"></script>
+<script src="js/media/lutui.js"></script>
+<script src="js/media/export.js"></script>
+<script src="js/media/cutter.js"></script>
+<script src="js/media/multisel.js"></script>
+<script src="js/media/menus.js"></script>
+<script src="js/media/viewmenu.js"></script>
+<script src="js/media/fabdir.js"></script>
+<script src="js/media/linksui.js"></script>
+<script src="js/media/links.js"></script>
+<script src="js/media/linksact.js"></script>
+<script src="js/media/batch.js"></script>
+<script src="js/media/seed.js"></script>
+<script src="js/media/inbox.js"></script>
+<script>if (window.Sono) window.Sono.boot();</script>
+</body>
+</html>

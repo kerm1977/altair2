@@ -18,7 +18,8 @@ window.inicializarAccesos = function() {
 
     // 2. LA ÚNICA LISTA DE ACCESOS POR DEFECTO (Cero fantasmas)
     const accesosPorDefecto = [
-        { nombre: 'Usuarios', ruta: 'usuarios', icono: 'bi-people-fill', color: '#6f42c1' }
+        { nombre: 'Usuarios', ruta: 'usuarios', icono: 'bi-people-fill', color: '#6f42c1' },
+        { nombre: 'TRIBALs', ruta: 'media', icono: 'bi-music-note-beamed', color: '#e2602e', enBarra: true }
     ];
 
     // 3. Cargar los que el usuario agregue manualmente con el botón +

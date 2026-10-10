@@ -3,6 +3,11 @@
 # Ignorar la carpeta de herramientas y el instalador pesado
 cmder(1)/
 node_modules/
+tools/sdk/
+tools/*.zip
+# Música semilla empaquetada (656MB, incluye video de 319MB > límite GitHub).
+# El código del seed queda; regenerar copiando la carpeta a www/builtin/
+www/builtin/
 android/.gradle/
 android/app/build/
 android/build/
