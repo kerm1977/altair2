@@ -92,7 +92,9 @@ window.TribalP2PExtra = (function () {
                     (e.fixed ? ' checked disabled' : (e.on ? ' checked' : '')) + '> ' +
                     esc(e.name) +
                     (e.fixed ? ' <em>predeterminado</em>'
-                             : ' <em>' + (e.kind === 'api' ? 'API' : 'sitio') + '</em>') +
+                             : ' <em>' + (e.kind === 'site' ? 'sitio'
+                                          : (e.kind || 'api').toUpperCase()) +
+                               '</em>') +
                     '</label>' +
                 '<span class="tr-probe" data-eng="' + i + '"></span>' +
                 del + '</div>';
@@ -158,6 +160,8 @@ window.TribalP2PExtra = (function () {
                     '<input id="tp-eng-name" type="text" placeholder="Nombre del motor">' +
                     '<input id="tp-eng-url" type="text" placeholder="URL con %q (ej: https://sitio/buscar?q=%q)">' +
                     '<select id="tp-eng-kind"><option value="api">API (JSON)</option>' +
+                        '<option value="rss">RSS / feed</option>' +
+                        '<option value="scrape">Scrape (magnet en página)</option>' +
                         '<option value="site">Sitio web</option></select>' +
                     '<textarea id="tp-eng-bulk" rows="4" ' +
                         'placeholder="o pega varios motores — uno por línea:&#10;MiMotor|https://sitio/api?q=%q&#10;o solo la URL con %q (nombre automático)"></textarea>' +

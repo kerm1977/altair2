@@ -26,7 +26,8 @@ window.TribalCover = (function () {
     function blobOf(m, S) {
         if (window.MediaStore.isNative()) {
             var FS = window.Capacitor.Plugins.Filesystem;
-            return FS.readFile({ path: m.path, directory: FS.Directory.Data })
+            var dir = (FS.Directory && FS.Directory.Data) || 'DATA';
+            return FS.readFile({ path: m.path, directory: dir })
                 .then(function (r) { return b64toBlob(r.data, m.mime); });
         }
         return new Promise(function (res, rej) {
@@ -172,7 +173,7 @@ window.TribalCover = (function () {
     function attach(grid, S) {
         var timer = null, sx = 0, sy = 0;
         grid.addEventListener('pointerdown', function (e) {
-            var card = e.target.closest('.tribal-card');
+            var card = e.target.closest('.tribal-card, .tribal-row');
             if (!card) return;
             var m = S.byId(card.dataset.id);
             if (!m) return;

@@ -148,7 +148,10 @@ window.TribalMeta = (function () {
                 pendingArtUrl = 'local';
                 artBox.innerHTML = '<img src="' + esc(URL.createObjectURL(f)) + '" alt="">';
                 deps.toast('Carátula guardada en la tribu');
-            }).catch(function () { deps.toast('No se pudo guardar la imagen'); });
+            }).catch(function (e) {
+                deps.toast('No se pudo guardar la imagen: ' +
+                    String((e && e.message) || e || 'error'));
+            });
         });
 
         if (isMusic) {

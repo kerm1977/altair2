@@ -108,42 +108,94 @@ window.SonoStoreIO = (function () {
         return window.Capacitor.Plugins.Filesystem;
     }
 
-    function nativeWrite(id, file) {
+    // El enum Directory NO viene en el proxy del plugin → usar el string 'DATA'
+    function fsDir() {
+        var FS = fsPlugin();
+        return (FS.Directory && FS.Directory.Data) || 'DATA';
+    }
+
+    // writeFile universal: primero intenta el Blob DIRECTO (Filesystem v6 lo
+    // transmite al lado nativo por stream — sin convertir a base64; una foto
+    // de galería de 10 MB en base64 reventaba el bridge JS↔Java). Si la
+    // versión del plugin no acepta Blob, cae al base64 clásico.
+    function writeAny(FS, path, blob, dir) {
+        var p;
+        try {
+            p = FS.writeFile({
+                path: path, data: blob, directory: dir, recursive: true
+            });
+        } catch (e) { p = null; }
+        return Promise.resolve(p).catch(function () {
+            return fileToBase64(blob).then(function (base64) {
+                return FS.writeFile({
+                    path: path, data: base64, directory: dir, recursive: true
+                });
+            });
+        });
+    }
+
+    // Escritura por bloques: un archivo grande (video de cientos de MB) en una
+    // sola llamada writeFile se serializa entero en base64 y revienta el
+    // puente JS↔Java. Bloques de 4 MB + appendFile mantienen la memoria baja
+    // y reportan progreso real (0..1).
+    var CHUNK = 4 * 1024 * 1024;
+
+    function writeChunked(FS, path, file, dir, onProgress) {
+        var off = 0, total = file.size || 1;
+        function step() {
+            var end = Math.min(off + CHUNK, total);
+            return fileToBase64(file.slice(off, end)).then(function (b64) {
+                var call = off === 0
+                    ? FS.writeFile({ path: path, data: b64, directory: dir,
+                                     recursive: true })
+                    : FS.appendFile({ path: path, data: b64, directory: dir });
+                return Promise.resolve(call).then(function () {
+                    off = end;
+                    if (onProgress) onProgress(off / total);
+                    if (off < total) return step();
+                });
+            });
+        }
+        return step();
+    }
+
+    function nativeWrite(id, file, onProgress) {
         var FS = fsPlugin();
         var safe = (file.name || 'archivo').replace(/[^\w.\-]+/g, '_');
         var path = DIR + '/' + id + '_' + safe;
-        return fileToBase64(file).then(function (base64) {
-            return FS.writeFile({
-                path: path,
-                data: base64,
-                directory: FS.Directory.Data,
-                recursive: true
-            }).then(function () { return path; });
-        });
+        var dir = fsDir();
+        var canChunk = FS.appendFile && file.size > CHUNK &&
+                       typeof file.slice === 'function';
+        var w = canChunk
+            ? writeChunked(FS, path, file, dir, onProgress)
+            : writeAny(FS, path, file, dir).then(function () {
+                if (onProgress) onProgress(1);
+            });
+        return w.then(function () { return path; });
     }
 
     function nativeWriteArt(id, blob) {
         var FS = fsPlugin();
         var path = DIR + '/art_' + id + '.jpg';
-        return fileToBase64(blob).then(function (base64) {
-            return FS.writeFile({
-                path: path,
-                data: base64,
-                directory: FS.Directory.Data,
-                recursive: true
-            }).then(function () { return path; });
-        });
+        return writeAny(FS, path, blob, fsDir()).then(function () { return path; });
+    }
+
+    // materializa un blob en caché (para compartir por content://) → ruta
+    function nativeWriteCache(name, blob) {
+        var FS = fsPlugin();
+        var path = 'tribu_share/' + String(name || 'archivo').replace(/[^\w.\-]+/g, '_');
+        return writeAny(FS, path, blob, 'CACHE').then(function () { return path; });
     }
 
     function nativeDelete(path) {
         var FS = fsPlugin();
-        return FS.deleteFile({ path: path, directory: FS.Directory.Data })
+        return FS.deleteFile({ path: path, directory: fsDir() })
             .catch(function () { /* si ya no existe, ignorar */ });
     }
 
     function nativeURL(path) {
         var FS = fsPlugin();
-        return FS.getUri({ path: path, directory: FS.Directory.Data }).then(function (res) {
+        return FS.getUri({ path: path, directory: fsDir() }).then(function (res) {
             return window.Capacitor.convertFileSrc(res.uri);
         });
     }
@@ -159,6 +211,7 @@ window.SonoStoreIO = (function () {
         idbDel: idbDel,
         nativeWrite: nativeWrite,
         nativeWriteArt: nativeWriteArt,
+        nativeWriteCache: nativeWriteCache,
         nativeDelete: nativeDelete,
         nativeURL: nativeURL
     };

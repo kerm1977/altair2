@@ -67,6 +67,19 @@
     <!-- 8. EXTRAS (Feedback háptico/Vibración) -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Visibilidad de paquetes (Android 11+): sin esto queryIntentActivities
+         no ve la app Bluetooth Share ni los demás destinos de ACTION_SEND -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <package android:name="com.android.bluetooth" />
+        <package android:name="com.mediatek.bluetooth" />
+        <package android:name="com.samsung.android.bluetooth" />
+        <package android:name="com.broadcom.bt" />
+    </queries>
+
     <!-- ========================================== -->
 
     <application

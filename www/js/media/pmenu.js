@@ -12,9 +12,27 @@ window.Sono.register('pmenu', function (S) {
     var $ = S.$;
     var audio = S.audio, videoEl = S.videoEl, videoOv = S.videoOv, pMenu = S.pMenu;
 
+    // abrir el menú pausa el video; cerrarlo lo reanuda y vuelve al visor
+    function showPMenu() {
+        if (!videoOv.hidden && !videoEl.paused) {
+            videoEl.pause();
+            S._pmResume = true;
+        } else {
+            S._pmResume = false;
+        }
+    }
+    function closePMenu() {
+        var resume = S._pmResume && !videoOv.hidden;
+        pMenu.hidden = true;
+        S._pmResume = false;
+        if (resume) videoEl.play().catch(function () {});
+    }
+    S.closePMenu = closePMenu;
+
     function openPlayerMenu(anchor) {
-        pMenu.hidden = !pMenu.hidden;   // toggle
-        if (pMenu.hidden) return;
+        if (!pMenu.hidden) { closePMenu(); return; }   // toggle
+        showPMenu();
+        pMenu.hidden = false;
         // las secciones de imagen/herramientas solo salen si hay video abierto
         pMenu.classList.toggle('for-video', !videoOv.hidden);
         S.favLabel($('pm-fav'), S.byId(S.activeItemId));
@@ -41,9 +59,14 @@ window.Sono.register('pmenu', function (S) {
         window.__sonoExtrasBound = true;
         document.addEventListener('click', function (e) {
             var m = document.getElementById('player-menu');
-            if (m && !m.hidden && !m.contains(e.target)) m.hidden = true;
+            if (m && !m.hidden && !m.contains(e.target)) closePMenu();
         });
     }
+    // X propia del menú: cierra solo el menú → vuelve al video sonando
+    $('pm-close').addEventListener('click', function (e) {
+        e.stopPropagation();
+        closePMenu();
+    });
 
     S.syncBadges = function () {
         var out = '';
@@ -66,6 +89,7 @@ window.Sono.register('pmenu', function (S) {
     $('pm-col').addEventListener('click', function () {
         if (!S.activeItemId) return;
         pMenu.hidden = true;
+        S._pmResume = false;   // el diálogo de colección queda encima del video
         S.openColAssign(S.activeItemId);
     });
 

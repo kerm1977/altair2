@@ -28,6 +28,19 @@ window.Sono.register('viewmenu', function (S) {
         else S.showToast('Lector no disponible');
     };
 
+    // Libros: filtro que antes era un tab — ahora vive aquí, sobre P2P
+    $('vm-doc').addEventListener('click', function () {
+        viewMenu.hidden = true;
+        S.tabs.querySelectorAll('.tribal-tab').forEach(function (b) {
+            b.classList.remove('active');
+        });
+        S.viewMode = 'items';
+        S.activeCol = null;
+        S.filter = 'doc';
+        S.page = 0;
+        S.render();
+    });
+
     // P2P torrents
     $('vm-p2p').addEventListener('click', function () {
         viewMenu.hidden = true;
@@ -40,6 +53,23 @@ window.Sono.register('viewmenu', function (S) {
         viewMenu.hidden = true;
         if (window.TribalLinks) TribalLinks.open(S.extDeps());
         else S.showToast('Libretilla no disponible');
+    });
+
+    // solicitar permisos: diálogo nativo + pantalla de ajustes de la app
+    $('vm-perms').addEventListener('click', function () {
+        viewMenu.hidden = true;
+        var C = window.Capacitor;
+        var P = C && C.Plugins;
+        if (!P) return S.showToast('Solo disponible en el APK');
+        // 1) diálogo de permisos de medios (Android 13+)
+        if (P.Filesystem && P.Filesystem.requestPermissions) {
+            P.Filesystem.requestPermissions().catch(function () {});
+        }
+        // 2) abrir "Información de la app" para activar todo manualmente
+        if (P.TribalNative && P.TribalNative.openAppSettings) {
+            P.TribalNative.openAppSettings().catch(function () {});
+        }
+        S.showToast('Activa los permisos en Ajustes de TRIBALs');
     });
 
     $('view-more').addEventListener('click', function (e) {

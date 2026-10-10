@@ -15,8 +15,8 @@ window.TribalLinksUI = (function () {
     function panelHtml() {
         return '<div class="tribal-p2p tribal-links">' +
         '<div class="tribal-p2p-head">' +
-            '<button class="tribal-ctrl" id="lk-close" title="Volver">' +
-                '<i class="bi bi-arrow-left"></i></button>' +
+            '<button class="tribal-ctrl lk-back" id="lk-close" title="Volver">' +
+                '<i class="bi bi-arrow-left"></i><span>Volver</span></button>' +
             '<i class="bi bi-link-45deg"></i>' +
             '<strong>Libretilla de enlaces</strong>' +
         '</div>' +
@@ -28,11 +28,13 @@ window.TribalLinksUI = (function () {
                     '<input id="lk-name" class="tribal-input" ' +
                         'placeholder="Nombre — ej. CD Hoy">' +
                     '<input id="lk-url" class="tribal-input" ' +
-                        'placeholder="URL — ej. crhoy.com (opcional)">' +
+                        'placeholder="URL en minúsculas — ej. crhoy.com" ' +
+                        'inputmode="url" autocapitalize="none" ' +
+                        'autocorrect="off" spellcheck="false">' +
                     '<div class="lk-row">' +
                         '<select id="lk-cat" class="tribal-select"></select>' +
                         '<button class="tribal-btn tribal-btn-xs" id="lk-add">' +
-                            '<i class="bi bi-plus-lg"></i> Agregar</button>' +
+                            '<i class="bi bi-check-lg"></i> Guardar enlace</button>' +
                     '</div>' +
                     '<div class="lk-row">' +
                         '<input id="lk-newcat" class="tribal-input" ' +

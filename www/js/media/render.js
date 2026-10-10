@@ -54,6 +54,71 @@ window.Sono.register('render', function (S) {
         });
     };
 
+    // ------------------------------------------------------ vista de lista --
+    // Compacta: una fila por archivo (play, nombre, duración, ⋮). Persiste en
+    // localStorage; pensada para música/videos — otros tipos salen con su
+    // icono de tipo en vez del botón de play.
+    try { S.listMode = localStorage.getItem('tribu_listmode') === '1'; }
+    catch (e) { S.listMode = false; }
+    var durProbe = {};
+
+    function syncListBtn() {
+        var b = $('view-switch');
+        if (!b) return;
+        b.classList.toggle('on', !!S.listMode);
+        b.setAttribute('aria-pressed', S.listMode ? 'true' : 'false');
+    }
+
+    // sondeo perezoso de duración: se lee el metadata del medio una vez y
+    // queda guardada en info.dur para no repetirla
+    function probeDur(m, el) {
+        if (durProbe[m.id]) return;
+        durProbe[m.id] = 1;
+        S.urlFor(m, function (u) {
+            if (!u || !el.isConnected) return;
+            var v = document.createElement(
+                m.kind === 'video' ? 'video' : 'audio');
+            v.preload = 'metadata';
+            v.src = u;
+            var done = function () { v.removeAttribute('src'); v.load(); };
+            v.addEventListener('loadedmetadata', function () {
+                var d = Math.round(v.duration || 0);
+                done();
+                if (!d) return;
+                if (el.isConnected) el.textContent = S.fmtTime(d);
+                window.MediaStore.updateInfo(m.id, { dur: d }).then(function () {
+                    m.info = m.info || {}; m.info.dur = d;
+                });
+            });
+            v.addEventListener('error', done);
+        });
+    }
+
+    // sondeo solo cuando la fila se asoma al scroll (la lista puede ser larga)
+    var durIO = ('IntersectionObserver' in window)
+        ? new IntersectionObserver(function (entries) {
+            entries.forEach(function (en) {
+                if (!en.isIntersecting) return;
+                durIO.unobserve(en.target);
+                var meta = S.byId(en.target.dataset.dur);
+                if (meta && !(meta.info && meta.info.dur)) probeDur(meta, en.target);
+            });
+        }, { root: S.gridWrap, rootMargin: '300px' })
+        : null;
+
+    // iconos play/pause de las filas según el audio actual
+    function syncRowPlay() {
+        S.grid.querySelectorAll('.tr-row-play').forEach(function (b) {
+            var on = S.audio.dataset.current === b.dataset.play &&
+                     !S.audio.paused;
+            b.classList.toggle('playing', on);
+            var i = b.querySelector('i');
+            if (i) i.className = 'bi ' + (on ? 'bi-pause-fill' : 'bi-play-fill');
+        });
+    }
+    S.audio.addEventListener('play', syncRowPlay);
+    S.audio.addEventListener('pause', syncRowPlay);
+
     S.render = function () {
         if (S.viewMode === 'cols') { S.renderCollections(); return; }
 
@@ -65,6 +130,7 @@ window.Sono.register('render', function (S) {
             S.crumb.hidden = true;
         }
         S.grid.classList.remove('tribal-grid-rows');
+        syncListBtn();
 
         var list = S.filteredSorted();
         S.grid.innerHTML = '';
@@ -81,10 +147,14 @@ window.Sono.register('render', function (S) {
             list = grouped;
         }
 
-        // paginación: 30 archivos por página
+        // vista de lista: todo en una sola página — sin paginación
+        var listView = !!S.listMode;
+        S.grid.classList.toggle('list-mode', listView);
+
+        // paginación: 30 archivos por página (solo vista de tarjetas)
         var PAGE = 30;
         S.page = S.page || 0;
-        var totalPages = Math.max(1, Math.ceil(list.length / PAGE));
+        var totalPages = listView ? 1 : Math.max(1, Math.ceil(list.length / PAGE));
         S.totalPages = totalPages;
         if (S.page >= totalPages) S.page = totalPages - 1;
         var pager = $('media-pager');
@@ -93,7 +163,8 @@ window.Sono.register('render', function (S) {
             'Pág ' + (S.page + 1) + '/' + totalPages + ' · ' + list.length + ' archivo(s)';
         $('pager-prev').disabled = S.page === 0;
         $('pager-next').disabled = S.page >= totalPages - 1;
-        var pageList = list.slice(S.page * PAGE, S.page * PAGE + PAGE);
+        var pageList = listView ? list
+            : list.slice(S.page * PAGE, S.page * PAGE + PAGE);
 
         var KIND_PLURAL = { audio: 'Audios', video: 'Videos', image: 'Fotos',
                             doc: 'Libros', other: 'Archivos' };
@@ -108,6 +179,41 @@ window.Sono.register('render', function (S) {
                     (KIND_PLURAL[m.kind] || 'Archivos') + '</span><i></i>';
                 S.grid.appendChild(sep);
             }
+
+            // ---------- fila compacta (vista de lista) ----------
+            if (listView) {
+                var row = document.createElement('div');
+                row.className = 'tribal-row' +
+                    (S.msMode && S.msSel && S.msSel[m.id] ? ' ms-on' : '');
+                row.dataset.id = m.id;
+                var msCkR = S.msMode
+                    ? '<i class="ms-check bi ' +
+                      (S.msSel && S.msSel[m.id] ? 'bi-check-square-fill'
+                                                : 'bi-square') + '"></i>' : '';
+                var isAV = m.kind === 'audio' || m.kind === 'video';
+                var left = isAV
+                    ? '<button class="tr-row-play" data-play="' + m.id + '"' +
+                      ' title="Reproducir"><i class="bi bi-play-fill"></i></button>'
+                    : '<span class="tr-row-kind"><i class="bi ' +
+                      S.KIND_ICON[m.kind] + '"></i></span>';
+                var side = isAV
+                    ? '<span class="tr-row-dur" data-dur="' + m.id + '">' +
+                      ((m.info && m.info.dur) ? S.fmtTime(m.info.dur) : '—') +
+                      '</span>'
+                    : '<span class="tr-row-dur">' + S.fmtSize(m.size) + '</span>';
+                row.innerHTML =
+                    msCkR + left +
+                    '<span class="tr-row-name">' +
+                        S.esc((m.info && m.info.titulo) || m.name) + '</span>' +
+                    (m.fav ? '<i class="bi bi-heart-fill tr-row-fav"></i>' : '') +
+                    side +
+                    '<button class="tr-row-menu" data-menu="' + m.id + '"' +
+                        ' aria-label="Opciones">' +
+                        '<i class="bi bi-three-dots-vertical"></i></button>';
+                S.grid.appendChild(row);
+                return; // siguiente item
+            }
+
             var card = document.createElement('div');
             card.className = 'tribal-card' +
                 (S.msMode && S.msSel && S.msSel[m.id] ? ' ms-on' : '');
@@ -160,6 +266,17 @@ window.Sono.register('render', function (S) {
             S.grid.appendChild(card);
         });
 
+        // duraciones diferidas en vista de lista (solo audio/video)
+        if (listView) {
+            if (durIO) durIO.disconnect();
+            S.grid.querySelectorAll('[data-dur]').forEach(function (el) {
+                var meta = S.byId(el.dataset.dur);
+                if (!meta || (meta.info && meta.info.dur)) return;
+                if (durIO) durIO.observe(el); else probeDur(meta, el);
+            });
+            syncRowPlay();
+        }
+
         // thumbnails diferidas
         S.grid.querySelectorAll('img[data-bookcover]').forEach(function (img) {
             var meta = S.byId(img.dataset.bookcover);
@@ -191,6 +308,24 @@ window.Sono.register('render', function (S) {
         });
     };
 
+    // ---------------------------------------------------- barra de subida --
+    var upBar = $('upload-prog'), upFill = $('upload-prog-fill'),
+        upPct = $('upload-prog-pct'), upLbl = $('upload-prog-label');
+
+    // done = archivos ya terminados, frac = 0..1 del archivo actual
+    S.uploadProgress = function (done, total, frac, name) {
+        if (!upBar) return;
+        var pct = Math.round(((done + (frac || 0)) / total) * 100);
+        upBar.hidden = false;
+        upLbl.textContent = 'Subiendo ' + Math.min(done + 1, total) + '/' +
+            total + (name ? ' · ' + String(name).slice(0, 26) : '');
+        upFill.style.width = pct + '%';
+        upPct.textContent = pct + '%';
+    };
+    S.uploadDone = function () {
+        if (upBar) upBar.hidden = true;
+    };
+
     // ------------------------------------------------------------------ upload
     // (el FAB lo controla fabdir.js: óvalo archivo/carpeta)
     S.input.addEventListener('change', function () {
@@ -199,15 +334,25 @@ window.Sono.register('render', function (S) {
         if (!files.length) return;
 
         S.showToast('Encendiendo ' + files.length + ' archivo(s)…');
+        S.uploadProgress(0, files.length, 0, files[0].name);
         var chain = Promise.resolve();
-        var ok = 0;
+        var ok = 0, lastErr = null, done = 0;
         files.forEach(function (f) {
             chain = chain.then(function () {
-                return window.MediaStore.add(f).then(function () { ok++; });
-            }).catch(function () {});
+                S.uploadProgress(done, files.length, 0, f.name);
+                return window.MediaStore.add(f, null, function (fr) {
+                    S.uploadProgress(done, files.length, fr, f.name);
+                }).then(function () { ok++; done++; });
+            }).catch(function (e) { lastErr = e; done++; });
         });
         chain.then(function () {
-            S.showToast(ok + ' archivo(s) guardados en la tribu');
+            S.uploadDone();
+            var msg = ok + ' archivo(s) guardados en la tribu';
+            if (ok < files.length && lastErr) {
+                var e = lastErr;
+                msg += ' · error: ' + ((e && (e.message || e.code)) || String(e)).slice(0, 80);
+            }
+            S.showToast(msg);
             S.reload();
         });
     });
@@ -234,6 +379,15 @@ window.Sono.register('render', function (S) {
         S.page = 0;
         // búsqueda global: salir de la vista de carpetas si estaba activa
         if (S.query && S.viewMode === 'cols') S.viewMode = 'items';
+        S.render();
+    });
+
+    // trigger vista tarjetas/lista (perilla deslizante bajo la línea naranja)
+    $('view-switch').addEventListener('click', function () {
+        S.listMode = !S.listMode;
+        try { localStorage.setItem('tribu_listmode', S.listMode ? '1' : '0'); }
+        catch (e2) {}
+        syncListBtn();
         S.render();
     });
 

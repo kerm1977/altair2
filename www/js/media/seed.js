@@ -60,11 +60,10 @@ window.Sono.register('seed', function (S) {
             localStorage.setItem(FLAG, '1');
             if (n > 0) {
                 S.reload();
-                if (S.toast) S.toast(n + ' archivo(s) de la tribu cargados');
+                S.showToast(n + ' archivo(s) de la tribu cargados');
             }
         }).catch(function (e) {
-            console.warn('seed:', e);
-            localStorage.setItem(FLAG, '1'); // no reintentar en cada arranque
+            console.warn('seed:', e); // sin flag → reintenta en el próximo arranque
         });
     }
 });

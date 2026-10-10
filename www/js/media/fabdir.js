@@ -20,10 +20,16 @@ window.Sono.register('fabdir', function (S) {
         wrap.classList.toggle('open', expanded);
     }
 
-    // tocar el sol → óvalo; tocar fuera / Escape → se cierra
+    // tocar el sol: cerrado → abre el óvalo; ya abierto → sube archivos
+    // (el sol también cumple la función de subir, no solo expandir)
     S.fab.addEventListener('click', function (e) {
         e.stopPropagation();
-        setOpen(!expanded);
+        if (expanded) {
+            setOpen(false);
+            S.input.click();
+        } else {
+            setOpen(true);
+        }
     });
     document.addEventListener('click', function (e) {
         if (expanded && !wrap.contains(e.target)) setOpen(false);
@@ -55,16 +61,23 @@ window.Sono.register('fabdir', function (S) {
                       'Carpeta ' + new Date().toLocaleDateString('es');
 
         S.showToast('Subiendo carpeta «' + colName + '» · ' + files.length + ' archivo(s)…');
+        if (S.uploadProgress) S.uploadProgress(0, files.length, 0, files[0].name);
         var metas = [];
+        var done = 0;
         var chain = Promise.resolve();
         files.forEach(function (f) {
             chain = chain.then(function () {
-                return window.MediaStore.add(f).then(function (m) {
+                if (S.uploadProgress) S.uploadProgress(done, files.length, 0, f.name);
+                return window.MediaStore.add(f, null, function (fr) {
+                    if (S.uploadProgress) S.uploadProgress(done, files.length, fr, f.name);
+                }).then(function (m) {
                     if (m) metas.push(m);
+                    done++;
                 });
-            }).catch(function () {});
+            }).catch(function () { done++; });
         });
         chain.then(function () {
+            if (S.uploadDone) S.uploadDone();
             if (!metas.length) {
                 S.showToast('No se pudo subir la carpeta');
                 S.reload();

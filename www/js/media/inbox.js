@@ -23,6 +23,11 @@ window.Sono.register('inbox', function (S) {
         return null;
     }
 
+    // el enum Directory no viaja por el proxy → fallback al string 'DATA'
+    function fsDirData(FS) {
+        return (FS.Directory && FS.Directory.Data) || 'DATA';
+    }
+
     function b64ToBlob(b64) {
         var bin = atob(b64);
         var len = bin.length;
@@ -34,7 +39,7 @@ window.Sono.register('inbox', function (S) {
     function drain() {
         var FS = fs();
         if (!FS) return Promise.resolve(0);
-        return FS.readdir({ path: DIR, directory: FS.Directory.Data })
+        return FS.readdir({ path: DIR, directory: fsDirData(FS) })
             .then(function (res) {
                 var list = (res && res.files) || [];
                 var names = list.map(function (f) {
@@ -46,7 +51,7 @@ window.Sono.register('inbox', function (S) {
                     chain = chain.then(function () {
                         return FS.readFile({
                                 path: DIR + '/' + name,
-                                directory: FS.Directory.Data
+                                directory: fsDirData(FS)
                             })
                             .then(function (r) {
                                 var file = new File([b64ToBlob(r.data)], name);
@@ -56,7 +61,7 @@ window.Sono.register('inbox', function (S) {
                                 n++;
                                 return FS.deleteFile({
                                     path: DIR + '/' + name,
-                                    directory: FS.Directory.Data
+                                    directory: fsDirData(FS)
                                 }).catch(function () {});
                             })
                             .catch(function () {});
@@ -70,7 +75,7 @@ window.Sono.register('inbox', function (S) {
     function done(n) {
         if (n > 0) {
             S.reload();
-            if (S.toast) S.toast(n + ' archivo(s) recibido(s) en la tribu');
+            S.showToast(n + ' archivo(s) recibido(s) en la tribu');
         }
     }
 

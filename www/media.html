@@ -23,7 +23,7 @@
     <header class="tribal-header">
         <div class="tribal-header-inner">
             <div>
-                <h1 class="tribal-title">TRIBAL<span class="accent">s</span></h1>
+                <h1 class="tribal-title">T<span class="tr-sm">R</span>I<span class="tr-b">B</span>AL<span class="accent">s</span></h1>
                 <p class="tribal-sub">El fuego guarda tu música · videos · imágenes</p>
             </div>
             <!-- Sol tribal -->
@@ -48,10 +48,12 @@
             <button class="tribal-tab tribal-ico" data-filter="audio" title="Música"><i class="bi bi-music-note-beamed"></i></button>
             <button class="tribal-tab tribal-ico" data-filter="video" title="Videos"><i class="bi bi-camera-video"></i></button>
             <button class="tribal-tab tribal-ico" data-filter="image" title="Fotos"><i class="bi bi-image"></i></button>
-            <button class="tribal-tab tribal-ico" data-filter="doc" title="Libros"><i class="bi bi-book-half"></i></button>
             <button class="tribal-tab tribal-ico" id="tab-cols" title="Colecciones"><i class="bi bi-folder2"></i></button>
             <button class="tribal-ico-more" id="view-more" title="Opciones"><i class="bi bi-three-dots"></i></button>
         </div>
+
+        <!-- Crédito tribal: entre los filtros y el buscador -->
+        <div class="tribal-credit" aria-hidden="true">Hecho con <i class="bi bi-heart-fill tr-heart"></i> por la tribu de los libres</div>
 
         <div class="tribal-search">
             <i class="bi bi-search"></i>
@@ -62,7 +64,29 @@
         <div class="tribal-band" aria-hidden="true">
             <div class="tribal-halo"></div>
         </div>
+
     </header>
+
+    <!-- Tira de control: paginación compacta + trigger de vista -->
+    <div class="tribal-viewswitch">
+        <div class="tribal-pager" id="media-pager" hidden>
+            <button class="tribal-btn tribal-btn-xs" id="pager-prev"><i class="bi bi-chevron-left"></i></button>
+            <span id="pager-info"></span>
+            <button class="tribal-btn tribal-btn-xs" id="pager-next"><i class="bi bi-chevron-right"></i></button>
+        </div>
+        <button class="tvs" id="view-switch" type="button" aria-pressed="false" title="Cambiar vista">
+            <span class="tvs-side tvs-l"><i class="bi bi-grid-3x3-gap-fill"></i></span>
+            <span class="tvs-side tvs-r"><i class="bi bi-list-ul"></i></span>
+            <span class="tvs-knob" aria-hidden="true"></span>
+        </button>
+    </div>
+
+    <!-- Barra de progreso de subida (visible solo mientras sube) -->
+    <div class="tribal-upbar" id="upload-prog" hidden>
+        <span class="tub-label" id="upload-prog-label">Subiendo…</span>
+        <div class="tub-track"><i class="tub-fill" id="upload-prog-fill"></i></div>
+        <span class="tub-pct" id="upload-prog-pct">0%</span>
+    </div>
 
     <!-- ============================= GRID =============================== -->
     <div class="tribal-grid-wrap" id="media-grid-wrap">
@@ -71,12 +95,6 @@
             <span id="crumb-name"></span>
         </div>
         <div class="tribal-grid" id="media-grid"></div>
-    </div>
-    <!-- Paginación de la tribu -->
-    <div class="tribal-pager" id="media-pager" hidden>
-        <button class="tribal-btn tribal-btn-xs" id="pager-prev"><i class="bi bi-chevron-left"></i></button>
-        <span id="pager-info"></span>
-        <button class="tribal-btn tribal-btn-xs" id="pager-next"><i class="bi bi-chevron-right"></i></button>
     </div>
 
     <!-- Barra de selección múltiple -->
@@ -110,6 +128,7 @@
         </svg>
         <h3>El fuego aún no arde</h3>
         <p>Sube música, videos o imágenes desde tu dispositivo con el botón del sol.</p>
+        <p class="tribal-love">Hecho con <i class="bi bi-heart-fill"></i> por la tribu de los libres</p>
     </div>
 
     <!-- FAB de subida: redondo → se expande en óvalo con archivo/carpeta -->
@@ -157,6 +176,7 @@
     <div class="tribal-overlay" id="video-overlay" hidden>
         <button class="tribal-close" id="video-close"><i class="bi bi-x-lg"></i></button>
         <button class="tribal-vextras" id="video-more" title="Opciones del reproductor"><i class="bi bi-three-dots"></i></button>
+        <button class="tribal-vfull" id="video-full" title="Pantalla completa"><i class="bi bi-arrows-fullscreen"></i></button>
         <div class="tribal-rec" id="video-rec" hidden>
             <span id="video-rec-label">● REC</span>
             <button id="video-rec-pause" title="Pausar / reanudar"><i class="bi bi-pause-fill"></i></button>
@@ -290,6 +310,7 @@
         <button id="menu-cover"><i class="bi bi-image"></i>Buscar portada</button>
         <button id="menu-imgedit"><i class="bi bi-brush"></i>Editar imagen</button>
         <button id="menu-share"><i class="bi bi-share"></i>Compartir</button>
+        <button id="menu-bt"><i class="bi bi-bluetooth-b"></i>Compartir por Bluetooth</button>
         <button id="menu-conv"><i class="bi bi-arrow-left-right"></i>Convertir audio</button>
         <button id="menu-rename"><i class="bi bi-pencil"></i>Renombrar</button>
         <button id="menu-delete" class="danger"><i class="bi bi-trash3"></i>Eliminar</button>
@@ -297,6 +318,7 @@
 
     <!-- Menú de extras del reproductor (⋮) -->
     <div class="tribal-menu tribal-menu-wide" id="player-menu" hidden>
+        <button class="tribal-ctrl pm-close" id="pm-close" title="Cerrar y volver al video"><i class="bi bi-x-lg"></i></button>
         <p class="tribal-menu-sec">Biblioteca</p>
         <button id="pm-fav"><i class="bi bi-heart"></i>Favorito<b></b></button>
         <button id="pm-col"><i class="bi bi-folder2"></i>Guardar en colección</button>
@@ -361,8 +383,10 @@
         <button id="vm-newcol"><i class="bi bi-folder-plus"></i>Nueva colección</button>
         <button id="vm-batch"><i class="bi bi-input-cursor-text"></i>Renombrar en lote</button>
         <button id="vm-undo"><i class="bi bi-arrow-counterclockwise"></i>Deshacer último cambio</button>
+        <button id="vm-doc"><i class="bi bi-book-half"></i>Libros</button>
         <button id="vm-p2p"><i class="bi bi-diagram-3"></i>P2P Torrents</button>
         <button id="vm-links"><i class="bi bi-link-45deg"></i>Libretilla de enlaces</button>
+        <button id="vm-perms"><i class="bi bi-shield-lock"></i>Solicitar permisos a Android</button>
         <label class="tribal-menu-sort"><i class="bi bi-sort-alpha-down"></i>Ordenar
             <select class="tribal-select" id="vm-sort">
                 <option value="az">A → Z</option>
@@ -528,6 +552,7 @@
 <script src="js/media/imgeditui.js"></script>
 <script src="js/media/imgedittouch.js"></script>
 <script src="js/media/p2p.js"></script>
+<script src="js/media/p2pqbit.js"></script>
 <script src="js/media/p2pcfg.js"></script>
 <script src="js/media/p2pextra.js"></script>
 <script src="js/media/p2pjobs.js"></script>

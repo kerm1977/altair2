@@ -49,7 +49,8 @@ window.TribalVinyl = (function () {
         ov.id = 'vinyl-overlay';
         ov.innerHTML =
             '<button class="tribal-close" data-v="close"><i class="bi bi-x-lg"></i></button>' +
-            '<div class="tribal-vinyl-brand">TRIBAL<span>s</span>' +
+            '<div class="tribal-vinyl-brand">T<span class="tr-sm">R</span>I' +
+                '<span class="tr-b">B</span>AL<span>s</span>' +
                 '<small>El fuego guarda tu música</small></div>' +
             '<div class="tribal-vinyl-stage">' +
                 '<svg class="tribal-vinyl-ring" viewBox="0 0 200 200" aria-hidden="true">' +

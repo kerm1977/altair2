@@ -28,7 +28,7 @@ window.TribalLinksAct = (function () {
         // ------------------------------------------------------ enlaces ----
         function addOrSave() {
             var name = ov.querySelector('#lk-name').value.trim();
-            var url = ov.querySelector('#lk-url').value.trim();
+            var url = ov.querySelector('#lk-url').value.trim().toLowerCase();
             var cat = ov.querySelector('#lk-cat').value;
             if (!name) { deps.toast('Ponle un nombre al enlace'); return; }
             var d = api.db(); d.links = d.links || [];
@@ -37,7 +37,6 @@ window.TribalLinksAct = (function () {
                 var l = d.links.filter(function (x) { return x.id === st.editId; })[0];
                 if (l) { l.name = name; l.url = api.normUrl(url, name); l.cat = cat; }
                 st.editId = null;
-                ov.querySelector('#lk-add').innerHTML = '<i class="bi bi-plus-lg"></i> Agregar';
                 deps.toast('Enlace actualizado');
             } else {
                 d.links.push({ id: 'lnk_' + Date.now().toString(36) +
@@ -51,6 +50,9 @@ window.TribalLinksAct = (function () {
             ov.querySelector('#lk-name').value = '';
             ov.querySelector('#lk-url').value = '';
             api.render();
+            // guardado → contraer el acordeón «Nuevo enlace · categorías · buscar»
+            var acc = ov.querySelector('.lk-acc');
+            if (acc) acc.open = false;
         }
 
         function openLink(l) {
@@ -206,7 +208,7 @@ window.TribalLinksAct = (function () {
                 ov.querySelector('#lk-url').value = l3.url;
                 api.refreshCats(l3.cat);
                 ov.querySelector('#lk-add').innerHTML =
-                    '<i class="bi bi-check-lg"></i> Guardar';
+                    '<i class="bi bi-check-lg"></i> Guardar enlace';
                 var acc = ov.querySelector('.lk-acc');
                 if (acc && !acc.open) acc.open = true;
                 ov.querySelector('#lk-name').focus();

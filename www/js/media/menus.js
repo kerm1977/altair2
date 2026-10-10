@@ -48,7 +48,24 @@ window.Sono.register('menus', function (S) {
             prepMenu(mm);
             return;
         }
-        var card = e.target.closest('.tribal-card');
+        // vista de lista: botón play de la fila
+        var playBtn = e.target.closest('.tr-row-play');
+        if (playBtn) {
+            e.stopPropagation();
+            var pm = S.byId(playBtn.dataset.play);
+            if (!pm) return;
+            if (pm.kind === 'audio') {
+                if (S.audio.dataset.current === pm.id && !S.audio.paused) {
+                    S.audio.pause();
+                } else {
+                    S.playAudio(pm);
+                }
+            } else {
+                S.openItem(pm);
+            }
+            return;
+        }
+        var card = e.target.closest('.tribal-card, .tribal-row');
         if (card) {
             closeMenu();
             if (S._lpBlock) { S._lpBlock = false; return; } // venía de long-press
@@ -86,7 +103,7 @@ window.Sono.register('menus', function (S) {
     // doble clic → pantalla completa vinilo tribal
     grid.addEventListener('dblclick', function (e) {
         if (S.msMode) return;
-        var card = e.target.closest('.tribal-card');
+        var card = e.target.closest('.tribal-card, .tribal-row');
         if (!card) return;
         var m = S.byId(card.dataset.id);
         if (m) S.openFull(m);
@@ -198,8 +215,21 @@ window.Sono.register('menus', function (S) {
         var m = S.menuItem;
         closeMenu();
         S.showToast('Compartiendo ' + m.name + '…');
-        window.MediaStore.share(m).then(function () {}).catch(function () {
-            S.showToast('No se pudo compartir en este dispositivo');
+        window.MediaStore.share(m).then(function () {}).catch(function (e) {
+            S.showToast('No se pudo compartir: ' +
+                String((e && e.message) || e || 'error'));
+        });
+    });
+
+    // compartir por Bluetooth directo (Android) — en web cae a share normal
+    $('menu-bt').addEventListener('click', function () {
+        if (!S.menuItem) return closeMenu();
+        var m = S.menuItem;
+        closeMenu();
+        S.showToast('Enviando ' + m.name + ' por Bluetooth…');
+        window.MediaStore.shareBluetooth(m).then(function () {}).catch(function (e) {
+            S.showToast('No se pudo compartir por Bluetooth: ' +
+                String((e && e.message) || e || 'error'));
         });
     });
 

@@ -12,6 +12,21 @@
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
+/* X propio del menú del player: siempre visible arriba a la derecha */
+.tribal-menu .pm-close {
+    position: sticky;
+    top: 2px;
+    margin-left: auto;
+    margin-bottom: -4px;
+    display: flex;
+    width: 30px; height: 30px;
+    padding: 0;
+    align-items: center; justify-content: center;
+    border-radius: 10px;
+    z-index: 3;
+}
+.tribal-menu .pm-close i { font-size: 0.85rem; }
+
 .tribal-menu-sec {
     margin: 10px 10px 4px;
     font-size: 0.62rem;
@@ -122,6 +137,20 @@
     display: flex; align-items: center; justify-content: center;
     z-index: 5;
 }
+/* botón ⛶ pantalla completa junto al ⋮ del visor de video */
+.tribal-vfull {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 16px);
+    left: 72px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--tb-gold);
+    background: rgba(0, 0, 0, 0.5);
+    color: var(--tb-cream);
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 5;
+}
 
 /* -------------------------------------------------------- pantalla vinilo - */
 .tribal-vinyl {
@@ -133,7 +162,8 @@
     align-items: center;
     justify-content: center;
     gap: clamp(12px, 2.6vh, 30px);
-    padding: calc(28px + env(safe-area-inset-top, 0px)) 20px
+    /* +10px arriba: la marca TRIBALs no queda bajo el círculo giratorio */
+    padding: calc(38px + env(safe-area-inset-top, 0px)) 20px
              calc(28px + env(safe-area-inset-bottom, 0px));
     background:
         radial-gradient(800px 400px at 50% 0%, rgba(224, 96, 46, 0.22), transparent 65%),
@@ -151,7 +181,7 @@
     top: calc(env(safe-area-inset-top, 0px) + 16px);
     left: 0; right: 0;
     text-align: center;
-    font-size: 1.15rem; font-weight: 900; letter-spacing: 0.22em;
+    font-size: 1.15rem; font-weight: 900; letter-spacing: 0.1em;
     color: var(--tb-cream);
     text-shadow: 0 2px 0 var(--tb-terra2), 0 6px 18px rgba(224, 96, 46, 0.35);
 }
@@ -942,7 +972,18 @@
 
 /* ============================================================ stage+cutter */
 .vf-stage { position: relative; width: 100%; display: flex; justify-content: center; }
-.vf-stage:fullscreen { background: #000; }
+/* fullscreen real: el video ocupa TODO lo ancho/alto — solo controles nativos
+   (play, barra, volumen). Sin bordes, sin sombra, sin recorte del 62vh. */
+.vf-stage:fullscreen { background: #000; align-items: center; }
+.vf-stage:fullscreen video {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    object-fit: contain;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
 .vf-stage video { width: 100%; }
 
 .vf-buffer-badge {
@@ -1189,7 +1230,7 @@
 .tribal-card.ms-on .tribal-thumb { opacity: .85; }
 .tribal-msbar {
     position: absolute; left: 14px; right: 14px;
-    bottom: calc(80px + env(safe-area-inset-bottom, 0px)); z-index: 65;
+    bottom: calc(124px + env(safe-area-inset-bottom, 0px)); z-index: 65;
     display: flex; align-items: center; gap: 10px;
     background: #2c1b0c; border: 1px solid var(--tb-gold);
     border-radius: 14px; padding: 9px 12px;
@@ -1390,15 +1431,209 @@
 .tr-cover-pick:active { transform: scale(.95); border-color: var(--tb-gold); }
 
 /* ---- paginación de la tribu ---- */
+/* Inline en la tira del trigger (izquierda): ya no flota sobre el
+   contenido ni choca con player/modales. Compacta. */
 .tribal-pager {
-    display: flex; align-items: center; justify-content: center;
-    gap: 14px; padding: 10px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+    display: flex; align-items: center;
+    gap: 8px; padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--tb-border);
 }
-/* cuando suena música el mini-player va debajo y ya cubre el safe-area */
-.tribal-root.has-player .tribal-pager { padding-bottom: 10px; }
-.tribal-pager .tribal-btn { min-width: 40px; justify-content: center; }
+.tribal-pager .tribal-btn {
+    flex: 0 0 auto;
+    min-width: 26px; height: 24px;
+    padding: 0 4px; font-size: 0.75rem;
+    border-radius: 8px;
+    display: inline-flex; align-items: center;
+    justify-content: center;
+}
 .tribal-pager .tribal-btn:disabled { opacity: .35; }
-#pager-info { color: var(--tb-gold); font-size: .72rem; }
+#pager-info { color: var(--tb-gold); font-size: .6rem; white-space: nowrap; }
+
+/* ---- trigger de vista: píldora con perilla deslizante ---- */
+.tribal-viewswitch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px 0;
+}
+.tribal-viewswitch .tvs { margin-left: auto; }
+.tvs {
+    position: relative;
+    display: flex;
+    width: 88px;
+    height: 32px;
+    padding: 3px;
+    border: 1px solid var(--tb-border);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.38);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.tvs-side {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tb-muted);
+    transition: color 0.22s ease;
+}
+.tvs-side i { font-size: 0.9rem; }
+.tvs-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: calc(50% - 3px);
+    height: calc(100% - 6px);
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--tb-terra), var(--tb-terra2));
+    box-shadow: 0 2px 8px rgba(224, 96, 46, 0.5);
+    transition: transform 0.22s ease;
+}
+.tvs .tvs-l { color: #fff8ec; }
+.tvs.on .tvs-knob { transform: translateX(100%); }
+.tvs.on .tvs-l { color: var(--tb-muted); }
+.tvs.on .tvs-r { color: #fff8ec; }
+
+/* ---- barra de progreso de subida ---- */
+.tribal-upbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 0;
+}
+.tub-label {
+    flex-shrink: 0;
+    max-width: 45%;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--tb-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tub-track {
+    flex: 1;
+    height: 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--tb-border);
+    overflow: hidden;
+}
+.tub-fill {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--tb-terra), var(--tb-gold));
+    box-shadow: 0 0 8px rgba(240, 180, 41, 0.5);
+    transition: width 0.2s ease;
+}
+.tub-pct {
+    flex-shrink: 0;
+    min-width: 34px;
+    text-align: right;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--tb-gold);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- vista de lista: una fila compacta por archivo ---- */
+.tribal-grid.list-mode { display: block; }
+.tribal-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(216, 178, 122, 0.14);
+    border-radius: 10px;
+}
+.tribal-row:active { background: rgba(240, 180, 41, 0.1); }
+.tribal-row.ms-on { background: rgba(240, 180, 41, 0.12); }
+.tr-row-play {
+    flex-shrink: 0;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--tb-border);
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--tb-cream);
+    font-size: 0.95rem;
+    display: flex; align-items: center; justify-content: center;
+}
+.tr-row-play.playing {
+    border-color: var(--tb-gold);
+    color: var(--tb-gold);
+    box-shadow: 0 0 10px rgba(240, 180, 41, 0.35);
+}
+.tr-row-kind {
+    flex-shrink: 0;
+    width: 30px;
+    text-align: center;
+    color: var(--tb-muted);
+    font-size: 1rem;
+}
+.tr-row-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--tb-cream);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tr-row-fav { flex-shrink: 0; color: #e5484d; font-size: 0.65rem; }
+.tr-row-dur {
+    flex-shrink: 0;
+    min-width: 38px;
+    text-align: right;
+    font-size: 0.68rem;
+    color: var(--tb-gold);
+    font-variant-numeric: tabular-nums;
+}
+.tr-row-menu {
+    flex-shrink: 0;
+    width: 30px; height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--tb-muted);
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+}
+
+/* ---- crédito tribal: línea disimulada bajo el buscador ---- */
+.tribal-credit {
+    margin: 8px 0 0;
+    text-align: center;
+    font-size: 0.5rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tb-muted);
+    opacity: 0.42;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.tr-heart {
+    display: inline-block;
+    color: #e5484d;
+    animation: trHeart 1.3s ease-in-out infinite;
+}
+@keyframes trHeart {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50%      { transform: scale(1.45); opacity: 1; }
+}
 
 /* separador de tipo en la búsqueda global */
 .tribal-kind-sep {
@@ -1423,7 +1658,8 @@
 }
 .tribal-ie-bar {
     display: flex; align-items: center; gap: 8px;
-    padding: 10px 12px; border-bottom: 2px solid var(--tb-gold);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
+    border-bottom: 2px solid var(--tb-gold);
 }
 .tribal-ie-stage {
     flex: 1; overflow: hidden; position: relative;
@@ -1508,7 +1744,9 @@
 }
 .tribal-p2p-head {
     display: flex; align-items: center; gap: 10px;
-    padding: 12px 4px; position: sticky; top: 0; z-index: 2;
+    /* + safe-area: la barra de estado (hora/wifi) no tape el botón Volver */
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 4px 12px;
+    position: sticky; top: 0; z-index: 2;
     background: linear-gradient(160deg, #160e07, #241408);
     border-bottom: 2px solid var(--tb-gold); color: var(--tb-cream);
 }
@@ -1683,6 +1921,16 @@
     flex: 1; width: min(760px, 100%);
     margin: 0 auto; padding: 10px 0 30px;
 }
+/* botón «Volver» con texto (no solo flecha) */
+.lk-back {
+    width: auto !important; height: 40px;
+    padding: 0 14px; gap: 7px;
+    border: 1px solid var(--tb-border) !important;
+    border-radius: 12px !important;
+    font-size: 0.85rem; font-weight: 700;
+    letter-spacing: 0.03em;
+}
+.lk-back span { color: var(--tb-cream); }
 .lk-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
 .lk-row { display: flex; gap: 8px; }
 .lk-row .tribal-input, .lk-row .tribal-select { flex: 1; min-width: 0; }

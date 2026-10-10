@@ -41,7 +41,8 @@ window.Sono.register('multisel', function (S) {
     S.msToggle = function (id) {
         if (S.msSel[id]) delete S.msSel[id]; else S.msSel[id] = true;
         // solo repinto esa tarjeta: no hace falta re-render completo
-        var card = S.grid.querySelector('.tribal-card[data-id="' + id + '"]');
+        var card = S.grid.querySelector(
+            '.tribal-card[data-id="' + id + '"], .tribal-row[data-id="' + id + '"]');
         if (card) {
             card.classList.toggle('ms-on', !!S.msSel[id]);
             var ic = card.querySelector('.ms-check');

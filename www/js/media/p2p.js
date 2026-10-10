@@ -346,6 +346,9 @@ window.TribalP2P = (function () {
                 else if (e.fixed) { cur.fixed = true; cur.on = true; }
             });
             if (d.trackers) extraTrackers = d.trackers;
+            // siembra única con la config de qBittorrent (p2pqbit.js):
+            // ~78 motores 'site' + APIs YTS/Snowfl + todos sus trackers
+            if (window.TribalP2PQBIT) window.TribalP2PQBIT.seed();
             (d.jobs || []).forEach(function (r) {
                 if (jobs.some(function (j) { return j.id === r.id; })) return;
                 var j = { id: r.id, magnet: r.magnet, name: r.name,

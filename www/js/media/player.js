@@ -229,6 +229,54 @@ window.Sono.register('player', function (S) {
     audio.playbackRate = S.prefs.speed;
     videoEl.playbackRate = S.prefs.speed;
 
+    // ------------------------------------- video fullscreen horizontal (auto)
+    // Al girar el teléfono a horizontal el stage entra en fullscreen real y se
+    // bloquea la orientación en landscape; al volver a vertical se libera.
+    // Dentro del fullscreen solo quedan los controles nativos del <video>
+    // (play, barra de desplazamiento y volumen) — sin ⋮ ni X ni nada más.
+    var vStage = videoEl.closest('.vf-stage');
+    var mqLand = window.matchMedia('(orientation: landscape)');
+
+    function lockLandscape() {
+        try {
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(function () {});
+            }
+        } catch (e) {}
+    }
+    function unlockOrientation() {
+        try {
+            if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+        } catch (e) {}
+    }
+    S.enterVideoFS = function () { if (vStage) S.goFullscreen(vStage); };
+    S.exitVideoFS = function () {
+        if (document.fullscreenElement) S.exitFull();
+        unlockOrientation();
+    };
+    S.toggleVideoFS = function () {
+        if (document.fullscreenElement === vStage) S.exitVideoFS();
+        else S.enterVideoFS();
+    };
+    $('video-full').addEventListener('click', function (e) {
+        e.stopPropagation();
+        S.toggleVideoFS();
+    });
+    // horizontal → fullscreen automático; vertical → volver al visor normal.
+    // Solo auto-entra si el video está sonando (si pausaste para editar,
+    // no te encierra la pantalla de golpe).
+    function onRotate() {
+        if (videoOv.hidden || !videoEl.getAttribute('src')) return;
+        if (mqLand.matches) {
+            if (document.fullscreenElement !== vStage && !videoEl.paused) S.enterVideoFS();
+        } else if (document.fullscreenElement === vStage) {
+            S.exitVideoFS();
+        }
+    }
+    if (mqLand.addEventListener) mqLand.addEventListener('change', onRotate);
+    else if (mqLand.addListener) mqLand.addListener(onRotate);
+    window.addEventListener('orientationchange', function () { setTimeout(onRotate, 250); });
+
     // ------------------------------------------------------------- overlays
     S.closeVideo = function () {
         videoEl.pause();
@@ -236,6 +284,7 @@ window.Sono.register('player', function (S) {
         videoEl.load();
         videoOv.hidden = true;
         S.exitFull();
+        unlockOrientation();
     };
     S.closeImage = function () {
         S.imageEl.removeAttribute('src');
@@ -243,24 +292,38 @@ window.Sono.register('player', function (S) {
         imageOv.hidden = true;
         S.exitFull();
     };
-    $('video-close').addEventListener('click', S.closeVideo);
+    $('video-close').addEventListener('click', function () {
+        // con el menú ⋮ abierto, la X cierra solo el menú → volver al video
+        if (S.pMenu && !S.pMenu.hidden && S.closePMenu) return S.closePMenu();
+        S.closeVideo();
+    });
     $('image-close').addEventListener('click', S.closeImage);
-    videoOv.addEventListener('click', function (e) { if (e.target === videoOv) S.closeVideo(); });
+    videoOv.addEventListener('click', function (e) {
+        if (e.target !== videoOv) return;
+        // con el menú ⋮ abierto, el fondo solo cierra el menú
+        if (S.pMenu && !S.pMenu.hidden) return;
+        S.closeVideo();
+    });
     imageOv.addEventListener('click', function (e) { if (e.target === imageOv) S.closeImage(); });
 
-    // doble clic sobre el video → pantalla completa con sticker/texto incluidos
+    // doble clic sobre el video → alterna pantalla completa del stage
     videoEl.addEventListener('dblclick', function () {
-        S.goFullscreen(videoEl.parentElement);
+        S.toggleVideoFS();
     });
     // si el botón nativo de pantalla completa de los controles del video se
     // activa solo sobre el <video>, lo redirigimos al stage completo para que
     // sticker y texto sigan visibles dentro del fullscreen
     document.addEventListener('fullscreenchange', function () {
-        if (document.fullscreenElement === videoEl) {
+        var fe = document.fullscreenElement;
+        if (fe === videoEl) {
             var stage = videoEl.closest('.vf-stage') || videoEl.parentElement;
             document.exitFullscreen().then(function () {
                 S.goFullscreen(stage);
             }).catch(function () {});
+        } else if (fe === vStage) {
+            lockLandscape();      // dentro del fullscreen → bloquear horizontal
+        } else if (!fe) {
+            unlockOrientation();  // salió del fullscreen → orientación libre
         }
     });
 });

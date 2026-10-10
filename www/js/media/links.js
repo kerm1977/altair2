@@ -64,6 +64,12 @@ window.TribalLinks = (function () {
         st.page = UI().renderList(ov, links(), cats(), st.query, st.page);
     }
     function refreshCats(sel) {
+        // si no se indica categoría, conservar la que el usuario ya eligió:
+        // reescribir el <select> resetea la selección y "borraba" la info
+        if (sel === undefined && ov) {
+            var el = ov.querySelector('#lk-cat');
+            sel = el ? el.value : undefined;
+        }
         UI().fillCats(ov, cats(), sel);
         UI().catRows(ov, cats());
     }
@@ -93,8 +99,14 @@ window.TribalLinks = (function () {
         ov.querySelector('#lk-q').addEventListener('input', function () {
             st.query = this.value.trim(); st.page = 0; render();
         });
-        ov.querySelector('#lk-url').addEventListener('keydown', function (e) {
+        var urlIn = ov.querySelector('#lk-url');
+        urlIn.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') act.addOrSave();
+        });
+        // URL obligatoriamente en minúsculas mientras se escribe
+        urlIn.addEventListener('input', function () {
+            var low = this.value.toLowerCase();
+            if (low !== this.value) this.value = low;
         });
         ov.querySelector('#lk-icon').addEventListener('change', act.onIconFile);
         ov.querySelector('#lk-list').addEventListener('click', act.onListClick);

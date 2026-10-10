@@ -107,7 +107,7 @@ window.MediaStore = (function () {
             );
         },
 
-        add: function (file, customName) {
+        add: function (file, customName, onProgress) {
             var id = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
             var meta = {
                 id: id,
@@ -120,7 +120,7 @@ window.MediaStore = (function () {
             };
 
             var persist = isNative()
-                ? IO.nativeWrite(id, file).then(function (path) { meta.path = path; })
+                ? IO.nativeWrite(id, file, onProgress).then(function (path) { meta.path = path; })
                 : IO.idbPut(id, file);
 
             return persist.then(function () {
