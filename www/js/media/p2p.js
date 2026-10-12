@@ -33,13 +33,15 @@ window.TribalP2P = (function () {
 
     // trackers WebRTC por defecto: WebTorrent solo habla wss:// en el
     // navegador/WebView. Sin ellos el cliente no anuncia a nadie → 0 peers.
-    // Verificados por sonda WS: openwebtorrent y webtorrent.dev responden
-    // 101 (upgrade); magnetoo vive pero rate-limita si se le bombardea.
-    // btorrent/files.fm rechazan — fuera.
+    // Sonda real hoy: magnetoo/files.fm/peertube/novage responden;
+    // webtorrent.dev, btorrent.xyz, sloppyta, loligirl — MUERTOS.
     var DEFAULT_TRACKERS = [
         'wss://tracker.openwebtorrent.com',
-        'wss://tracker.webtorrent.dev',
-        'wss://tracker.magnetoo.io'
+        'wss://open.ftorrent.com',
+        'wss://tracker.magnetoo.io',
+        'wss://tracker.files.fm:7073/announce',
+        'wss://peertube.cpy.re/tracker/socket',
+        'wss://tracker.novage.com.ua'
     ];
 
     // ---- trackers vivos autoactualizables ----------------------------------
@@ -96,13 +98,20 @@ window.TribalP2P = (function () {
             }).slice(0, 12);
     }
 
-    // pide peers al canal de trackers de un torrent vivo (re-anuncio)
+    // pide peers al canal de trackers de un torrent vivo (re-anuncio).
+    // OJO: en bittorrent-tracker el método público es update() — announce()
+    // NO existe → los re-anuncios anteriores eran un no-op silencioso y por
+    // eso "Forzar"/el re-anuncio de 75 s nunca movía nada.
     function reannounce(t) {
         if (!t || t.destroyed) return;
         var tr = t.tracker ||
                  (t._discovery && t._discovery.tracker) ||
                  (t.discovery && t.discovery.tracker);
-        try { if (tr && tr.announce) tr.announce(); } catch (e) {}
+        if (!tr) return;
+        try {
+            if (tr.update) tr.update();
+            else if (tr.announce) tr.announce();
+        } catch (e) {}
     }
 
     // ---- motor NATIVO (libtorrent real): en la APK los torrents van por ----
@@ -186,6 +195,16 @@ window.TribalP2P = (function () {
         return m.split('&').filter(function (p) {
             return p.indexOf('tr=') !== 0;
         }).join('&');
+    }
+
+    // nombre de exhibición del magnet: los buscadores lo traen en dn= —
+    // sin esto la tarjeta decía "Sin nombre" hasta que llegaba metadata
+    function magnetName(m) {
+        var dm = /[?&]dn=([^&]+)/.exec(m);
+        if (!dm) return null;
+        try {
+            return decodeURIComponent(dm[1].replace(/\+/g, ' ')).trim() || null;
+        } catch (e) { return dm[1]; }
     }
 
     function emit(k, a) {
@@ -348,6 +367,13 @@ window.TribalP2P = (function () {
         if (t.ready || (t.files && t.files.length)) onMeta();
         t.on('download', function () { emit('change'); });
         t.on('upload', function () { emit('change'); });
+        // avisos no fatales (tracker rechazado, wire roto…) → consola:
+        // sin esto los fallos de tracker eran invisibles y el torrent
+        // parecía "no hacer nada"
+        t.on('warning', function (e) {
+            log('«' + (j.name || 'torrent') + '» aviso: ' +
+                String(e && e.message || e).slice(0, 140));
+        });
         t.on('wire', function () {
             emit('change');
             log('«' + (j.name || 'torrent') + '»: ' + t.numPeers +
@@ -371,9 +397,12 @@ window.TribalP2P = (function () {
         // si la metadata no llega en un margen razonable el torrent
         // sigue intentando, pero avisamos para poder re-anunciar
         setTimeout(function () {
-            if (j.status === 'metadata' && toast)
-                toast('«' + (j.name || 'Torrent') +
-                      '» sigue sin peers — re-anunciando solo');
+            if (j.status !== 'metadata') return;
+            var np = j.torrent ? j.torrent.numPeers : 0;
+            log('«' + (j.name || 'torrent') + '»: 45 s sin metadata · ' + np +
+                ' peer(s) ' + (np ? 'conectados' : '— swarm web invisible aún'));
+            if (toast) toast('«' + (j.name || 'Torrent') +
+                             '» sigue sin peers — re-anunciando solo');
         }, 45000);
         // re-anuncio con backoff: los trackers contestan intervalos de
         // ~15 min — eterno para un swarm web chico. Mientras no haya
@@ -407,7 +436,7 @@ window.TribalP2P = (function () {
         })) { if (toast) toast('Ese torrent ya está en la lista'); return null; }
         var j = { id: 'p2p-' + Date.now().toString(36) +
                         Math.random().toString(36).slice(2, 6),
-                  magnet: magnet, name: null, torrent: null,
+                  magnet: magnet, name: magnetName(magnet), torrent: null,
                   status: 'queued', addedAt: Date.now(), files: [] };
         jobs.push(j);
         log('Magnet añadido: ' + magnet.slice(0, 70) +

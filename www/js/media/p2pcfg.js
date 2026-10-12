@@ -138,6 +138,8 @@
                 encodeURIComponent(u); },
             function (u) { return 'https://api.allorigins.win/raw?url=' +
                 encodeURIComponent(u); },
+            function (u) { return 'https://corsproxy.io/?url=' +
+                encodeURIComponent(u); },
             function (u) { return 'https://api.codetabs.com/v1/proxy?quest=' +
                 encodeURIComponent(u); }
         ];
@@ -191,6 +193,8 @@
         }
         var RELAYS = [
             function (u) { return 'https://api.allorigins.win/raw?url=' +
+                encodeURIComponent(u); },
+            function (u) { return 'https://corsproxy.io/?url=' +
                 encodeURIComponent(u); },
             function (u) { return 'https://api.codetabs.com/v1/proxy?quest=' +
                 encodeURIComponent(u); },

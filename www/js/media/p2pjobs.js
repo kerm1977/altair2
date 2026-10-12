@@ -40,12 +40,12 @@ window.TribalP2PJobs = (function () {
              '<button class="tribal-ctrl" data-tp="pause" data-id="' + j.id +
                 '" title="' + (paused ? 'Reanudar' : 'Pausar') + '">' +
                 '<i class="bi bi-' + (paused ? 'play' : 'pause') + '-fill"></i></button>') +
-            '<button class="tribal-btn tribal-btn-xs" data-tp="recon" data-id="' +
+            '<button class="tribal-ctrl" data-tp="recon" data-id="' +
                 j.id + '" title="Reconectar">' +
-                '<i class="bi bi-arrow-repeat"></i> Reconectar</button>' +
-            '<button class="tribal-btn tribal-btn-xs" data-tp="force" data-id="' +
+                '<i class="bi bi-arrow-repeat"></i></button>' +
+            '<button class="tribal-ctrl" data-tp="force" data-id="' +
                 j.id + '" title="Forzar comunicaciones">' +
-                '<i class="bi bi-broadcast"></i> Forzar</button>' +
+                '<i class="bi bi-broadcast"></i></button>' +
             '<button class="tribal-ctrl" data-tp="magnet" data-id="' + j.id +
                 '" title="Copiar magnet"><i class="bi bi-magnet"></i></button>' +
             '<button class="tribal-ctrl tr-danger" data-tp="del" data-id="' + j.id +
