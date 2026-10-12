@@ -81,7 +81,9 @@ window.TribalVNoteFX = (function () {
     }
     function exportIt() {
         status('Renderizando efectos…');
+        var rdur = 0;
         window.TribalVDSP.render(ab, collect(), amb).then(function (out) {
+            rdur = out.duration;
             return window.TribalConvert.convert(window.TribalVDSP.wav(out),
                 ov.querySelector('#vfx-fmt').value,
                 function (p) { status('Codificando ' + Math.round(p * 100) + '%…'); });
@@ -89,7 +91,8 @@ window.TribalVNoteFX = (function () {
             var base = item.name.replace(/\.[^.]+$/, '') + ' (edit)' + r.ext;
             return deps.store.add(new File([r.blob], base, { type: r.blob.type }))
                 .then(function (m) {
-                    if (deps.store.updateInfo) deps.store.updateInfo(m.id, { vn: 1 });
+                    if (deps.store.updateInfo)
+                        deps.store.updateInfo(m.id, { vn: 1, dur: rdur });
                     status(''); deps.toast('«' + base + '» guardado');
                     if (deps.reload) deps.reload();
                 });

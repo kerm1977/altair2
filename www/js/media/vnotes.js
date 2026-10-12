@@ -44,8 +44,8 @@ window.TribalVNotes = (function () {
                              'Toca el micrófono para grabar';
     }
     function tick() {
-        var sec = elapsed + (state === 'rec' ? (Date.now() - startedAt) / 1000 : 0);
-        ov.querySelector('#vn-time').textContent = fmtT(sec);
+        ov.querySelector('#vn-time').textContent = fmtT(
+            elapsed + (state === 'rec' ? (Date.now() - startedAt) / 1000 : 0));
     }
 
     function startRec() {
@@ -83,7 +83,8 @@ window.TribalVNotes = (function () {
         if (!blob.size) return;
         var name = nextName() + ext();
         deps.store.add(new File([blob], name, { type: blob.type })).then(function (m) {
-            if (m && deps.store.updateInfo) deps.store.updateInfo(m.id, { vn: 1 });
+            if (m && deps.store.updateInfo) deps.store.updateInfo(m.id,
+                { vn: 1, dur: Math.max(.1, elapsed) });
             deps.toast('«' + name + '» guardada en la tribu');
             if (deps.reload) deps.reload();
             fillList();
@@ -188,14 +189,12 @@ window.TribalVNotes = (function () {
     }
     function open(d) {
         deps = d;
-        if (ov) close();
-        build();
+        if (ov) close(); build();
         elapsed = 0; setState('idle'); fillList();
     }
     // editor de la nota guardada → módulo aparte (vnotesfx.js)
     function edit(m, d) {
         if (window.TribalVNoteFX) TribalVNoteFX.open(m, d);
-        else (d.toast || function () {})('Editor no disponible');
-    }
+        else (d.toast || function () {})('Editor no disponible'); }
     return { open: open, edit: edit };
 })();

@@ -204,15 +204,45 @@ window.Sono.register('player', function (S) {
         }
         S.stepAudio(1);
     });
+    // los blobs de MediaRecorder (notas de voz) no traen duración en el
+    // header → audio.duration = Infinity y la barra nunca avanza. effDur
+    // cae al info.dur que guarda vnotes; si no existe, probeRealDur lo
+    // decodifica una vez y lo persiste.
+    function effDur() {
+        var d = audio.duration;
+        if (isFinite(d) && d > 0) return d;
+        var m = (S.items || []).find(function (x) { return x.id === audio.dataset.current; });
+        return (m && m.info && m.info.dur) || 0;
+    }
+    var probing = null;
+    function probeRealDur() {
+        var id = audio.dataset.current;
+        if (!id || probing === id || !window.TribalVDSP) return;
+        var m = (S.items || []).find(function (x) { return x.id === id; });
+        if (!m || (m.info && m.info.dur)) return;
+        probing = id;
+        S.urlFor(m, function (u) {
+            if (!u) { probing = null; return; }
+            fetch(u).then(function (r) { return r.blob(); })
+                .then(window.TribalVDSP.decode)
+                .then(function (b) {
+                    if (audio.dataset.current === id)
+                        S.pDur.textContent = S.fmtTime(b.duration);
+                    window.MediaStore.updateInfo(id, { dur: b.duration });
+                }).catch(function () {}).then(function () { probing = null; });
+        });
+    }
     audio.addEventListener('loadedmetadata', function () {
-        S.pDur.textContent = S.fmtTime(audio.duration);
+        if (!isFinite(audio.duration)) probeRealDur();
+        S.pDur.textContent = S.fmtTime(effDur());
     });
     audio.addEventListener('timeupdate', function () {
         if (S.loopA != null && S.loopB != null && audio.currentTime >= S.loopB) {
             audio.currentTime = S.loopA;
         }
         S.pCur.textContent = S.fmtTime(audio.currentTime);
-        if (audio.duration) S.pFill.style.width = (audio.currentTime / audio.duration * 100) + '%';
+        var d = effDur();
+        if (d) S.pFill.style.width = (audio.currentTime / d * 100) + '%';
     });
     videoEl.addEventListener('timeupdate', function () {
         if (S.loopA != null && S.loopB != null && videoEl.currentTime >= S.loopB) {
@@ -220,9 +250,10 @@ window.Sono.register('player', function (S) {
         }
     });
     S.pProg.addEventListener('click', function (e) {
-        if (!audio.duration) return;
+        var d = effDur();
+        if (!d) return;
         var r = S.pProg.getBoundingClientRect();
-        audio.currentTime = (e.clientX - r.left) / r.width * audio.duration;
+        audio.currentTime = (e.clientX - r.left) / r.width * d;
     });
 
     // el visualizador naranja vive en el vinilo fullscreen (media-vinyl.js)
