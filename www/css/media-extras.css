@@ -2334,3 +2334,38 @@
 }
 .vf-stage:fullscreen .vf-restore.on { display: flex; }
 .vf-restore:active { transform: scale(.92); }
+
+/* ---------------- Barra de accesos favoritos (long-press) ---------------- */
+.tribal-favs { display: contents; }
+.tribal-fav { color: var(--tb-gold) !important; position: relative; }
+.tribal-fav::after {
+    content: '';
+    position: absolute; bottom: 3px; left: 50%;
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--tb-gold); transform: translateX(-50%);
+    opacity: .8;
+}
+/* el que ya está fijado no repite fila en el menú ⋮ */
+#view-menu button.fav-pinned { display: none; }
+
+/* píldora "Colocar/Quitar de favoritos" */
+#fav-pop {
+    position: fixed; z-index: 12000;
+    display: flex; align-items: center; gap: 7px;
+    padding: 9px 16px; border-radius: 999px;
+    background: rgba(6, 4, 2, .92);
+    border: 1px solid var(--tb-gold);
+    color: var(--tb-gold);
+    font: 500 .85rem/1 var(--tb-font, sans-serif);
+    box-shadow: 0 6px 22px rgba(0, 0, 0, .55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    cursor: pointer;
+    user-select: none; -webkit-user-select: none;
+    animation: favPopIn .16s ease-out;
+}
+#fav-pop:active { transform: scale(.95); }
+@keyframes favPopIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
