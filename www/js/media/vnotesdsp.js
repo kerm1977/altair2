@@ -115,7 +115,10 @@ window.TribalVDSP = (function () {
         var a = Math.max(0, w0 || 0),
             b = w1 > a ? w1 : tlDur(buf, tracks),
             dur = b - a;
-        var octx = new OfflineAudioContext(Math.min(2, buf.numberOfChannels),
+        var ch = buf.numberOfChannels;       // stereo si algo lo trae
+        (tracks || []).forEach(function (t) {
+            if (t.buf) ch = Math.max(ch, t.buf.numberOfChannels); });
+        var octx = new OfflineAudioContext(Math.min(2, ch),
             Math.ceil(dur * buf.sampleRate), buf.sampleRate);
         var src = octx.createBufferSource(), chain = src;
         src.buffer = buf;

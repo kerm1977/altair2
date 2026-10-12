@@ -2104,6 +2104,16 @@
 /* ===== p2p: acordeones exclusivos, motores, trackers, archivos ===== */
 .tribal-p2p .tribal-acc.sm { margin: 6px 0 2px; padding: 0 8px; }
 .tribal-p2p .tribal-acc.sm summary { font-size: 0.7rem; padding: 6px 2px; }
+/* magnet visible dentro de la tarjeta del torrent */
+.tp-magnet { margin: 4px 0 2px; }
+.tp-magnet summary { font-size: 0.7rem; padding: 4px 2px; cursor: pointer;
+    color: var(--tb-gold); list-style: none; }
+.tp-magnet summary::-webkit-details-marker { display: none; }
+.tp-magnet summary i { color: var(--tb-terra); }
+.tp-magtext { width: 100%; resize: none; font: 500 0.62rem/1.35 monospace;
+    color: var(--tb-cream); background: rgba(0,0,0,.45);
+    border: 1px solid var(--tb-border); border-radius: 8px; padding: 6px 8px;
+    word-break: break-all; }
 .tribal-p2p-flist { max-height: 180px; overflow-y: auto; }
 .tribal-p2p-frow {
     display: grid; grid-template-columns: 1fr auto; gap: 3px 8px;

@@ -59,6 +59,13 @@ window.Sono.register('viewmenu', function (S) {
         window.TribalVNotes.open(S.extDeps());
     });
 
+    // Comprimir archivos a ZIP (media/zip*.js) → colección «mis comprimidos»
+    $('vm-zip').addEventListener('click', function () {
+        viewMenu.hidden = true;
+        if (window.TribalZipUI) TribalZipUI.open(S.extDeps());
+        else S.showToast('Compresor no disponible');
+    });
+
     // P2P torrents
     $('vm-p2p').addEventListener('click', function () {
         viewMenu.hidden = true;

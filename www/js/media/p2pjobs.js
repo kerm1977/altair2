@@ -55,6 +55,18 @@ window.TribalP2PJobs = (function () {
             '<summary><i class="bi bi-folder2-open"></i> ' + nFiles +
                 ' archivo' + (nFiles > 1 ? 's' : '') + '</summary>' +
             '<div class="tribal-p2p-flist">' + fileRows(j) + '</div></details>' : '';
+        // magnet visible: ver el URI completo + copiar / compartir a otro cliente
+        var magAcc = j.magnet ?
+            '<details class="tp-magnet" data-for="' + j.id + '"><summary>' +
+                '<i class="bi bi-link-45deg"></i> Magnet</summary>' +
+                '<textarea class="tp-magtext" readonly rows="3">' +
+                    X.esc(j.magnet) + '</textarea>' +
+                '<div class="tribal-p2p-btns">' +
+                '<button class="tribal-btn tribal-btn-xs" data-tp="magnet" data-id="' +
+                    j.id + '"><i class="bi bi-clipboard"></i> Copiar</button>' +
+                '<button class="tribal-btn tribal-btn-xs" data-tp="share" data-id="' +
+                    j.id + '"><i class="bi bi-share"></i> Compartir</button>' +
+                '</div></details>' : '';
         return '<div class="tribal-p2p-job' + (j.status === 'done' ? ' done' : '') + '">' +
             '<div class="tribal-p2p-row">' +
                 '<span class="tribal-p2p-name">' +
@@ -68,7 +80,7 @@ window.TribalP2PJobs = (function () {
                     ' · <i class="bi bi-arrow-up"></i>' + X.hspd(st.up) + '</span>' +
                 '<span>' + X.health(st) + '</span></div>' +
             (j.error ? '<div class="tribal-p2p-err">' + X.esc(j.error) + '</div>' : '') +
-            filesAcc +
+            filesAcc + magAcc +
             '<div class="tribal-p2p-btns">' + btns + '</div></div>';
     }
 

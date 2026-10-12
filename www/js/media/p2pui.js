@@ -31,15 +31,21 @@ window.TribalP2PUI = (function () {
                 '<p>Sin torrents. Pega un magnet o busca arriba.</p></div>';
             return;
         }
-        // preservar qué acordeón de archivos está abierto al re-renderizar
-        var openDet = box.querySelector('details.tp-files[open]');
-        var openId = openDet ? openDet.dataset.for : null;
+        // preservar qué acordeones están abiertos al re-renderizar
+        var openFile = box.querySelector('details.tp-files[open]');
+        var openMag = box.querySelector('details.tp-magnet[open]');
+        var openId = openFile ? openFile.dataset.for : null;
+        var magId = openMag ? openMag.dataset.for : null;
         box.innerHTML = jobs.map(function (j) {
             return window.TribalP2PJobs.jobHtml(j, stLabel);
         }).join('');
         if (openId) {
             var d = box.querySelector('details.tp-files[data-for="' + openId + '"]');
             if (d) d.open = true;
+        }
+        if (magId) {
+            var m = box.querySelector('details.tp-magnet[data-for="' + magId + '"]');
+            if (m) m.open = true;
         }
     }
 
@@ -64,6 +70,16 @@ window.TribalP2PUI = (function () {
         if (navigator.clipboard && navigator.clipboard.writeText)
             navigator.clipboard.writeText(j.magnet).then(done, function () { fallback(j.magnet, done); });
         else fallback(j.magnet, done);
+    }
+    function shareMagnet(j) {
+        var P = window.Capacitor && window.Capacitor.Plugins;
+        if (P && P.Share && P.Share.share)
+            return P.Share.share({ title: j.name || 'Magnet tribal',
+                text: j.magnet }).catch(function () {});
+        if (navigator.share)
+            return navigator.share({ title: j.name || 'Magnet',
+                text: j.magnet }).catch(function () {});
+        copyMagnet(j);   // sin share nativo → al menos queda en el portapapeles
     }
     function fallback(txt, done) {
         var ta = document.createElement('textarea');
@@ -128,6 +144,7 @@ window.TribalP2PUI = (function () {
                           : 'Sin canal vivo — reconectando…');
         }
         else if (tp === 'magnet') copyMagnet(j);
+        else if (tp === 'share') shareMagnet(j);
         else if (tp === 'del') deps.confirm('Eliminar torrent',
             '¿Sacar «' + (j.name || 'torrent') + '» de la lista?' +
             ' Los datos descargados se pierden.', 'Eliminar', function () {
