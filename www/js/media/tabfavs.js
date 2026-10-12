@@ -1,86 +1,155 @@
 // ============================================================================
 // ARCHIVO: media/tabfavs.js
-// RESPONSABILIDAD: accesos favoritos personalizables en la barra de filtros.
-//   - Long-press (~550 ms) sobre cualquier botón del menú ⋮ → "☆ Colocar en
-//     favoritos" → se fija como ícono junto a Todo/Música/Videos/Fotos/
-//     Colecciones y desaparece del menú.
-//   - Long-press sobre un ícono fijado → "★ Quitar de favoritos" → vuelve
-//     a vivir solo en el menú ⋮.
-//   - Persistente en localStorage ('tribu_fav_actions').
+// RESPONSABILIDAD: barra de accesos 100% personalizable.
+//   - TODOS los accesos son movibles: los 5 filtros de fábrica (Todo, Música,
+//     Videos, Fotos, Colecciones) y las 12 acciones del menú ⋮.
+//   - Long-press (~550 ms) en un ítem del ⋮ → "☆ Fijar en la barra".
+//   - Long-press en un ítem de la barra → "◀" "★ Al menú" "▶" → ordenar
+//     a la izquierda/derecha o devolverlo al menú.
+//   - Persistente en localStorage ('tribu_bar_order'); migra los favoritos
+//     de la versión anterior ('tribu_fav_actions').
 // ============================================================================
 window.Sono.register('tabfavs', function (S) {
     'use strict';
     var $ = S.$;
-    var KEY = 'tribu_fav_actions';
-    var favsBox = $('tab-favs'), viewMenu = $('view-menu');
-    if (!favsBox || !viewMenu) return;
+    var KEY = 'tribu_bar_order', OLDKEY = 'tribu_fav_actions';
+    var tabs = S.tabs, viewMenu = $('view-menu'), viewMore = $('view-more');
+    if (!tabs || !viewMenu || !viewMore) return;
 
-    // acciones fijables: id del botón en el ⋮ → ícono + nombre corto.
-    // El ícono fijado solo re-dispara el click del botón original → toda la
-    // lógica (slideshow, p2p, chat, libros…) queda en un solo lugar.
+    // catálogo completo de accesos movibles. tab:true → su elemento canónico
+    // es el propio botón de filtro; el resto → botón vm-* del menú ⋮.
     var ACTIONS = [
-        { vm: 'vm-stats',  icon: 'bi-bar-chart',            title: 'Estadísticas' },
-        { vm: 'vm-slide',  icon: 'bi-collection-play',      title: 'Slideshow' },
-        { vm: 'vm-newcol', icon: 'bi-folder-plus',          title: 'Nueva colección' },
-        { vm: 'vm-batch',  icon: 'bi-input-cursor-text',    title: 'Renombrar' },
-        { vm: 'vm-undo',   icon: 'bi-arrow-counterclockwise', title: 'Deshacer' },
-        { vm: 'vm-btchat', icon: 'bi-bluetooth',            title: 'Chat Bluetooth' },
-        { vm: 'vm-doc',    icon: 'bi-book-half',            title: 'Libros' },
-        { vm: 'vm-files',  icon: 'bi-folder2-open',         title: 'Archivos' },
-        { vm: 'vm-p2p',    icon: 'bi-diagram-3',            title: 'P2P Torrents' },
-        { vm: 'vm-links',  icon: 'bi-link-45deg',           title: 'Enlaces' },
-        { vm: 'vm-perms',  icon: 'bi-shield-lock',          title: 'Permisos' },
-        { vm: 'vm-revoke', icon: 'bi-shield-x',             title: 'Revocar permisos' }
+        { id: 'tab-all',    tab: true, icon: 'bi-stars',                 title: 'Todo' },
+        { id: 'tab-audio',  tab: true, icon: 'bi-music-note-beamed',     title: 'Música' },
+        { id: 'tab-video',  tab: true, icon: 'bi-camera-video',          title: 'Videos' },
+        { id: 'tab-image',  tab: true, icon: 'bi-image',                 title: 'Fotos' },
+        { id: 'tab-cols',   tab: true, icon: 'bi-folder2',               title: 'Colecciones' },
+        { id: 'vm-stats',   icon: 'bi-bar-chart',                        title: 'Estadísticas' },
+        { id: 'vm-slide',   icon: 'bi-collection-play',                  title: 'Slideshow' },
+        { id: 'vm-newcol',  icon: 'bi-folder-plus',                      title: 'Nueva colección' },
+        { id: 'vm-batch',   icon: 'bi-input-cursor-text',                title: 'Renombrar' },
+        { id: 'vm-undo',    icon: 'bi-arrow-counterclockwise',           title: 'Deshacer' },
+        { id: 'vm-btchat',  icon: 'bi-bluetooth',                        title: 'Chat Bluetooth' },
+        { id: 'vm-doc',     icon: 'bi-book-half',                        title: 'Libros' },
+        { id: 'vm-files',   icon: 'bi-folder2-open',                     title: 'Archivos' },
+        { id: 'vm-p2p',     icon: 'bi-diagram-3',                        title: 'P2P Torrents' },
+        { id: 'vm-links',   icon: 'bi-link-45deg',                       title: 'Enlaces' },
+        { id: 'vm-perms',   icon: 'bi-shield-lock',                      title: 'Permisos' },
+        { id: 'vm-revoke',  icon: 'bi-shield-x',                         title: 'Revocar permisos' }
     ];
-    function actionFor(vmId) {
+    function actionFor(id) {
         for (var i = 0; i < ACTIONS.length; i++) {
-            if (ACTIONS[i].vm === vmId) return ACTIONS[i];
+            if (ACTIONS[i].id === id) return ACTIONS[i];
         }
         return null;
     }
+    var DEFAULT_BAR = ACTIONS.filter(function (a) { return a.tab; })
+        .map(function (a) { return a.id; });
 
+    // ---------------------------------------------------------------- estado
     function load() {
-        try {
-            var a = JSON.parse(localStorage.getItem(KEY) || '[]');
-            return a.filter(function (id) { return actionFor(id); });
-        } catch (e) { return []; }
+        var bar = null;
+        try { bar = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+        if (!bar) {
+            // primera vez con este sistema o migración de favoritos viejos
+            bar = DEFAULT_BAR.slice();
+            try {
+                JSON.parse(localStorage.getItem(OLDKEY) || '[]').forEach(function (id) {
+                    if (bar.indexOf(id) < 0) bar.push(id);
+                });
+            } catch (e) {}
+            save(bar);
+        }
+        return bar.filter(function (id) { return actionFor(id); });
     }
     function save(a) { localStorage.setItem(KEY, JSON.stringify(a)); }
-    function isFav(id) { return load().indexOf(id) >= 0; }
-    function toggleFav(id) {
-        var favs = load(), i = favs.indexOf(id);
-        if (i >= 0) favs.splice(i, 1); else favs.push(id);
-        save(favs);
-        renderFavs();
+    function inBar(id) { return load().indexOf(id) >= 0; }
+    function move(id, dir) {
+        var bar = load(), i = bar.indexOf(id), j = i + dir;
+        if (i < 0 || j < 0 || j >= bar.length) return false;
+        bar.splice(i, 1);
+        bar.splice(j, 0, id);
+        save(bar);
+        return true;
+    }
+    function toggle(id) {
+        var bar = load(), i = bar.indexOf(id);
+        if (i >= 0) bar.splice(i, 1); else bar.push(id);
+        save(bar);
     }
 
-    // íconos fijados + espejo de visibilidad dentro del ⋮
-    function renderFavs() {
-        var favs = load();
-        favsBox.innerHTML = '';
-        favs.forEach(function (id) {
-            var a = actionFor(id);
+    // ------------------------------------------- filas del ⋮ para los filtros
+    // un filtro que sale de la barra sigue accesible como fila del menú —
+    // su click re-dispara el click del botón original (misma lógica).
+    var tabRows = {};
+    (function () {
+        var anchor = $('vm-stats');
+        ACTIONS.filter(function (a) { return a.tab; }).forEach(function (a) {
             var b = document.createElement('button');
-            b.className = 'tribal-tab tribal-ico tribal-fav';
-            b.title = a.title;
-            b.dataset.vm = id;
-            b.innerHTML = '<i class="bi ' + a.icon + '"></i>';
-            b.addEventListener('click', function (e) {
-                // sin esto la burbuja llega al listener de filtros y
-                // rompería el tab activo (dataset.filter undefined)
-                e.stopPropagation();
-                var vm = $(id);
-                if (vm) vm.click();
+            b.id = 'vm-' + a.id; // vm-tab-all, vm-tab-audio…
+            b.dataset.tab = a.id;
+            b.innerHTML = '<i class="bi ' + a.icon + '"></i>' + a.title;
+            b.addEventListener('click', function () {
+                viewMenu.hidden = true;
+                var t = $(a.id);
+                if (t) t.click();
             });
-            favsBox.appendChild(b);
+            viewMenu.insertBefore(b, anchor);
+            tabRows[a.id] = b;
         });
+    })();
+
+    // ------------------------------------------------- íconos proxy de la barra
+    // las acciones vm-* viven en el ⋮; en la barra se representan con un
+    // ícono que re-dispara el click del botón original.
+    var proxies = {};
+    function proxyFor(a) {
+        if (proxies[a.id]) return proxies[a.id];
+        var b = document.createElement('button');
+        b.className = 'tribal-tab tribal-ico tribal-fav';
+        b.title = a.title;
+        b.dataset.fav = a.id;
+        b.innerHTML = '<i class="bi ' + a.icon + '"></i>';
+        b.addEventListener('click', function (e) {
+            // sin esto la burbuja llega al listener de filtros y rompería
+            // el tab activo (dataset.filter undefined)
+            e.stopPropagation();
+            var src = $(a.id);
+            if (src) src.click();
+        });
+        proxies[a.id] = b;
+        return b;
+    }
+
+    // ----------------------------------------------------------- render barra
+    function renderBar() {
+        var bar = load();
+        bar.forEach(function (id) {
+            var a = actionFor(id);
+            var el = a.tab ? $(id) : proxyFor(a);
+            if (el) {
+                el.classList.remove('fav-hidden');
+                tabs.insertBefore(el, viewMore); // DOM order = orden guardado
+            }
+        });
+        // filtros que salieron de la barra
         ACTIONS.forEach(function (a) {
-            var vm = $(a.vm);
-            if (vm) vm.classList.toggle('fav-pinned', isFav(a.vm));
+            if (!a.tab) return;
+            var t = $(a.id);
+            if (t && bar.indexOf(a.id) < 0) t.classList.add('fav-hidden');
+        });
+        // proxies de acciones que salieron de la barra
+        Object.keys(proxies).forEach(function (id) {
+            if (bar.indexOf(id) < 0) proxies[id].classList.add('fav-hidden');
+        });
+        // espejo en el ⋮: lo fijado no repite fila
+        ACTIONS.forEach(function (a) {
+            var row = a.tab ? tabRows[a.id] : $(a.id);
+            if (row) row.classList.toggle('fav-pinned', bar.indexOf(a.id) >= 0);
         });
     }
 
-    // ------------------------------------------------- píldora contextual
+    // ----------------------------------------------------- píldora contextual
     var pop = document.createElement('div');
     pop.id = 'fav-pop';
     pop.hidden = true;
@@ -88,23 +157,39 @@ window.Sono.register('tabfavs', function (S) {
 
     var lpFired = false; // el click que sigue al long-press no debe ejecutarse
 
-    function showPop(el, label, cb) {
+    function placePop(el) {
         var r = el.getBoundingClientRect();
-        pop.innerHTML = label;
-        pop.hidden = false;
         pop.style.left = Math.max(8, Math.min(r.left,
             window.innerWidth - pop.offsetWidth - 8)) + 'px';
         pop.style.top = Math.max(8, r.top - pop.offsetHeight - 8) + 'px';
-        pop.onclick = function () {
-            pop.hidden = true;
-            cb();
-        };
+    }
+    // buttons: [{html, cb, keep}] — keep:true deja la píldora abierta
+    // (para mover ◀/▶ varias posiciones sin volver a hacer long-press)
+    function showPop(el, buttons) {
+        pop.innerHTML = '';
+        buttons.forEach(function (b) {
+            var btn = document.createElement('button');
+            btn.className = 'fp-act';
+            btn.innerHTML = b.html;
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                b.cb();
+                if (b.keep) {
+                    // tras moverse el ítem quedó en otro sitio → re-ubicar
+                    setTimeout(function () { placePop(el); }, 30);
+                } else {
+                    pop.hidden = true;
+                }
+            });
+            pop.appendChild(btn);
+        });
+        pop.hidden = false;
+        placePop(el);
     }
     document.addEventListener('pointerdown', function (e) {
         if (!pop.hidden && !pop.contains(e.target)) pop.hidden = true;
     }, true);
-    // tragar el click posterior al long-press (en captura, antes que todo) —
-    // pero el tap sobre la propia píldora sí debe pasar
+    // tragar el click posterior al long-press (excepto sobre la píldora)
     document.addEventListener('click', function (e) {
         if (!lpFired) return;
         if (pop.contains(e.target)) return;
@@ -113,34 +198,47 @@ window.Sono.register('tabfavs', function (S) {
         e.preventDefault();
     }, true);
 
-    // ----------------------------------------------------- long-press ~550ms
+    // ----------------------------------------------------- long-press ~550 ms
     var lpT = null, lpX = 0, lpY = 0;
     document.addEventListener('pointerdown', function (e) {
-        var menuBtn = e.target.closest('#view-menu button[id^="vm-"]');
-        var favBtn = e.target.closest('.tribal-fav');
-        var el = menuBtn || favBtn;
-        if (!el || (menuBtn && !actionFor(el.id))) return;
+        var barEl = e.target.closest('#media-tabs .tribal-tab');
+        var menuEl = e.target.closest('#view-menu button');
+        var el = barEl || menuEl, id = null, pinned = false;
+        if (barEl && !barEl.classList.contains('fav-hidden')) {
+            id = barEl.dataset.fav || barEl.id;
+            pinned = true;
+        } else if (menuEl) {
+            id = menuEl.dataset.tab || menuEl.id;
+        }
+        if (!el || !id || !actionFor(id)) return;
         lpX = e.clientX; lpY = e.clientY;
         lpT = setTimeout(function () {
             lpT = null;
             lpFired = true;
-            if (favBtn) {
-                showPop(favBtn, '<i class="bi bi-star-fill"></i> Quitar de favoritos',
-                    function () {
-                        toggleFav(favBtn.dataset.vm);
-                        if (S.showToast) S.showToast('Quitado de favoritos');
-                    });
+            if (pinned) {
+                showPop(el, [
+                    { html: '<i class="bi bi-chevron-left"></i>', keep: true,
+                      cb: function () {
+                          if (move(id, -1)) renderBar();
+                      } },
+                    { html: '<i class="bi bi-star-fill"></i> Al menú',
+                      cb: function () {
+                          toggle(id); renderBar();
+                          if (S.showToast) S.showToast('Vuelve al menú ⋮');
+                      } },
+                    { html: '<i class="bi bi-chevron-right"></i>', keep: true,
+                      cb: function () {
+                          if (move(id, 1)) renderBar();
+                      } }
+                ]);
             } else {
-                showPop(menuBtn, isFav(menuBtn.id)
-                    ? '<i class="bi bi-star-fill"></i> Quitar de favoritos'
-                    : '<i class="bi bi-star"></i> Colocar en favoritos',
-                    function () {
-                        toggleFav(menuBtn.id);
-                        if (S.showToast) {
-                            S.showToast(isFav(menuBtn.id)
-                                ? 'Fijado en la barra' : 'Vuelve al menú ⋮');
-                        }
-                    });
+                showPop(el, [
+                    { html: '<i class="bi bi-star"></i> Fijar en la barra',
+                      cb: function () {
+                          toggle(id); renderBar();
+                          if (S.showToast) S.showToast('Fijado en la barra');
+                      } }
+                ]);
             }
         }, 550);
     }, true);
@@ -157,10 +255,10 @@ window.Sono.register('tabfavs', function (S) {
     }, true);
     // el long-press en estos botones nunca abre el menú del WebView
     document.addEventListener('contextmenu', function (e) {
-        if (e.target.closest('#view-menu button[id^="vm-"], .tribal-fav')) {
+        if (e.target.closest('#media-tabs .tribal-tab, #view-menu button')) {
             e.preventDefault();
         }
     });
 
-    renderFavs();
+    renderBar();
 });

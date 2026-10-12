@@ -2335,8 +2335,9 @@
 .vf-stage:fullscreen .vf-restore.on { display: flex; }
 .vf-restore:active { transform: scale(.92); }
 
-/* ---------------- Barra de accesos favoritos (long-press) ---------------- */
-.tribal-favs { display: contents; }
+/* --------------- Barra de accesos personalizable (long-press) -------------- */
+/* OJO: la píldora vive en <body>, fuera de .tribal-root → las variables
+   --tb-* NO aplican ahí. Colores literales: gold #f0b429 / terra #e2602e. */
 .tribal-fav { color: var(--tb-gold) !important; position: relative; }
 .tribal-fav::after {
     content: '';
@@ -2345,27 +2346,48 @@
     background: var(--tb-gold); transform: translateX(-50%);
     opacity: .8;
 }
-/* el que ya está fijado no repite fila en el menú ⋮ */
+/* filtro que el usuario mandó al menú ⋮ (sigue en el DOM, oculto) */
+#media-tabs .tribal-tab.fav-hidden { display: none; }
+/* lo que está en la barra no repite fila en el ⋮ */
 #view-menu button.fav-pinned { display: none; }
 
-/* píldora "Colocar/Quitar de favoritos" */
+/* píldora de acciones del long-press (puede llevar varios botones) */
 #fav-pop {
     position: fixed; z-index: 12000;
-    display: flex; align-items: center; gap: 7px;
-    padding: 9px 16px; border-radius: 999px;
-    background: rgba(6, 4, 2, .92);
-    border: 1px solid var(--tb-gold);
-    color: var(--tb-gold);
-    font: 500 .85rem/1 var(--tb-font, sans-serif);
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px; border-radius: 999px;
+    background: rgba(6, 4, 2, .94);
+    border: 1px solid #f0b429;
     box-shadow: 0 6px 22px rgba(0, 0, 0, .55);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    cursor: pointer;
-    user-select: none; -webkit-user-select: none;
     animation: favPopIn .16s ease-out;
 }
-#fav-pop:active { transform: scale(.95); }
+#fav-pop .fp-act {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px; min-width: 40px; min-height: 40px;
+    padding: 8px 14px; border-radius: 999px;
+    border: 1px solid rgba(240, 180, 41, .45);
+    background: rgba(240, 180, 41, .08);
+    color: #f0b429;
+    font: 600 .82rem/1 sans-serif;
+    cursor: pointer;
+    user-select: none; -webkit-user-select: none;
+}
+#fav-pop .fp-act i { color: #f0b429; font-size: .95rem; }
+#fav-pop .fp-act:active { transform: scale(.93); background: rgba(240,180,41,.22); }
 @keyframes favPopIn {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: none; }
+}
+
+/* vista móvil: la barra envuelve de 5 en 5 (el ⋮ cuenta como una celda) */
+@media (max-width: 640px) {
+    .tribal-tabs { gap: 6px; }
+    .tribal-tabs > .tribal-tab,
+    .tribal-tabs > .tribal-ico-more {
+        flex: 0 0 calc(20% - 5px);
+        justify-content: center;
+        padding-left: 0; padding-right: 0;
+    }
 }
