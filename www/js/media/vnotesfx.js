@@ -1,91 +1,99 @@
 // === media/vnotesfx.js — Editor de notas de audio (UI) ====================
-// Previa, recorte/copia/pega A–B, EQ tribal, fades, echo, pista ambiental
-// (de la tribu o del dispositivo) con volumen, exporta vía TribalConvert.
+// Onda con A–B arrastrables + espectro vivo (vnoteswave.js), transporte,
+// cortar/copiar/pegar con crossfade, EQ tribal, fades, echo, pista de
+// fondo (tribu o dispositivo) con volumen, exporta vía TribalConvert.
 // DSP en vnotesdsp.js. API: TribalVNoteFX.open(item, deps)
 // =========================================================================
 window.TribalVNoteFX = (function () {
     'use strict';
-    var ov, deps, item, ab, amb = null, clip = null, pv = null;
+    var ov, deps, item, ab, amb = null, clip = null, pv = null, wv = null, pvRaf,
+        D = function () { return window.TribalVDSP; };
 
+    function q(id) { return ov.querySelector(id); }
     function esc(s) {
         var E = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
         return String(s || '').replace(/[&<>"]/g, function (c) { return E[c]; });
     }
-    function status(t) { ov.querySelector('#vfx-st').textContent = t; }
-    function dur() { return ab ? ab.duration : 0; }
-    function abv() {
-        return [+ov.querySelector('#vfx-a').value || 0,
-                +ov.querySelector('#vfx-b').value || dur()];
+    function status(t) { q('#vfx-st').textContent = t; }
+    function ft(s) {
+        s = Math.max(0, s || 0);
+        return Math.floor(s / 60) + ':' + ('0' + (s % 60).toFixed(1)).slice(-4);
     }
-    function refresh(msg) {
-        ov.querySelector('#vfx-b').value = dur().toFixed(1);
-        drawWave();
-        status(msg || ('Duración: ' + dur().toFixed(1) + ' s'));
+    function times() {
+        var r = wv.sel();
+        q('#vfx-ta').textContent = 'A ' + ft(r[0]);
+        q('#vfx-td').textContent = ft(wv.dur());
+        q('#vfx-tb').textContent = 'B ' + ft(r[1]); }
+    function refresh(msg) { wv.buf(ab); times(); status(msg || ''); }
+
+    // -------- previa con espectro vivo sobre la onda ---------------------
+    function stopPv() {
+        if (pvRaf) cancelAnimationFrame(pvRaf); pvRaf = null;
+        if (pv) { try { pv.src.onended = null; pv.src.stop(); pv.ctx.close(); }
+            catch (e) {} pv = null; }
+        if (wv) { wv.live(null); wv.pos(null); }
+        var b = q('#vfx-pv'); if (b) b.innerHTML = '<i class="bi bi-play-fill"></i>';
     }
-    function drawWave() {
-        var c = ov.querySelector('#vfx-wave'), g = c.getContext('2d');
-        var d = ab.getChannelData(0), w = c.width, h = c.height;
-        g.clearRect(0, 0, w, h); g.fillStyle = '#f0b429';
-        for (var x = 0; x < w; x++) {
-            var bh = Math.abs(d[(x * d.length / w) | 0]) * h;
-            g.fillRect(x, (h - bh) / 2, 1, Math.max(1, bh));
-        }
-    }
-    // previa de la voz editada tal como va quedando
     function preview() {
-        if (pv) { try { pv.src.stop(); pv.ctx.close(); } catch (e) {} pv = null; }
+        if (pv) return stopPv();
         var Ctx = window.AudioContext || window.webkitAudioContext;
-        var ctx = new Ctx(), src = ctx.createBufferSource();
-        src.buffer = ab; src.connect(ctx.destination); src.start(0);
-        pv = { ctx: ctx, src: src };
-        status('Reproduciendo previa…');
-        src.onended = function () { status(''); pv = null; };
+        var ctx = new Ctx(), src = ctx.createBufferSource(),
+            an = ctx.createAnalyser();
+        src.buffer = ab; an.fftSize = 1024;
+        src.connect(an); an.connect(ctx.destination);
+        src.start(0); pv = { ctx: ctx, src: src, t0: ctx.currentTime };
+        wv.live(an); q('#vfx-pv').innerHTML = '<i class="bi bi-stop-fill"></i>';
+        (function loop() {
+            if (!pv) return;
+            wv.pos(pv.ctx.currentTime - pv.t0);
+            pvRaf = requestAnimationFrame(loop);
+        })();
+        src.onended = function () { if (pv) stopPv(); };
     }
+
+    // -------- pista de fondo ---------------------------------------------
     function loadAmbMeta(m) {
         deps.urlFor(m, function (u) {
-            fetch(u).then(function (r) { return r.blob(); })
-                .then(window.TribalVDSP.decode)
+            fetch(u).then(function (r) { return r.blob(); }).then(D().decode)
                 .then(function (b) { amb = { buf: b, name: m.name };
                     status('Fondo: ' + m.name); });
         });
     }
-    // pista de fondo: de la tribu o buscada en el dispositivo
     function pickAmb() {
         if (window.TribalFiles && TribalFiles.native() && deps.sono) {
             TribalFiles.pick(deps.sono, { kinds: ['audio'], single: true,
                 title: 'Pista de fondo' }).then(function (ms) {
-                    if (ms && ms[0]) loadAmbMeta(ms[0]);
-                });
+                    if (ms && ms[0]) loadAmbMeta(ms[0]); });
             return;
         }
         var inp = document.createElement('input');
         inp.type = 'file'; inp.accept = 'audio/*';
         inp.onchange = function () {
-            if (inp.files[0]) window.TribalVDSP.decode(inp.files[0])
-                .then(function (b) { amb = { buf: b, name: inp.files[0].name };
-                    status('Fondo: ' + amb.name); });
+            if (inp.files[0]) D().decode(inp.files[0]).then(function (b) {
+                amb = { buf: b, name: inp.files[0].name };
+                status('Fondo: ' + amb.name); });
         };
         inp.click();
     }
+
+    // -------- efectos / export --------------------------------------------
     function collect() {
         return {
-            eq: ov.querySelector('#vfx-eq').value,
-            fIn: +ov.querySelector('#vfx-fin').value || 0,
-            fOut: +ov.querySelector('#vfx-fout').value || 0,
-            echo: ov.querySelector('#vfx-echo').checked,
-            echoT: +ov.querySelector('#vfx-et').value || 0.35,
-            echoFb: Math.min(0.85, +ov.querySelector('#vfx-ef').value || 0.35),
-            echoMix: +ov.querySelector('#vfx-em').value || 0.4,
-            ambVol: +ov.querySelector('#vfx-avol').value / 100
+            eq: q('#vfx-eq').value,
+            fIn: +q('#vfx-fin').value || 0, fOut: +q('#vfx-fout').value || 0,
+            echo: q('#vfx-echo').checked,
+            echoT: +q('#vfx-et').value || .35,
+            echoFb: Math.min(.85, +q('#vfx-ef').value || .35),
+            echoMix: +q('#vfx-em').value || .4,
+            ambVol: +q('#vfx-avol').value / 100
         };
     }
     function exportIt() {
-        status('Renderizando efectos…');
-        var rdur = 0;
-        window.TribalVDSP.render(ab, collect(), amb).then(function (out) {
+        status('Renderizando efectos…'); var rdur = 0;
+        D().render(ab, collect(), amb).then(function (out) {
             rdur = out.duration;
-            return window.TribalConvert.convert(window.TribalVDSP.wav(out),
-                ov.querySelector('#vfx-fmt').value,
+            return window.TribalConvert.convert(D().wav(out),
+                q('#vfx-fmt').value,
                 function (p) { status('Codificando ' + Math.round(p * 100) + '%…'); });
         }).then(function (r) {
             var base = item.name.replace(/\.[^.]+$/, '') + ' (edit)' + r.ext;
@@ -112,52 +120,59 @@ window.TribalVNoteFX = (function () {
             return '<option value="' + m.id + '">' + esc(m.name) + '</option>';
         }).join('');
         ov.innerHTML = '<div class="vn-panel"><div class="lk-head">' +
-            '<h3><i class="bi bi-sliders"></i> ' + esc(item.name) + '</h3>' +
+            '<h3><i class="bi bi-mic"></i> ' + esc(item.name) + '</h3>' +
             '<button class="lk-x" id="vfx-x"><i class="bi bi-x-lg"></i></button></div>' +
-            '<div class="lk-body"><canvas id="vfx-wave" width="360" height="90"></canvas>' +
-            '<div class="vn-frow"><button id="vfx-pv" class="tribal-btn tribal-btn-xs">' +
-            '<i class="bi bi-play-fill"></i> Previa</button>' +
-            '<label>A <input id="vfx-a" type="number" step="0.1" value="0"></label>' +
-            '<label>B <input id="vfx-b" type="number" step="0.1"></label></div>' +
-            '<div class="vn-frow"><button id="vfx-keep" class="tribal-btn tribal-btn-xs">Usar solo A–B</button>' +
-            '<button id="vfx-cut" class="tribal-btn tribal-btn-xs">Cortar A–B</button>' +
-            '<button id="vfx-copy" class="tribal-btn tribal-btn-xs">Copiar A–B</button>' +
-            '<label>en <input id="vfx-p" type="number" step="0.1" value="0"></label>' +
-            '<button id="vfx-paste" class="tribal-btn tribal-btn-xs">Pegar</button></div>' +
-            '<div class="vn-frow"><label>EQ <select id="vfx-eq">' + eqs + '</select></label>' +
-            '<label>Fade in <input id="vfx-fin" type="number" step="0.1" value="0">s</label>' +
-            '<label>out <input id="vfx-fout" type="number" step="0.1" value="0">s</label></div>' +
-            '<div class="vn-frow"><label><input id="vfx-echo" type="checkbox"> Echo</label>' +
-            '<label>retardo <input id="vfx-et" type="number" step="0.05" value="0.35"></label>' +
-            '<label>rebote <input id="vfx-ef" type="number" step="0.05" value="0.35"></label>' +
-            '<label>mezcla <input id="vfx-em" type="number" step="0.05" value="0.4"></label></div>' +
-            '<div class="vn-frow"><label>Fondo <select id="vfx-amb">' +
-            '<option value="">— sin pista —</option>' + auds + '</select></label>' +
-            '<button id="vfx-ambpick" class="tribal-btn tribal-btn-xs">' +
-            '<i class="bi bi-folder2-open"></i> Dispositivo</button>' +
-            '<label>Vol <input id="vfx-avol" type="range" min="0" max="100" value="25"></label></div>' +
-            '<div class="vn-frow"><label>Formato <select id="vfx-fmt">' + fmts + '</select></label>' +
-            '<button id="vfx-go" class="tribal-btn tribal-btn-xs">' +
-            '<i class="bi bi-download"></i> Exportar</button></div>' +
+            '<div class="lk-body"><div class="vfx-stage">' +
+            '<canvas id="vfx-wave" class="vfx-wave" width="720" height="150"></canvas>' +
+            '<div class="vfx-times"><span id="vfx-ta">A 0:00</span>' +
+            '<span id="vfx-td" class="vfx-dur">0:00</span><span id="vfx-tb">B 0:00</span></div>' +
+            '<div class="vfx-transport"><button id="vfx-pv" class="vfx-play">' +
+            '<i class="bi bi-play-fill"></i></button>' +
+            '<span class="vfx-hint">Arrastra la onda o las asas para elegir A–B</span></div>' +
+            '</div><div class="vfx-tools">' +
+            '<button id="vfx-cut"><i class="bi bi-scissors"></i><span>Cortar</span></button>' +
+            '<button id="vfx-copy"><i class="bi bi-clipboard"></i><span>Copiar</span></button>' +
+            '<button id="vfx-paste"><i class="bi bi-box-arrow-in-down"></i><span>Pegar en B</span></button>' +
+            '<button id="vfx-keep"><i class="bi bi-bounding-box"></i><span>Solo A–B</span></button>' +
+            '<label class="vfx-xf"><i class="bi bi-intersect"></i>' +
+            '<select id="vfx-xf"><option value="0">Sin unión</option>' +
+            '<option value="0.3">Unión 0.3s</option><option value="0.7">Unión 0.7s</option>' +
+            '<option value="1.5">Unión 1.5s</option></select></label></div>' +
+            '<div class="vfx-tools">' +
+            '<label><i class="bi bi-sliders"></i><select id="vfx-eq">' + eqs + '</select></label>' +
+            '<label><i class="bi bi-graph-up-arrow"></i><input id="vfx-fin" type="number" step="0.1" value="0" title="Fade in (s)"></label>' +
+            '<label><i class="bi bi-graph-down-arrow"></i><input id="vfx-fout" type="number" step="0.1" value="0" title="Fade out (s)"></label>' +
+            '<label><i class="bi bi-vinyl"></i><input id="vfx-echo" type="checkbox"> Eco</label>' +
+            '<input id="vfx-et" type="number" step="0.05" value="0.35" title="Retardo">' +
+            '<input id="vfx-ef" type="number" step="0.05" value="0.35" title="Rebote">' +
+            '<input id="vfx-em" type="number" step="0.05" value="0.4" title="Mezcla"></div>' +
+            '<div class="vfx-tools">' +
+            '<label><i class="bi bi-music-note"></i><select id="vfx-amb">' +
+            '<option value="">— sin pista de fondo —</option>' + auds + '</select></label>' +
+            '<button id="vfx-ambpick"><i class="bi bi-folder2-open"></i><span>Dispositivo</span></button>' +
+            '<label><i class="bi bi-volume-down"></i>' +
+            '<input id="vfx-avol" type="range" min="0" max="100" value="25"></label></div>' +
+            '<div class="vfx-tools vfx-out">' +
+            '<label><i class="bi bi-filetype-mp3"></i><select id="vfx-fmt">' + fmts + '</select></label>' +
+            '<button id="vfx-go"><i class="bi bi-download"></i><span>Exportar</span></button></div>' +
             '<div id="vfx-st" class="vn-state"></div></div></div>';
         (deps.mount || document.body).appendChild(ov);
-        var q = function (id) { return ov.querySelector(id); };
+        wv = window.TribalVWave.mount(q('#vfx-wave'));
+        wv.onchange(times);
         q('#vfx-x').addEventListener('click', close);
         ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
-        q('#vfx-b').value = dur().toFixed(1);
         q('#vfx-pv').addEventListener('click', preview);
         q('#vfx-keep').addEventListener('click', function () {
-            var r = abv(); ab = window.TribalVDSP.slice(ab, r[0], r[1], true); refresh(); });
+            var r = wv.sel(); ab = D().slice(ab, r[0], r[1], true); refresh('Recorte aplicado'); });
         q('#vfx-cut').addEventListener('click', function () {
-            var r = abv(); ab = window.TribalVDSP.slice(ab, r[0], r[1], false);
-            refresh('Fragmento cortado'); });
+            var r = wv.sel(); ab = D().slice(ab, r[0], r[1], false); refresh('Fragmento cortado'); });
         q('#vfx-copy').addEventListener('click', function () {
-            var r = abv(); clip = window.TribalVDSP.slice(ab, r[0], r[1], true);
+            var r = wv.sel(); clip = D().slice(ab, r[0], r[1], true);
             status('Copiado ' + clip.duration.toFixed(1) + ' s'); });
         q('#vfx-paste').addEventListener('click', function () {
-            if (!clip) return status('Nada copiado — usa «Copiar A–B»');
-            ab = window.TribalVDSP.paste(ab, clip,
-                +q('#vfx-p').value || 0); refresh('Pegado'); });
+            if (!clip) return status('Nada copiado — usa «Copiar»');
+            ab = D().paste(ab, clip, wv.sel()[1], +q('#vfx-xf').value || 0);
+            refresh('Pegado en B'); });
         q('#vfx-amb').addEventListener('change', function () {
             var id = q('#vfx-amb').value; if (!id) { amb = null; return; }
             var m = deps.items.find(function (x) { return x.id === id; });
@@ -165,18 +180,19 @@ window.TribalVNoteFX = (function () {
         });
         q('#vfx-ambpick').addEventListener('click', pickAmb);
         q('#vfx-go').addEventListener('click', exportIt);
+        wv.buf(ab); times();
     }
     function close() {
-        if (pv) { try { pv.src.stop(); pv.ctx.close(); } catch (e) {} pv = null; }
+        stopPv();
         if (ov) { ov.parentNode.removeChild(ov); ov = null; }
-        amb = clip = null;
+        amb = clip = null; wv = null;
     }
     function open(m, d) {
         deps = d; item = m;
         deps.urlFor(m, function (u) {
             if (!u) return deps.toast('No se pudo leer el audio');
-            fetch(u).then(function (r) { return r.blob(); }).then(window.TribalVDSP.decode)
-                .then(function (buf) { ab = buf; if (ov) close(); build(); drawWave(); })
+            fetch(u).then(function (r) { return r.blob(); }).then(D().decode)
+                .then(function (buf) { ab = buf; if (ov) close(); build(); })
                 .catch(function (e) { deps.toast(e.message || 'No se pudo decodificar'); });
         });
     }

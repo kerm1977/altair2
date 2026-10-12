@@ -33,18 +33,27 @@ window.TribalVDSP = (function () {
         }
         return out;
     }
-    // inserta `clip` dentro de `buf` en la posición `at` (segundos)
-    function paste(buf, clip, at) {
-        var sr = buf.sampleRate, n = buf.length,
-            i = Math.max(0, Math.min(n, Math.round(at * sr)));
+    // inserta `clip` dentro de `buf` en `at` (s). Con xf>0 hace crossfade
+    // en ambas uniones: la pista se difumina entrando y saliendo.
+    function paste(buf, clip, at, xf) {
+        var sr = buf.sampleRate, n = buf.length, c = clip.length,
+            i = Math.max(0, Math.min(n, Math.round(at * sr))),
+            x = Math.max(0, Math.min(Math.round((xf || 0) * sr),
+                                     c >> 1, (n - i) >> 1));
         var ch = Math.max(buf.numberOfChannels, clip.numberOfChannels);
-        var out = new AudioBuffer({ length: n + clip.length,
+        var out = new AudioBuffer({ length: n + c - 2 * x,
             numberOfChannels: ch, sampleRate: sr });
-        for (var c = 0; c < ch; c++) {
-            var o = out.getChannelData(c);
-            var d = buf.getChannelData(Math.min(c, buf.numberOfChannels - 1));
-            var k = clip.getChannelData(Math.min(c, clip.numberOfChannels - 1));
-            o.set(d.subarray(0, i)); o.set(k, i); o.set(d.subarray(i), i + k.length);
+        for (var k = 0; k < ch; k++) {
+            var o = out.getChannelData(k),
+                d = buf.getChannelData(Math.min(k, buf.numberOfChannels - 1)),
+                p = clip.getChannelData(Math.min(k, clip.numberOfChannels - 1));
+            o.set(d.subarray(0, i));
+            for (var t = 0; t < x; t++)
+                o[i + t] = d[i + t] * (1 - t / x) + p[t] * (t / x);
+            o.set(p.subarray(x, c - x), i + x);
+            for (t = 0; t < x; t++)
+                o[i + c - x + t] = p[c - x + t] * (1 - t / x) + d[i + x + t] * (t / x);
+            o.set(d.subarray(i + 2 * x), i + c);
         }
         return out;
     }
