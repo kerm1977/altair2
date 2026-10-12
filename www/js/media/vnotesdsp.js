@@ -73,10 +73,34 @@ window.TribalVDSP = (function () {
         }
         return new Blob([dv.buffer], { type: 'audio/wav' });
     }
-    // cadena offline: src → EQ → fades → echo → destino (+ ambiente ×vol)
-    function render(buf, cfg, amb) {
-        var octx = new OfflineAudioContext(
-            Math.min(2, buf.numberOfChannels), buf.length, buf.sampleRate);
+    // arma una pista sobre ctx (online u offline): solo suena su parte que
+    // cae dentro de la ventana [from,to) del timeline — sirve para la
+    // previa y para el render offline.
+    function armTrack(ctx, dest, t, from, to) {
+        if (t.muted || !t.buf) return;
+        var a = t.a || 0, b = (t.b > 0 ? t.b : t.buf.duration);
+        var s0 = Math.max(from, t.off), s1 = Math.min(to, t.off + (b - a));
+        if (s1 <= s0) return;
+        var src = ctx.createBufferSource(); src.buffer = t.buf;
+        var g = ctx.createGain(); g.gain.value = t.vol;
+        src.connect(g); g.connect(dest);
+        src.start(ctx.currentTime + Math.max(0, s0 - from),
+                  a + (s0 - t.off), s1 - s0);
+    }
+    // duración total del timeline: voz + fin de cada pista
+    function tlDur(buf, tracks) {
+        var d = buf.duration;
+        (tracks || []).forEach(function (t) {
+            var frag = (t.b > 0 ? t.b : t.buf.duration) - (t.a || 0);
+            d = Math.max(d, t.off + frag);
+        });
+        return d;
+    }
+    // cadena offline: src → EQ → fades → echo → destino (+ pistas)
+    function render(buf, cfg, tracks) {
+        var total = tlDur(buf, tracks);
+        var octx = new OfflineAudioContext(Math.min(2, buf.numberOfChannels),
+            Math.ceil(total * buf.sampleRate), buf.sampleRate);
         var src = octx.createBufferSource(), chain = src;
         src.buffer = buf;
         var p = (window.TribalEQ.PRESETS || []).find(function (x) { return x.id === cfg.eq; });
@@ -85,7 +109,7 @@ window.TribalVDSP = (function () {
             bq.type = TYPES[k]; bq.frequency.value = f; bq.gain.value = p.gains[k];
             chain.connect(bq); chain = bq;
         });
-        var fg = octx.createGain(), dur = buf.duration;
+        var fg = octx.createGain(), dur = total;
         if (cfg.fIn > 0) { fg.gain.setValueAtTime(0, 0);
             fg.gain.linearRampToValueAtTime(1, Math.min(cfg.fIn, dur)); }
         if (cfg.fOut > 0) { fg.gain.setValueAtTime(1, Math.max(0, dur - cfg.fOut));
@@ -101,12 +125,11 @@ window.TribalVDSP = (function () {
             chain = mix;
         }
         chain.connect(octx.destination); src.start(0);
-        if (amb) {
-            var as = octx.createBufferSource(); as.buffer = amb.buf; as.loop = true;
-            var ag = octx.createGain(); ag.gain.value = cfg.ambVol;
-            as.connect(ag); ag.connect(octx.destination); as.start(0);
-        }
+        (tracks || []).forEach(function (t) {
+            armTrack(octx, octx.destination, t, 0, total);
+        });
         return octx.startRendering();
     }
-    return { decode: decode, slice: slice, paste: paste, wav: wav, render: render };
+    return { decode: decode, slice: slice, paste: paste, wav: wav,
+             render: render, armTrack: armTrack, tlDur: tlDur };
 })();

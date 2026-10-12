@@ -1,32 +1,65 @@
-// === media/vnotesfx.js — Editor de notas de audio (UI) ====================
-// Onda con A–B arrastrables + espectro vivo (vnoteswave.js), transporte,
-// cortar/copiar/pegar con crossfade, EQ tribal, fades, echo, pista de
-// fondo (tribu o dispositivo) con volumen, exporta vía TribalConvert.
-// DSP en vnotesdsp.js. API: TribalVNoteFX.open(item, deps)
+// === media/vnotesfx.js — Editor multipista de notas (UI) =================
+// Onda A–B (vnoteswave), previa dentro de la selección mezclando las
+// pistas (vnotestracks), cortar/copiar/pegar con crossfade, EQ/fades/eco,
+// pistas ilimitadas arrastrables con mute/lock/recorte, autosave en
+// IndexedDB (vnotesauto), exporta MP3 y descarga. DSP: vnotesdsp.js.
 // =========================================================================
 window.TribalVNoteFX = (function () {
     'use strict';
-    var ov, deps, item, ab, amb = null, clip = null, pv = null, wv = null, pvRaf,
+    var ov, deps, item, ab, clip = null, pv = null, wv, tr, pvRaf, saveT,
         D = function () { return window.TribalVDSP; };
 
     function q(id) { return ov.querySelector(id); }
-    function esc(s) {
-        var E = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
-        return String(s || '').replace(/[&<>"]/g, function (c) { return E[c]; });
-    }
     function status(t) { q('#vfx-st').textContent = t; }
-    function ft(s) {
-        s = Math.max(0, s || 0);
-        return Math.floor(s / 60) + ':' + ('0' + (s % 60).toFixed(1)).slice(-4);
-    }
+    function ft(s) { s = Math.max(0, s || 0);
+        return Math.floor(s / 60) + ':' + ('0' + (s % 60).toFixed(1)).slice(-4); }
     function times() {
         var r = wv.sel();
         q('#vfx-ta').textContent = 'A ' + ft(r[0]);
-        q('#vfx-td').textContent = ft(wv.dur());
-        q('#vfx-tb').textContent = 'B ' + ft(r[1]); }
-    function refresh(msg) { wv.buf(ab); times(); status(msg || ''); }
+        q('#vfx-td').textContent = ft(D().tlDur(ab, tr.list()));
+        q('#vfx-tb').textContent = 'B ' + ft(r[1]);
+    }
+    function refresh(msg) { wv.buf(ab); tr.draw(); times(); status(msg || ''); save(); }
+    function tl() { return D().tlDur(ab, tr.list()); }
 
-    // -------- previa con espectro vivo sobre la onda ---------------------
+    // -------- autosave (sobrevive cierre de la app) -----------------------
+    function packNow() {
+        return { voice: D().wav(ab), sel: wv.sel(), cfg: collect(),
+            fmt: q('#vfx-fmt').value, xf: q('#vfx-xf').value,
+            tracks: tr.list().map(function (t) {
+                return { wav: D().wav(t.buf), name: t.name, off: t.off,
+                    vol: t.vol, a: t.a, b: t.b,
+                    muted: t.muted, locked: t.locked };
+            }) };
+    }
+    function save() {
+        clearTimeout(saveT);
+        saveT = setTimeout(function () {
+            if (ov && ab && wv && tr) window.TribalVAuto.save(item.id, packNow());
+        }, 500);
+    }
+    function restore() {
+        window.TribalVAuto.load(item.id).then(function (p) {
+            if (!p) return;
+            var jobs = [D().decode(p.voice)].concat(p.tracks.map(function (t) {
+                return D().decode(t.wav).then(function (b) { t.buf = b; });
+            }));
+            Promise.all(jobs).then(function (rs) {
+                ab = rs[0]; wv.buf(ab); wv.setSel(p.sel[0], p.sel[1]);
+                ['eq', 'fin', 'fout', 'et', 'ef', 'em'].forEach(function (k) {
+                    if (p.cfg && p.cfg[k] != null) q('#vfx-' + k).value = p.cfg[k];
+                });
+                if (p.cfg) { q('#vfx-echo').checked = !!p.cfg.echo;
+                    q('#vfx-avol').value = p.cfg.ambVol * 100 || 25; }
+                if (p.fmt) q('#vfx-fmt').value = p.fmt;
+                if (p.xf) q('#vfx-xf').value = p.xf;
+                tr.restore(p.tracks); times();
+                status('Borrador restaurado');
+            }).catch(function () {});
+        });
+    }
+
+    // -------- previa A–B mezclando todas las pistas -----------------------
     function stopPv() {
         if (pvRaf) cancelAnimationFrame(pvRaf); pvRaf = null;
         if (pv) { try { pv.src.onended = null; pv.src.stop(); pv.ctx.close(); }
@@ -36,128 +69,86 @@ window.TribalVNoteFX = (function () {
     }
     function preview() {
         if (pv) return stopPv();
+        var r = wv.sel(), a = r[0], b = Math.max(r[1], r[0] + .05);
         var Ctx = window.AudioContext || window.webkitAudioContext;
         var ctx = new Ctx(), src = ctx.createBufferSource(),
-            an = ctx.createAnalyser();
+            an = ctx.createAnalyser(), bus = ctx.createGain();
         src.buffer = ab; an.fftSize = 1024;
-        src.connect(an); an.connect(ctx.destination);
-        src.start(0); pv = { ctx: ctx, src: src, t0: ctx.currentTime };
+        src.connect(bus); bus.connect(an); an.connect(ctx.destination);
+        tr.list().forEach(function (t) { D().armTrack(ctx, bus, t, a, b); });
+        src.start(0, a, b - a);
+        pv = { ctx: ctx, src: src, t0: ctx.currentTime };
         wv.live(an); q('#vfx-pv').innerHTML = '<i class="bi bi-stop-fill"></i>';
         (function loop() {
             if (!pv) return;
-            wv.pos(pv.ctx.currentTime - pv.t0);
+            wv.pos(a + (pv.ctx.currentTime - pv.t0));
             pvRaf = requestAnimationFrame(loop);
         })();
         src.onended = function () { if (pv) stopPv(); };
     }
 
-    // -------- pista de fondo ---------------------------------------------
-    function loadAmbMeta(m) {
+    // -------- agregar pistas -----------------------------------------------
+    function addTrackMeta(m) {
         deps.urlFor(m, function (u) {
             fetch(u).then(function (r) { return r.blob(); }).then(D().decode)
-                .then(function (b) { amb = { buf: b, name: m.name };
-                    status('Fondo: ' + m.name); });
+                .then(function (b) { tr.add(b, m.name); status('+ ' + m.name); });
         });
     }
-    function pickAmb() {
+    function pickTrack() {
         if (window.TribalFiles && TribalFiles.native() && deps.sono) {
             TribalFiles.pick(deps.sono, { kinds: ['audio'], single: true,
-                title: 'Pista de fondo' }).then(function (ms) {
-                    if (ms && ms[0]) loadAmbMeta(ms[0]); });
+                title: 'Agregar pista' }).then(function (ms) {
+                    if (ms && ms[0]) addTrackMeta(ms[0]); });
             return;
         }
         var inp = document.createElement('input');
         inp.type = 'file'; inp.accept = 'audio/*';
         inp.onchange = function () {
             if (inp.files[0]) D().decode(inp.files[0]).then(function (b) {
-                amb = { buf: b, name: inp.files[0].name };
-                status('Fondo: ' + amb.name); });
+                tr.add(b, inp.files[0].name); status('+ ' + inp.files[0].name); });
         };
         inp.click();
     }
 
-    // -------- efectos / export --------------------------------------------
     function collect() {
-        return {
-            eq: q('#vfx-eq').value,
+        return { eq: q('#vfx-eq').value,
             fIn: +q('#vfx-fin').value || 0, fOut: +q('#vfx-fout').value || 0,
             echo: q('#vfx-echo').checked,
             echoT: +q('#vfx-et').value || .35,
             echoFb: Math.min(.85, +q('#vfx-ef').value || .35),
             echoMix: +q('#vfx-em').value || .4,
-            ambVol: +q('#vfx-avol').value / 100
-        };
+            ambVol: +q('#vfx-avol').value / 100 };
     }
     function exportIt() {
-        status('Renderizando efectos…'); var rdur = 0;
-        D().render(ab, collect(), amb).then(function (out) {
+        status('Renderizando mezcla…'); var rdur = 0;
+        D().render(ab, collect(), tr.list()).then(function (out) {
             rdur = out.duration;
-            return window.TribalConvert.convert(D().wav(out),
-                q('#vfx-fmt').value,
+            return window.TribalConvert.convert(D().wav(out), q('#vfx-fmt').value,
                 function (p) { status('Codificando ' + Math.round(p * 100) + '%…'); });
         }).then(function (r) {
             var base = item.name.replace(/\.[^.]+$/, '') + ' (edit)' + r.ext;
-            return deps.store.add(new File([r.blob], base, { type: r.blob.type }))
-                .then(function (m) {
-                    if (deps.store.updateInfo)
-                        deps.store.updateInfo(m.id, { vn: 1, dur: rdur });
-                    status(''); deps.toast('«' + base + '» guardado');
-                    if (deps.reload) deps.reload();
-                });
+            var f = new File([r.blob], base, { type: r.blob.type });
+            return deps.store.add(f).then(function (m) {
+                if (deps.store.updateInfo)
+                    deps.store.updateInfo(m.id, { vn: 1, dur: rdur });
+                var a = document.createElement('a');       // descarga directa
+                a.href = URL.createObjectURL(r.blob); a.download = base;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+                status(''); deps.toast('«' + base + '» guardado y descargado');
+                window.TribalVAuto.clear(item.id);
+                if (deps.reload) deps.reload();
+            });
         }).catch(function (e) { status('Error: ' + (e && e.message || e)); });
     }
 
     function build() {
-        ov = document.createElement('div');
-        ov.className = 'tribal-overlay vn-overlay';
-        var eqs = (window.TribalEQ.PRESETS || []).map(function (p) {
-            return '<option value="' + p.id + '">' + p.label + '</option>'; }).join('');
-        var fmts = window.TribalConvert.formats().map(function (f) {
-            return '<option value="' + f.id + '">' + f.label + '</option>'; }).join('');
-        var auds = (deps.items || []).filter(function (m) {
-            return m.kind === 'audio' && m.id !== item.id;
-        }).map(function (m) {
-            return '<option value="' + m.id + '">' + esc(m.name) + '</option>';
-        }).join('');
-        ov.innerHTML = '<div class="vn-panel"><div class="lk-head">' +
-            '<h3><i class="bi bi-mic"></i> ' + esc(item.name) + '</h3>' +
-            '<button class="lk-x" id="vfx-x"><i class="bi bi-x-lg"></i></button></div>' +
-            '<div class="lk-body"><div class="vfx-stage">' +
-            '<canvas id="vfx-wave" class="vfx-wave" width="720" height="150"></canvas>' +
-            '<div class="vfx-times"><span id="vfx-ta">A 0:00</span>' +
-            '<span id="vfx-td" class="vfx-dur">0:00</span><span id="vfx-tb">B 0:00</span></div>' +
-            '<div class="vfx-transport"><button id="vfx-pv" class="vfx-play">' +
-            '<i class="bi bi-play-fill"></i></button>' +
-            '<span class="vfx-hint">Arrastra la onda o las asas para elegir A–B</span></div>' +
-            '</div><div class="vfx-tools">' +
-            '<button id="vfx-cut"><i class="bi bi-scissors"></i><span>Cortar</span></button>' +
-            '<button id="vfx-copy"><i class="bi bi-clipboard"></i><span>Copiar</span></button>' +
-            '<button id="vfx-paste"><i class="bi bi-box-arrow-in-down"></i><span>Pegar en B</span></button>' +
-            '<button id="vfx-keep"><i class="bi bi-bounding-box"></i><span>Solo A–B</span></button>' +
-            '<label class="vfx-xf"><i class="bi bi-intersect"></i>' +
-            '<select id="vfx-xf"><option value="0">Sin unión</option>' +
-            '<option value="0.3">Unión 0.3s</option><option value="0.7">Unión 0.7s</option>' +
-            '<option value="1.5">Unión 1.5s</option></select></label></div>' +
-            '<div class="vfx-tools">' +
-            '<label><i class="bi bi-sliders"></i><select id="vfx-eq">' + eqs + '</select></label>' +
-            '<label><i class="bi bi-graph-up-arrow"></i><input id="vfx-fin" type="number" step="0.1" value="0" title="Fade in (s)"></label>' +
-            '<label><i class="bi bi-graph-down-arrow"></i><input id="vfx-fout" type="number" step="0.1" value="0" title="Fade out (s)"></label>' +
-            '<label><i class="bi bi-vinyl"></i><input id="vfx-echo" type="checkbox"> Eco</label>' +
-            '<input id="vfx-et" type="number" step="0.05" value="0.35" title="Retardo">' +
-            '<input id="vfx-ef" type="number" step="0.05" value="0.35" title="Rebote">' +
-            '<input id="vfx-em" type="number" step="0.05" value="0.4" title="Mezcla"></div>' +
-            '<div class="vfx-tools">' +
-            '<label><i class="bi bi-music-note"></i><select id="vfx-amb">' +
-            '<option value="">— sin pista de fondo —</option>' + auds + '</select></label>' +
-            '<button id="vfx-ambpick"><i class="bi bi-folder2-open"></i><span>Dispositivo</span></button>' +
-            '<label><i class="bi bi-volume-down"></i>' +
-            '<input id="vfx-avol" type="range" min="0" max="100" value="25"></label></div>' +
-            '<div class="vfx-tools vfx-out">' +
-            '<label><i class="bi bi-filetype-mp3"></i><select id="vfx-fmt">' + fmts + '</select></label>' +
-            '<button id="vfx-go"><i class="bi bi-download"></i><span>Exportar</span></button></div>' +
-            '<div id="vfx-st" class="vn-state"></div></div></div>';
+        ov = document.createElement('div'); ov.className = 'tribal-overlay vn-overlay';
+        ov.innerHTML = window.TribalVNoteUI.html(item, deps);
         (deps.mount || document.body).appendChild(ov);
         wv = window.TribalVWave.mount(q('#vfx-wave'));
+        tr = window.TribalVTracks.mount(q('#vfx-lanes'), { tl: tl, onchange: function () {
+            times(); save(); } });
         wv.onchange(times);
         q('#vfx-x').addEventListener('click', close);
         ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
@@ -174,18 +165,24 @@ window.TribalVNoteFX = (function () {
             ab = D().paste(ab, clip, wv.sel()[1], +q('#vfx-xf').value || 0);
             refresh('Pegado en B'); });
         q('#vfx-amb').addEventListener('change', function () {
-            var id = q('#vfx-amb').value; if (!id) { amb = null; return; }
+            var id = q('#vfx-amb').value; q('#vfx-amb').value = '';
+            if (!id) return;
             var m = deps.items.find(function (x) { return x.id === id; });
-            if (m) loadAmbMeta(m);
+            if (m) addTrackMeta(m);
         });
-        q('#vfx-ambpick').addEventListener('click', pickAmb);
+        q('#vfx-ambpick').addEventListener('click', pickTrack);
         q('#vfx-go').addEventListener('click', exportIt);
-        wv.buf(ab); times();
+        ['vfx-eq', 'vfx-fin', 'vfx-fout', 'vfx-echo', 'vfx-et', 'vfx-ef', 'vfx-em',
+         'vfx-avol', 'vfx-fmt', 'vfx-xf'].forEach(function (id) {
+            q('#' + id).addEventListener('change', function () { times(); save(); });
+        });
+        wv.buf(ab); times(); restore();
     }
     function close() {
+        if (ab && wv && tr) window.TribalVAuto.save(item.id, packNow());
         stopPv();
         if (ov) { ov.parentNode.removeChild(ov); ov = null; }
-        amb = clip = null; wv = null;
+        clip = null; wv = tr = null;
     }
     function open(m, d) {
         deps = d; item = m;
