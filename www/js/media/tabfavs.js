@@ -183,12 +183,10 @@ window.Sono.register('tabfavs', function (S) {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 b.cb();
-                if (b.keep) {
-                    // tras moverse el ítem quedó en otro sitio → re-ubicar
-                    setTimeout(function () { placePop(el); }, 30);
-                } else {
-                    pop.hidden = true;
-                }
+                // la píldora es FIJA: aunque el ítem se mueva detrás, ella
+                // se queda donde apareció → el dedo siempre cae en la misma
+                // opción (sin esto ◀◀ acababa tocando "Al menú" por error)
+                if (!b.keep) pop.hidden = true;
             });
             pop.appendChild(btn);
         });
