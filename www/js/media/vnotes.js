@@ -81,8 +81,8 @@ window.TribalVNotes = (function () {
         ov.querySelector('#vn-time').textContent = '00:00';
         var blob = new Blob(chunks, { type: mime || 'audio/webm' });
         if (!blob.size) return;
-        var name = nextName() + ext();
-        deps.store.add(new File([blob], name, { type: blob.type })).then(function (m) {
+        var name = nextName() + ext(); deps.store.add(
+            new File([blob], name, { type: blob.type })).then(function (m) {
             if (m && deps.store.updateInfo) deps.store.updateInfo(m.id,
                 { vn: 1, dur: Math.max(.1, elapsed) });
             deps.toast('«' + name + '» guardada en la tribu');
@@ -137,9 +137,8 @@ window.TribalVNotes = (function () {
             return '<div class="vn-row"><i class="bi bi-mic"></i>' +
                 '<span>' + esc(m.name) + '</span>' +
                 '<button data-play="' + m.id + '" title="Escuchar">' +
-                '<i class="bi bi-play-circle"></i></button>' +
-                '<button data-edit="' + m.id + '" title="Editar">' +
-                '<i class="bi bi-sliders"></i></button></div>';
+                '<i class="bi bi-play-circle"></i></button><button data-edit="' +
+                m.id + '" title="Editar"><i class="bi bi-sliders"></i></button></div>';
         }).join('') : '<p class="vn-empty">Sin notas todavía</p>';
     }
 
@@ -165,7 +164,8 @@ window.TribalVNotes = (function () {
             var id = b.dataset.play || b.dataset.edit;
             var m = (deps.items || []).find(function (x) { return x.id === id; });
             if (!m) return;
-            if (b.dataset.play && deps.play) { deps.play(m); close(); }
+            if (b.dataset.play && window.TribalVNotePlay)
+                TribalVNotePlay.toggle(m, b.closest('.vn-row'), deps);
             else if (b.dataset.edit) edit(m, deps);   // editor aquí mismo
         });
         ov.querySelector('#vn-rec').addEventListener('click', function () {
@@ -184,6 +184,7 @@ window.TribalVNotes = (function () {
     }
     function close() {
         if (state !== 'idle') return askStop();   // grabando → decide primero
+        if (window.TribalVNotePlay) TribalVNotePlay.stop();
         endStream();
         if (ov) { ov.parentNode.removeChild(ov); ov = null; }
     }
