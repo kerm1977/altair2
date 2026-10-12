@@ -128,7 +128,28 @@ window.TribalBtChat = (function () {
         on('btc-emobtn', function () { $('btc-emojis').hidden = !$('btc-emojis').hidden; });
         on('btc-reply-x', function () { setReply(null); });
         on('btc-send', sendText); on('btc-mic', toggleVoice);
-        on('btc-attach', function () { $('btc-file').click(); });
+        on('btc-attach', function () {
+            // en la APK: administrador universal propio — nada de picker
+            // del sistema; en web queda el <input type=file>
+            if (window.TribalFiles && window.TribalFiles.native() &&
+                deps.urlFor) {
+                window.TribalFiles.pick(
+                        { root: document.body, showToast: toast },
+                        { title: 'Enviar al chat' })
+                    .then(function (metas) {
+                        (metas || []).forEach(function (m) {
+                            deps.urlFor(m, function (u) {
+                                if (!u) return;
+                                fetch(u).then(function (r) { return r.blob(); })
+                                 .then(function (b) {
+                                     sendFile(new File([b], m.name,
+                                         { type: m.mime || b.type || '' }));
+                                 }).catch(function () {});
+                            });
+                        });
+                    });
+                return; }
+            $('btc-file').click(); });
         on('btc-cam', function () { $('btc-camfile').click(); });   // selfie/foto
         $('btc-text').addEventListener('keydown', function (e) { if (e.key === 'Enter') sendText(); });
         $('btc-file').addEventListener('change', function () { var f = this.files && this.files[0]; this.value = ''; if (f) sendFile(f); });

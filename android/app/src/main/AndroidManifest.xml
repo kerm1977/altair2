@@ -40,6 +40,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- Requerido explícitamente para Android 14+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- Para controlar volumen desde la app -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
@@ -150,6 +151,12 @@
             android:name=".TribalBtService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+
+        <!-- Motor torrent: sesión libtorrent viva en segundo plano -->
+        <service
+            android:name=".TribalTorrentSvc"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

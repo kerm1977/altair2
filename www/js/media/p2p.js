@@ -113,12 +113,13 @@ window.TribalP2P = (function () {
     }
     function nativeStart(j) {
         log('Nativo: añadiendo ' + String(j.magnet).slice(0, 55) + '…');
-        window.TribalP2PNative.add(j.magnet).then(function (r) {
+        var trs = userTrackers.concat(liveTrackers);
+        window.TribalP2PNative.add(j.magnet, trs).then(function (r) {
             j.native = true;
             j.nid = r.id;
             j.torrent = window.TribalP2PNative.torrentProxy(j);
             log('Nativo: en sesión como ' + String(r.id).slice(0, 12) +
-                '… (DHT + trackers http/udp)');
+                '… con ' + trs.length + ' trackers + DHT');
             if (j.status === 'paused') window.TribalP2PNative.pause(j.nid);
             else { j.status = 'metadata'; j.metaSince = Date.now(); }
             save(); emit('change'); pump();
@@ -129,12 +130,20 @@ window.TribalP2P = (function () {
             save(); emit('change');
         });
     }
-    var _nativePollOn = false;
+    var _nativePollOn = false, _dhtLog = -1;
     function wireNativePoll() {
         if (!nativeOK() || _nativePollOn) return;
         _nativePollOn = true;
         window.TribalP2PNative.onPoll(function () {
             var dirty = false;
+            // DHT en la consola: arranque del enjambre (nodos encontrados)
+            var dh = window.TribalP2PNative.dht();
+            if (dh && dh.nodes !== _dhtLog) {
+                var was = _dhtLog; _dhtLog = dh.nodes;
+                if (dh.nodes > 0 || was === 0)
+                    log('DHT ' + (dh.on ? 'activo' : 'apagado') + ' · ' +
+                        dh.nodes + ' nodos');
+            }
             jobs.forEach(function (j) {
                 if (!j.native) return;
                 if (j.status === 'metadata' && j.torrent &&

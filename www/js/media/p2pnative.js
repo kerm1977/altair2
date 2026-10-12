@@ -19,14 +19,13 @@ window.TribalP2PNative = (function () {
     var cache = {};        // id → últimas stats del list() nativo
     var subs = [];
 
+    var dhtNodes = 0, dhtOn = false;
     function poll() {
         if (!ok) return;
         TT.list().then(function (r) {
-            var seen = {};
-            (r.torrents || []).forEach(function (t) {
-                cache[t.id] = t;
-                seen[t.id] = 1;
-            });
+            (r.torrents || []).forEach(function (t) { cache[t.id] = t; });
+            dhtNodes = r.dht || 0;
+            dhtOn = !!r.dhtOn;
             subs.forEach(function (f) { try { f(); } catch (e) {} });
         }).catch(function () {});
     }
@@ -106,7 +105,10 @@ window.TribalP2PNative = (function () {
 
     return {
         ok: ok,
-        add: function (magnet) { return TT.add({ magnet: magnet }); },
+        add: function (magnet, trackers) {
+            return TT.add({ magnet: magnet, trackers: trackers || [] });
+        },
+        dht: function () { return { on: dhtOn, nodes: dhtNodes }; },
         pause: function (id) { return TT.pause({ id: id }); },
         resume: function (id) { return TT.resume({ id: id }); },
         remove: function (id) { return TT.remove({ id: id }); },

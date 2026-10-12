@@ -27,6 +27,8 @@
                 '<details class="tslide-acc" open>' +
                     '<summary><i class="bi bi-images"></i> Fotos <b id="ts-count-sel"></b></summary>' +
                     '<div class="tslide-photos" id="ts-photos"></div>' +
+                    '<button class="tribal-btn tribal-btn-xs" id="ts-addphotos">' +
+                        '<i class="bi bi-plus-lg"></i> Agregar fotos del dispositivo</button>' +
                 '</details>' +
 
                 '<details class="tslide-acc">' +
@@ -96,6 +98,41 @@
         }
         syncCount();
         list.addEventListener('change', syncCount);
+
+        // agregar fotos con el administrador propio (sin picker del sistema):
+        // se importan a la tribu y aparecen aquí ya marcadas
+        function addPhotoLabels(metas) {
+            metas.forEach(function (m) {
+                if (!m || d.images.some(function (x) { return x.id === m.id; }))
+                    return;
+                d.images.push(m);
+                list.insertAdjacentHTML('beforeend',
+                    '<label class="tslide-photo">' +
+                        '<input type="checkbox" value="' + m.id + '" checked>' +
+                        '<i class="bi bi-image"></i><span>' + esc(m.name) +
+                        '</span></label>');
+            });
+            syncCount();
+        }
+        var addBtn = el.querySelector('#ts-addphotos');
+        if (window.TribalFiles && window.TribalFiles.native()) {
+            addBtn.addEventListener('click', function () {
+                window.TribalFiles.pick(
+                        { root: d.mount, showToast: d.toast },
+                        { kinds: ['image'], title: 'Elegir fotos' })
+                    .then(function (metas) {
+                        if (metas && metas.length) {
+                            addPhotoLabels(metas);
+                            d.toast(metas.length + ' foto(s) agregadas');
+                        }
+                    });
+            });
+        } else {
+            addBtn.addEventListener('click', function () {
+                d.toast('Agregar desde el dispositivo solo en el APK — ' +
+                        'usa el botón + de la biblioteca');
+            });
+        }
 
         var sel = el.querySelector('#ts-song');
         sel.innerHTML = '<option value="">Sin música</option>' +

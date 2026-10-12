@@ -1,11 +1,14 @@
 package com.miapp.local;
 
+import com.frostwire.jlibtorrent.AnnounceEntry;
 import com.frostwire.jlibtorrent.FileStorage;
 import com.frostwire.jlibtorrent.SessionManager;
+import com.frostwire.jlibtorrent.SettingsPack;
 import com.frostwire.jlibtorrent.Sha1Hash;
 import com.frostwire.jlibtorrent.TorrentHandle;
 import com.frostwire.jlibtorrent.TorrentInfo;
 import com.frostwire.jlibtorrent.TorrentStatus;
+import com.frostwire.jlibtorrent.swig.settings_pack;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -41,6 +44,31 @@ public class TribalTorrentPlugin extends Plugin {
             if (!dir.exists()) dir.mkdirs();
             session = new SessionManager();
             session.start();
+            // DHT NO arranca solo en esta versión: sin esto un magnet sin
+            // trackers se queda en "obteniendo datos" para siempre
+            try { session.startDht(); } catch (Throwable ignored) {}
+            // ajustes de swarm: LSD + UPnP/NAT-PMP + uTP y anuncio a todos
+            // los trackers/tiers — máxima cobertura de peers
+            try {
+                SettingsPack sp = session.settings();
+                sp.setBoolean(settings_pack.bool_types.enable_dht.swigValue(), true);
+                sp.setBoolean(settings_pack.bool_types.enable_lsd.swigValue(), true);
+                sp.setBoolean(settings_pack.bool_types.broadcast_lsd.swigValue(), true);
+                sp.setBoolean(settings_pack.bool_types.enable_upnp.swigValue(), true);
+                sp.setBoolean(settings_pack.bool_types.enable_natpmp.swigValue(), true);
+                sp.setBoolean(settings_pack.bool_types.enable_outgoing_utp.swigValue(), true);
+                sp.setBoolean(settings_pack.bool_types.enable_incoming_utp.swigValue(), true);
+                sp.setBoolean(settings_pack.bool_types.announce_to_all_trackers.swigValue(), true);
+                sp.setBoolean(settings_pack.bool_types.announce_to_all_tiers.swigValue(), true);
+                sp.setInteger(settings_pack.int_types.connections_limit.swigValue(), 300);
+                sp.setInteger(settings_pack.int_types.active_downloads.swigValue(), -1);
+                sp.setString(settings_pack.string_types.user_agent.swigValue(),
+                             "TRIBALs/1.0 libtorrent/1.2");
+                session.applySettings(sp);
+            } catch (Throwable ignored) {}
+            // el servicio en primer plano mantiene vivo el proceso aunque
+            // el usuario siga leyendo/escuchando dentro de la app (y fuera)
+            try { TribalTorrentSvc.start(getContext()); } catch (Throwable ignored) {}
         }
         return session;
     }
@@ -61,6 +89,24 @@ public class TribalTorrentPlugin extends Plugin {
         try {
             session().download(magnet, dir);
             ids.add(h);
+            // trackers extra desde el JS (los magnets guardados van
+            // "desnudos" — sin tr= — para WebTorrent; aquí se inyectan)
+            JSArray trs = call.getArray("trackers");
+            if (trs != null) {
+                final TorrentHandle th = find(h);
+                if (th != null) {
+                    for (int i = 0; i < trs.length(); i++) {
+                        try {
+                            String u = trs.getString(i);
+                            if (u != null && !u.isEmpty() &&
+                                !u.startsWith("wss://"))
+                                th.addTracker(new AnnounceEntry(u));
+                        } catch (Throwable ignored) {}
+                    }
+                    try { th.forceReannounce(); } catch (Throwable ignored) {}
+                    try { th.forceDHTAnnounce(); } catch (Throwable ignored) {}
+                }
+            }
             JSObject r = new JSObject();
             r.put("id", h);
             call.resolve(r);
@@ -122,6 +168,8 @@ public class TribalTorrentPlugin extends Plugin {
         }
         JSObject r = new JSObject();
         r.put("torrents", arr);
+        try { r.put("dht", session().dhtNodes()); } catch (Throwable ignored) {}
+        try { r.put("dhtOn", session().isDhtRunning()); } catch (Throwable ignored) {}
         call.resolve(r);
     }
 

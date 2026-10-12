@@ -1038,6 +1038,76 @@
 }
 .fm-size { flex: none; font-size: 0.68rem; color: var(--tb-muted); }
 .fm-li .ms-check { flex: none; color: var(--tb-gold); }
+.fm-bar { display: flex; align-items: center; gap: 8px; }
+.fm-filters { flex: 1; margin: 0; }
+.fm-f.fm-on {
+    border-color: var(--tb-gold) !important;
+    color: var(--tb-gold) !important;
+    background: rgba(201, 124, 58, 0.18);
+}
+.fm-eye { flex: none; width: 30px; height: 30px; }
+/* cuadrícula con thumbnails */
+.fm-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-top: 8px;
+}
+.fm-cell {
+    position: relative; cursor: pointer; border-radius: 10px;
+    overflow: hidden; border: 1px solid var(--tb-border);
+    background: rgba(0,0,0,.3); padding-bottom: 4px;
+    user-select: none; -webkit-user-select: none;
+}
+.fm-cell.fm-on { outline: 2px solid var(--tb-gold); }
+.fm-thumb {
+    width: 100%; aspect-ratio: 1; background: #0a0502;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+}
+.fm-thumb img, .fm-thumb video {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.fm-icoBig i { font-size: 2rem; color: var(--tb-teal); }
+.fm-icoBig i.fm-dir { color: var(--tb-gold); }
+.fm-cname {
+    display: block; font-size: 0.62rem; color: var(--tb-cream);
+    padding: 3px 5px 0; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.fm-ck {
+    position: absolute; top: 5px; left: 6px; z-index: 2;
+    color: var(--tb-gold); font-size: 1.1rem;
+    text-shadow: 0 0 4px #000;
+}
+/* vista detalle dentro del administrador */
+.fm-detail {
+    position: absolute; inset: 0; z-index: 5;
+    background: rgba(4, 2, 1, 0.97);
+    display: flex; flex-direction: column;
+}
+.fm-det-x {
+    position: absolute; top: calc(8px + env(safe-area-inset-top, 0px));
+    right: 10px; z-index: 6; width: 38px; height: 38px;
+}
+.fm-det-body {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    min-height: 0; padding: 46px 10px 6px;
+}
+.fm-det-media {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+    border-radius: 8px;
+}
+.fm-det-ico { font-size: 4rem; color: var(--tb-teal); }
+.fm-det-msg { color: var(--tb-muted); font-size: 0.8rem; }
+.fm-det-foot {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--tb-border);
+}
+.fm-det-name {
+    flex: 1; min-width: 0; color: var(--tb-cream); font-size: 0.78rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fm-det-size { color: var(--tb-muted); font-size: 0.7rem; }
 
 /* ============================================================ stage+cutter */
 .vf-stage { position: relative; width: 100%; display: flex; justify-content: center; }
@@ -1919,6 +1989,10 @@
     background: linear-gradient(160deg, #160e07 0%, #241408 100%);
     overflow-y: auto; padding: 0 12px 20px;
 }
+/* los hijos NUNCA se encogen: si la suma pasa del alto, el panel hace
+   scroll — sin esto un <details> abierto se comprime y su contenido
+   se pinta encima de lo que sigue (consola sobre los torrents) */
+.tribal-p2p > * { flex-shrink: 0; }
 .tribal-p2p-head {
     display: flex; align-items: center; gap: 10px;
     /* + safe-area: la barra de estado (hora/wifi) no tape el botón Volver */
@@ -2114,7 +2188,7 @@
 /* página completa (como el lector/P2P), no diálogo */
 .tribal-links { width: 100%; }
 .lk-body {
-    flex: 1; width: min(760px, 100%);
+    flex: 1 0 auto; width: min(760px, 100%);
     margin: 0 auto; padding: 10px 0 30px;
 }
 /* botón «Volver» con texto (no solo flecha) */
