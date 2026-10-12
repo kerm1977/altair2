@@ -310,6 +310,43 @@ window.Sono.register('player', function (S) {
     videoEl.addEventListener('dblclick', function () {
         S.toggleVideoFS();
     });
+    // long-press ~1 s sobre el video EN fullscreen → botón "restaurar"
+    // (es la única salida: dentro del fullscreen real solo existen los
+    // controles nativos — la X, el ⋮ y el ⛶ quedan fuera del stage).
+    // Se apaga solo a los 4 s si no se usa.
+    var restoreBtn = $('vf-restore'), lpT = null, lpX = 0, lpY = 0;
+    function showRestore() {
+        if (document.fullscreenElement !== vStage || !restoreBtn) return;
+        restoreBtn.classList.add('on');
+        clearTimeout(restoreBtn._t);
+        restoreBtn._t = setTimeout(function () {
+            restoreBtn.classList.remove('on');
+        }, 4000);
+    }
+    videoEl.addEventListener('pointerdown', function (e) {
+        if (document.fullscreenElement !== vStage) return;
+        lpX = e.clientX; lpY = e.clientY;
+        lpT = setTimeout(showRestore, 900);
+    });
+    ['pointerup', 'pointercancel'].forEach(function (ev) {
+        videoEl.addEventListener(ev, function () { clearTimeout(lpT); lpT = null; });
+    });
+    videoEl.addEventListener('pointermove', function (e) {
+        if (lpT && (Math.abs(e.clientX - lpX) > 10 ||
+                    Math.abs(e.clientY - lpY) > 10)) {
+            clearTimeout(lpT); lpT = null;
+        }
+    });
+    // en fullscreen el long-press no debe disparar el menú contextual
+    // del video del WebView ("guardar video…")
+    videoEl.addEventListener('contextmenu', function (e) {
+        if (document.fullscreenElement === vStage) e.preventDefault();
+    });
+    if (restoreBtn) restoreBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        restoreBtn.classList.remove('on');
+        S.exitVideoFS();
+    });
     // si el botón nativo de pantalla completa de los controles del video se
     // activa solo sobre el <video>, lo redirigimos al stage completo para que
     // sticker y texto sigan visibles dentro del fullscreen

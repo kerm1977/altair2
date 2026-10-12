@@ -2310,3 +2310,27 @@
 /* menú contextual de selección múltiple (carátula en lote) */
 .ms-ctx { display: flex; flex-direction: column; gap: 10px; }
 .ms-ctx .tribal-btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+/* ------- Video fullscreen: botón restaurar (long-press) ------- */
+/* Vive dentro del .vf-stage → es lo único visible en fullscreen real.
+   Oculto por defecto: solo sale cuando el stage es fullscreen Y lleva
+   la clase .on (la pone el long-press de ~1 s en player.js). */
+.vf-restore {
+    display: none;
+    position: absolute;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    left: 12px;
+    z-index: 60;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 1px solid var(--tb-gold);
+    background: rgba(6, 4, 2, .55);
+    color: var(--tb-gold);
+    font-size: 1.15rem;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.vf-stage:fullscreen .vf-restore.on { display: flex; }
+.vf-restore:active { transform: scale(.92); }
