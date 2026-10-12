@@ -62,11 +62,20 @@ window.Sono.register('tabfavs', function (S) {
         }
         return bar.filter(function (id) { return actionFor(id); });
     }
-    function save(a) { localStorage.setItem(KEY, JSON.stringify(a)); }
+    function save(a) {
+        // «Todo» es sagrado: mientras esté en la barra va SIEMPRE primero —
+        // cualquier orden que lo deje atrás se normaliza aquí
+        var ti = a.indexOf('tab-all');
+        if (ti > 0) { a.splice(ti, 1); a.unshift('tab-all'); }
+        localStorage.setItem(KEY, JSON.stringify(a));
+    }
     function inBar(id) { return load().indexOf(id) >= 0; }
     function move(id, dir) {
         var bar = load(), i = bar.indexOf(id), j = i + dir;
         if (i < 0 || j < 0 || j >= bar.length) return false;
+        // nadie (ni «todo») puede quedar a la izquierda de «todo»
+        if (id === 'tab-all' && dir < 0) return false;
+        if (id !== 'tab-all' && bar[0] === 'tab-all' && j === 0) return false;
         bar.splice(i, 1);
         bar.splice(j, 0, id);
         save(bar);
@@ -189,10 +198,14 @@ window.Sono.register('tabfavs', function (S) {
     document.addEventListener('pointerdown', function (e) {
         if (!pop.hidden && !pop.contains(e.target)) pop.hidden = true;
     }, true);
-    // tragar el click posterior al long-press (excepto sobre la píldora)
+    // tragar el click posterior al long-press (excepto sobre la píldora).
+    // OJO: hay WebViews que NO emiten el click tras el long-press → lpFired
+    // quedaba pegado y se tragaba taps legítimos (movimientos "erráticos").
+    // Dos salvavidas: el tap en la píldora también lo limpia, y un timer
+    // de 1.2 s lo suelta si el click nunca llegó.
     document.addEventListener('click', function (e) {
         if (!lpFired) return;
-        if (pop.contains(e.target)) return;
+        if (pop.contains(e.target)) { lpFired = false; return; }
         lpFired = false;
         e.stopPropagation();
         e.preventDefault();
@@ -215,6 +228,7 @@ window.Sono.register('tabfavs', function (S) {
         lpT = setTimeout(function () {
             lpT = null;
             lpFired = true;
+            setTimeout(function () { lpFired = false; }, 1200);
             if (pinned) {
                 showPop(el, [
                     { html: '<i class="bi bi-chevron-left"></i>', keep: true,
