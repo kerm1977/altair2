@@ -115,8 +115,15 @@
 .vn-row button[data-a].ok { border-color: var(--tb-gold); }
 .vn-empty { color: var(--tb-muted); text-align: center; padding: 12px; }
 /* ------------------------------- editor -------------------------------- */
-.vfx-stage { width: 100%; max-width: 860px; }
-.vfx-wave { width: 100%; height: 150px; border-radius: 14px;
+.vfx-stage { width: 100%; max-width: 980px; }
+.vfx-ch1 { position: relative; }
+.vfx-ch1 .vfx-chnum { position: absolute; left: 8px; top: 8px; z-index: 2; }
+.vfx-chnum { display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; height: 22px; padding: 0 6px; border-radius: 999px;
+    background: linear-gradient(135deg, var(--tb-terra), #8a3a18);
+    border: 1px solid var(--tb-gold); color: #fff3df;
+    font: 800 .68rem/1 sans-serif; letter-spacing: .08em; }
+.vfx-wave { width: 100%; height: 110px; border-radius: 14px;
     background: linear-gradient(180deg, rgba(0,0,0,.45), rgba(26,14,6,.55));
     border: 1px solid var(--tb-border); touch-action: none;
     user-select: none; -webkit-user-select: none; }
@@ -171,24 +178,45 @@
     border-color: var(--tb-gold); color: #fff8ec; }
 .vfx-secwrap { display: none; width: 100%; }
 .vfx-secwrap.on { display: flex; flex-direction: column; align-items: center; }
-/* ------------------------------ carriles ------------------------------- */
-#vfx-lanes { width: 100%; max-width: 860px; display: flex;
-    flex-direction: column; gap: 6px; margin-top: 8px; }
-.vfx-lane { border-radius: 12px; border: 1px solid rgba(42,157,143,.45);
+/* ------------------------ canales C2–C8 (mezclador) --------------------- */
+#vfx-lanes { width: 100%; display: flex; flex-direction: column;
+    gap: 5px; margin-top: 8px; }
+.vfx-lane { border-radius: 10px; border: 1px solid rgba(42,157,143,.45);
     background: rgba(10, 30, 27, .35); overflow: hidden; }
 .vfx-lane.muted { opacity: .45; }
-.vfx-lanewave { display: block; width: 100%; height: 56px;
+.vfx-lane.locked { border-color: rgba(224,96,46,.5); }
+.vfx-lanewave { display: block; width: 100%; height: 34px;
     touch-action: none; user-select: none; cursor: grab; }
 .vfx-lanebar { display: flex; align-items: center; gap: 6px;
-    padding: 5px 8px; border-top: 1px solid rgba(42,157,143,.25); }
+    padding: 4px 8px; border-top: 1px solid rgba(42,157,143,.25);
+    flex-wrap: wrap; }
 .vfx-lname { flex: 1; min-width: 0; overflow: hidden; text-align: left;
     text-overflow: ellipsis; white-space: nowrap;
     color: #9fd8d0; font: 600 .72rem/1 sans-serif; }
-.vfx-lanebar button { width: 30px; height: 30px; flex-shrink: 0;
+.vfx-lanebar button { width: 28px; height: 28px; flex-shrink: 0;
     border-radius: 50%; border: 1px solid rgba(42,157,143,.5);
-    background: rgba(0,0,0,.3); color: #9fd8d0; font-size: .8rem;
+    background: rgba(0,0,0,.3); color: #9fd8d0; font-size: .75rem;
     cursor: pointer; display: inline-flex; align-items: center;
     justify-content: center; }
 .vfx-lanebar button:active { transform: scale(.9); }
 .vfx-lane.locked .vfx-lanewave { cursor: not-allowed; }
 .vfx-lvol { width: 80px; accent-color: #2a9d8f; }
+/* fila "+ canal" */
+.vfx-addch { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    width: 100%; margin-top: 8px; padding: 8px 10px; border-radius: 12px;
+    background: rgba(0,0,0,.22); border: 1px dashed rgba(42,157,143,.4); }
+.vfx-addch label { display: inline-flex; align-items: center; gap: 6px;
+    color: var(--tb-gold); font: 600 .78rem/1 sans-serif; flex: 1; min-width: 0; }
+.vfx-addch select { flex: 1; min-width: 0; background: #1a1008;
+    border: 1px solid var(--tb-border); border-radius: 8px;
+    color: var(--tb-cream); padding: 6px 8px; font-size: .78rem; }
+.vfx-addch button { display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--tb-border); background: rgba(240,180,41,.07);
+    color: var(--tb-gold); font: 600 .78rem/1 sans-serif; }
+.vfx-chnote { color: var(--tb-muted); font-size: .68rem; }
+/* portada */
+.vfx-coverrow { display: flex; align-items: center; gap: 10px;
+    margin-top: 8px; justify-content: center; }
+.vfx-coverrow img { width: 54px; height: 54px; object-fit: cover;
+    border-radius: 10px; border: 1px solid var(--tb-gold); }

@@ -7,7 +7,15 @@ window.TribalVDSP = (function () {
     var FREQS = [60, 230, 910, 3600, 14000],
         TYPES = ['lowshelf', 'peaking', 'peaking', 'peaking', 'highshelf'];
 
-    var dctx;        // contexto único para decodificar (evita el límite de 6)
+    var dctx, pctx;  // contextos compartidos: decodificar / previa en vivo
+    function actx() {
+        if (!pctx || pctx.state === 'closed') {
+            var C = window.AudioContext || window.webkitAudioContext;
+            pctx = new C();
+        }
+        if (pctx.resume) pctx.resume();
+        return pctx;
+    }
     function decode(blob) {
         if (!dctx) {
             var Ctx = window.AudioContext || window.webkitAudioContext;
@@ -90,6 +98,7 @@ window.TribalVDSP = (function () {
         src.connect(g); g.connect(dest);
         src.start(ctx.currentTime + Math.max(0, s0 - from),
                   a + (s0 - t.off), s1 - s0);
+        return src;
     }
     // duración total del timeline: voz + fin de cada pista
     function tlDur(buf, tracks) {
@@ -140,5 +149,5 @@ window.TribalVDSP = (function () {
         return octx.startRendering();
     }
     return { decode: decode, slice: slice, paste: paste, wav: wav,
-             render: render, armTrack: armTrack, tlDur: tlDur };
+             render: render, armTrack: armTrack, tlDur: tlDur, actx: actx };
 })();

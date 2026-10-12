@@ -4,7 +4,7 @@
 // =========================================================================
 window.TribalVNoteFX = (function () {
     'use strict';
-    var ov, deps, item, ab, clip = null, pv = null, wv, tr, pvRaf, saveT,
+    var ov, deps, item, ab, clip = null, wv, tr, saveT, coverB = null,
         D = function () { return window.TribalVDSP; };
 
     function q(id) { return ov.querySelector(id); }
@@ -55,36 +55,16 @@ window.TribalVNoteFX = (function () {
         });
     }
 
-    // previa A–B mezclando todas las pistas
-    function stopPv() {
-        if (pvRaf) cancelAnimationFrame(pvRaf); pvRaf = null;
-        if (pv) { try { pv.src.onended = null; pv.src.stop();
-            pv.ctx.close(); } catch (e) {} pv = null; }
-        if (wv) { wv.live(null); wv.pos(null); }
-        var b = q('#vfx-pv'); if (b) b.innerHTML = '<i class="bi bi-play-fill"></i>';
-    }
+    // previa A–B: TODOS los canales suenan a la vez (vnotespv.js)
+    function stopPv() { window.TribalVPV.stop(); }
     function preview() {
-        if (pv) return stopPv();
-        var r = wv.sel(), a = r[0], b = Math.max(r[1], r[0] + .05);
-        var Ctx = window.AudioContext || window.webkitAudioContext,
-            ctx = new Ctx(), src = ctx.createBufferSource(),
-            an = ctx.createAnalyser(), bus = ctx.createGain();
-        if (ctx.resume) ctx.resume();      // por si nació suspendido
-        src.buffer = ab; an.fftSize = 1024;
-        src.connect(bus); bus.connect(an); an.connect(ctx.destination);
-        tr.list().forEach(function (t) { D().armTrack(ctx, bus, t, a, b); });
-        src.start(0, a, b - a); pv = { ctx: ctx, src: src, t0: ctx.currentTime };
-        wv.live(an); q('#vfx-pv').innerHTML = '<i class="bi bi-stop-fill"></i>';
-        (function loop() {
-            if (!pv) return;
-            wv.pos(a + (pv.ctx.currentTime - pv.t0));
-            pvRaf = requestAnimationFrame(loop);
-        })();
-        src.onended = function () { if (pv) stopPv(); };
+        window.TribalVPV.toggle({ sel: wv.sel(), ab: ab, tracks: tr.list(),
+            wv: wv, btn: q('#vfx-pv'), D: D });
     }
 
-    // agregar pistas
+    // agregar pistas (máx 8 canales contando la voz)
     function addTrackMeta(m) {
+        if (tr.full()) return status('Máximo 8 canales (C1–C8)');
         deps.urlFor(m, function (u) {
             fetch(u).then(function (r) { return r.blob(); }).then(D().decode)
                 .then(function (b) { tr.add(b, m.name); status('+ ' + m.name); })
@@ -125,6 +105,8 @@ window.TribalVNoteFX = (function () {
             return deps.store.add(f).then(function (m) {
                 if (deps.store.updateInfo)
                     deps.store.updateInfo(m.id, { vn: 1, dur: rdur });
+                if (coverB && deps.store.saveArtwork)
+                    deps.store.saveArtwork(m.id, coverB);
                 var a = document.createElement('a');       // descarga directa
                 a.href = URL.createObjectURL(r.blob); a.download = base;
                 document.body.appendChild(a); a.click(); a.remove();
@@ -141,8 +123,9 @@ window.TribalVNoteFX = (function () {
         ov.innerHTML = window.TribalVNoteUI.html(item, deps);
         (deps.mount || document.body).appendChild(ov);
         wv = window.TribalVWave.mount(q('#vfx-wave'));
-        tr = window.TribalVTracks.mount(q('#vfx-lanes'), { tl: tl, onchange: function () {
-            times(); save(); } });
+        tr = window.TribalVTracks.mount(q('#vfx-lanes'), { tl: tl,
+            onchange: function () { times(); save(); },
+            onfull: function () { status('Máximo 8 canales (C1–C8)'); } });
         wv.onchange(times);
         q('#vfx-x').addEventListener('click', close);
         ov.addEventListener('click', function (e) {
@@ -166,6 +149,16 @@ window.TribalVNoteFX = (function () {
             if (m) addTrackMeta(m);
         });
         q('#vfx-ambpick').addEventListener('click', pickTrack);
+        q('#vfx-cover').addEventListener('click', function () {
+            var inp = document.createElement('input');
+            inp.type = 'file'; inp.accept = 'image/*';
+            inp.onchange = function () {
+                if (!inp.files[0]) return;
+                coverB = inp.files[0];
+                var img = q('#vfx-coverimg');
+                img.src = URL.createObjectURL(coverB); img.hidden = false;
+                q('#vfx-covername').textContent = coverB.name; };
+            inp.click(); });
         q('#vfx-go').addEventListener('click', exportIt);
         ov.querySelectorAll('.vfx-tabs button').forEach(function (b) {
             b.addEventListener('click', function () {
