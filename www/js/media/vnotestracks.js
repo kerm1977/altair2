@@ -29,6 +29,7 @@ window.TribalVTracks = (function () {
             row.appendChild(c); row.appendChild(bar);
             bar.querySelector('.vfx-lmute').addEventListener('click', function () {
                 t.muted = !t.muted;
+                if (t._g) t._g.gain.value = t.muted ? 0 : t.vol;   // vivo
                 this.innerHTML = '<i class="bi bi-volume-' +
                     (t.muted ? 'mute' : 'up') + '-fill"></i>';
                 row.classList.toggle('muted', t.muted); opts.onchange();
@@ -40,7 +41,9 @@ window.TribalVTracks = (function () {
                 row.classList.toggle('locked', t.locked);
             });
             bar.querySelector('.vfx-lvol').addEventListener('input', function () {
-                t.vol = this.value / 100; opts.onchange();
+                t.vol = this.value / 100;
+                if (t._g) t._g.gain.value = t.vol;   // en vivo, sin reiniciar
+                opts.onchange();
             });
             bar.querySelector('.vfx-ldel').addEventListener('click', function () {
                 tracks.splice(tracks.indexOf(t), 1);

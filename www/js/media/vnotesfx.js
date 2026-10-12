@@ -24,10 +24,9 @@ window.TribalVNoteFX = (function () {
     function packNow() {
         return { voice: D().wav(ab), sel: wv.sel(), cfg: collect(),
             fmt: q('#vfx-fmt').value, xf: q('#vfx-xf').value,
-            tracks: tr.list().map(function (t) {
-                return { wav: D().wav(t.buf), name: t.name, off: t.off,
-                    vol: t.vol, a: t.a, b: t.b, muted: t.muted, locked: t.locked };
-            }) };
+            tracks: tr.list().map(function (t) { return { wav: D().wav(t.buf),
+                name: t.name, off: t.off, vol: t.vol, a: t.a, b: t.b,
+                muted: t.muted, locked: t.locked }; }) };
     }
     function save() {
         clearTimeout(saveT);
@@ -70,6 +69,7 @@ window.TribalVNoteFX = (function () {
         var Ctx = window.AudioContext || window.webkitAudioContext,
             ctx = new Ctx(), src = ctx.createBufferSource(),
             an = ctx.createAnalyser(), bus = ctx.createGain();
+        if (ctx.resume) ctx.resume();      // por si nació suspendido
         src.buffer = ab; an.fftSize = 1024;
         src.connect(bus); bus.connect(an); an.connect(ctx.destination);
         tr.list().forEach(function (t) { D().armTrack(ctx, bus, t, a, b); });
@@ -87,36 +87,35 @@ window.TribalVNoteFX = (function () {
     function addTrackMeta(m) {
         deps.urlFor(m, function (u) {
             fetch(u).then(function (r) { return r.blob(); }).then(D().decode)
-                .then(function (b) { tr.add(b, m.name); status('+ ' + m.name); });
+                .then(function (b) { tr.add(b, m.name); status('+ ' + m.name); })
+                .catch(function (e) { status(e.message || 'No decodificable'); });
         });
     }
     function pickTrack() {
-        if (window.TribalFiles && TribalFiles.native() && deps.sono) {
-            TribalFiles.pick(deps.sono, { kinds: ['audio'], single: true,
-                title: 'Agregar pista' }).then(function (ms) {
-                    if (ms && ms[0]) addTrackMeta(ms[0]); });
-            return;
-        }
-        var inp = document.createElement('input'); inp.type = 'file';
-        inp.accept = 'audio/*';
+        if (window.TribalFiles && TribalFiles.native() && deps.sono)
+            return TribalFiles.pick(deps.sono, { kinds: ['audio'],
+                single: true, title: 'Agregar pista' }).then(function (ms) {
+                if (ms && ms[0]) addTrackMeta(ms[0]); });
+        var inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = 'audio/*';
         inp.onchange = function () {
             if (inp.files[0]) D().decode(inp.files[0]).then(function (b) {
-                tr.add(b, inp.files[0].name); status('+ ' + inp.files[0].name); });
+                tr.add(b, inp.files[0].name); status('+ ' + inp.files[0].name);
+            }).catch(function (e) { status(e.message || 'No decodificable'); });
         };
         inp.click();
     }
 
     function collect() {
-        return { eq: q('#vfx-eq').value,
-            fIn: +q('#vfx-fin').value || 0, fOut: +q('#vfx-fout').value || 0,
-            echo: q('#vfx-echo').checked,
-            echoT: +q('#vfx-et').value || .35,
-            echoFb: Math.min(.85, +q('#vfx-ef').value || .35),
-            echoMix: +q('#vfx-em').value || .4 };
+        var V = function (id) { return q('#vfx-' + id).value; };
+        return { eq: V('eq'), fIn: +V('fin') || 0, fOut: +V('fout') || 0,
+            echo: q('#vfx-echo').checked, echoT: +V('et') || .35,
+            echoFb: Math.min(.85, +V('ef') || .35), echoMix: +V('em') || .4 };
     }
     function exportIt() {
-        status('Renderizando mezcla…'); var rdur = 0;
-        D().render(ab, collect(), tr.list()).then(function (out) {
+        var r = wv.sel(), rdur = 0;
+        status('Renderizando mezcla A–B…');
+        D().render(ab, collect(), tr.list(), r[0], r[1]).then(function (out) {
             rdur = out.duration;
             return window.TribalConvert.convert(D().wav(out), q('#vfx-fmt').value,
                 function (p) { status('Codificando ' + Math.round(p * 100) + '%…'); });

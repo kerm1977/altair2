@@ -7,12 +7,15 @@ window.TribalVDSP = (function () {
     var FREQS = [60, 230, 910, 3600, 14000],
         TYPES = ['lowshelf', 'peaking', 'peaking', 'peaking', 'highshelf'];
 
+    var dctx;        // contexto único para decodificar (evita el límite de 6)
     function decode(blob) {
-        var Ctx = window.AudioContext || window.webkitAudioContext;
-        var ctx = new Ctx();
+        if (!dctx) {
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            dctx = new Ctx();
+        }
         return blob.arrayBuffer().then(function (b) {
             return new Promise(function (rs, rj) {
-                ctx.decodeAudioData(b, rs,
+                dctx.decodeAudioData(b, rs,
                     function () { rj(new Error('Formato no decodificable')); });
             });
         });
@@ -83,6 +86,7 @@ window.TribalVDSP = (function () {
         if (s1 <= s0) return;
         var src = ctx.createBufferSource(); src.buffer = t.buf;
         var g = ctx.createGain(); g.gain.value = t.vol;
+        t._g = g;                            // volumen vivo durante la previa
         src.connect(g); g.connect(dest);
         src.start(ctx.currentTime + Math.max(0, s0 - from),
                   a + (s0 - t.off), s1 - s0);
@@ -97,10 +101,13 @@ window.TribalVDSP = (function () {
         return d;
     }
     // cadena offline: src → EQ → fades → echo → destino (+ pistas)
-    function render(buf, cfg, tracks) {
-        var total = tlDur(buf, tracks);
+    // renderiza SOLO la ventana [w0,w1) del timeline (las barras A–B)
+    function render(buf, cfg, tracks, w0, w1) {
+        var a = Math.max(0, w0 || 0),
+            b = w1 > a ? w1 : tlDur(buf, tracks),
+            dur = b - a;
         var octx = new OfflineAudioContext(Math.min(2, buf.numberOfChannels),
-            Math.ceil(total * buf.sampleRate), buf.sampleRate);
+            Math.ceil(dur * buf.sampleRate), buf.sampleRate);
         var src = octx.createBufferSource(), chain = src;
         src.buffer = buf;
         var p = (window.TribalEQ.PRESETS || []).find(function (x) { return x.id === cfg.eq; });
@@ -109,7 +116,7 @@ window.TribalVDSP = (function () {
             bq.type = TYPES[k]; bq.frequency.value = f; bq.gain.value = p.gains[k];
             chain.connect(bq); chain = bq;
         });
-        var fg = octx.createGain(), dur = total;
+        var fg = octx.createGain();
         if (cfg.fIn > 0) { fg.gain.setValueAtTime(0, 0);
             fg.gain.linearRampToValueAtTime(1, Math.min(cfg.fIn, dur)); }
         if (cfg.fOut > 0) { fg.gain.setValueAtTime(1, Math.max(0, dur - cfg.fOut));
@@ -124,9 +131,11 @@ window.TribalVDSP = (function () {
             dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(mix);
             chain = mix;
         }
-        chain.connect(octx.destination); src.start(0);
+        chain.connect(octx.destination);
+        var vlen = Math.min(b, buf.duration) - a;   // voz solo dentro de A–B
+        if (vlen > 0) src.start(0, a, vlen);
         (tracks || []).forEach(function (t) {
-            armTrack(octx, octx.destination, t, 0, total);
+            armTrack(octx, octx.destination, t, a, b);
         });
         return octx.startRendering();
     }
