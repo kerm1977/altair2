@@ -33,12 +33,13 @@ window.TribalP2P = (function () {
 
     // trackers WebRTC por defecto: WebTorrent solo habla wss:// en el
     // navegador/WebView. Sin ellos el cliente no anuncia a nadie → 0 peers.
+    // Verificados por sonda WS: openwebtorrent y webtorrent.dev responden
+    // 101 (upgrade); magnetoo vive pero rate-limita si se le bombardea.
+    // btorrent/files.fm rechazan — fuera.
     var DEFAULT_TRACKERS = [
         'wss://tracker.openwebtorrent.com',
-        'wss://tracker.files.fm:7073/announce',
-        'wss://tracker.magnetoo.io',
         'wss://tracker.webtorrent.dev',
-        'wss://tracker.btorrent.xyz'
+        'wss://tracker.magnetoo.io'
     ];
 
     // ---- trackers vivos autoactualizables ----------------------------------
@@ -78,14 +79,17 @@ window.TribalP2P = (function () {
 
     // WebTorrent en navegador/WebView solo habla trackers wss://: los
     // udp:// y http:// que siembran los buscadores nunca conectan.
+    // ACOTADA: cada URL = una conexión WS por torrent — 30 trackers por
+    // torrent es lo que rate-limitaba (HTTP 429) y llenaba la consola
+    // de conexiones rechazadas. 3 fijos + 6 vivos + extras del usuario.
     function announceList() {
         var seen = {};
-        return DEFAULT_TRACKERS.concat(liveTrackers, extraTrackers)
+        return DEFAULT_TRACKERS.concat(liveTrackers.slice(0, 6), extraTrackers)
             .filter(function (u) {
                 if (!/^wss?:\/\//.test(u) || seen[u]) return false;
                 seen[u] = 1;
                 return true;
-            });
+            }).slice(0, 12);
     }
 
     // pide peers al canal de trackers de un torrent vivo (re-anuncio)
@@ -104,18 +108,14 @@ window.TribalP2P = (function () {
         { urls: 'stun:stun.cloudflare.com:3478' },
         { urls: 'stun:global.stun.twilio.com:3478' }
     ];
-    // el magnet SIEMPRE debe llevar los tr= wss, aunque ya traiga otros
-    // (http/udp): si no, anuncia en trackers muertos → 0 peers →
-    // se queda eternamente en 'Obteniendo datos…'
+    // magnet limpio: le quitamos TODOS los tr= — los trackers vivos se
+    // pasan por la opción {announce} en cada add(). Así los magnets
+    // guardados nunca arrastran trackers muertos ni duplican anuncios,
+    // y cada arranque anuncia solo en la lista vigente.
     function withTrackers(m) {
         if (!/^magnet:/.test(m)) m = 'magnet:?xt=urn:btih:' + m;
-        var add = announceList().filter(function (u) {
-            return m.indexOf('tr=' + encodeURIComponent(u)) < 0;
-        });
-        if (!add.length) return m;
-        var sep = m.indexOf('?') >= 0 ? '&' : '?';
-        return m + sep + add.map(function (u) {
-            return 'tr=' + encodeURIComponent(u);
+        return m.split('&').filter(function (p) {
+            return p.indexOf('tr=') !== 0;
         }).join('&');
     }
 
@@ -282,17 +282,20 @@ window.TribalP2P = (function () {
                 toast('«' + (j.name || 'Torrent') +
                       '» sigue sin peers — re-anunciando solo');
         }, 45000);
-        // re-anuncio agresivo: los trackers contestan intervalos de ~15
-        // min — eterno para un swarm web chico. Mientras no haya peers
-        // el motor re-anuncia solo cada 30 s; se apaga al terminar.
+        // re-anuncio con backoff: los trackers contestan intervalos de
+        // ~15 min — eterno para un swarm web chico. Mientras no haya
+        // peers el motor re-anuncia cada 75 s, máximo 8 veces (~10 min):
+        // más rápido que eso = 429 de los trackers públicos.
         clearInterval(j._ann);
+        j._annN = 0;
         j._ann = setInterval(function () {
             if (!j.torrent || j.torrent.destroyed || j.torrent.done ||
                 j.status === 'error') { clearInterval(j._ann); return; }
             if (j.torrent.numPeers > 0 || j.status === 'paused' ||
                 j.status === 'netwait') return;
+            if (++j._annN > 8) { clearInterval(j._ann); return; }
             reannounce(j.torrent);
-        }, 30000);
+        }, 75000);
         save(); emit('change');
     }
 
