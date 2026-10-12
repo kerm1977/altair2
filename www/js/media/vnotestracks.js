@@ -44,7 +44,7 @@ window.TribalVTracks = (function () {
             });
             bar.querySelector('.vfx-ldel').addEventListener('click', function () {
                 tracks.splice(tracks.indexOf(t), 1);
-                row.parentNode.removeChild(row); opts.onchange();
+                row.parentNode.removeChild(row); showEmpty(); opts.onchange();
             });
             // arrastre: cuerpo → offset · bordes → recorte a/b
             var drag = -1;
@@ -98,13 +98,22 @@ window.TribalVTracks = (function () {
             g.strokeStyle = t.locked ? TERRA : 'rgba(240,180,41,.4)';
             g.strokeRect(x0 + .5, .5, Math.max(2, x1 - x0) - 1, h - 1);
         }
+        function showEmpty() {
+            var p = box.querySelector('.vn-empty');
+            if (!tracks.length && !p) box.innerHTML =
+                '<p class="vn-empty">Sin pistas aún — agrega música o audio de fondo</p>';
+            if (tracks.length && p) p.parentNode.removeChild(p);
+        }
         function draw() { tracks.forEach(function (t) { drawLane(t, t._c); }); }
         return {
             add: function (buf, name, preset) {
                 var t = { buf: buf, name: name, off: 0, vol: .25, a: 0, b: 0,
                           muted: false, locked: false };
-                if (preset) Object.keys(preset).forEach(function (k) { t[k] = preset[k]; });
+                if (preset) Object.keys(preset).forEach(function (k) {
+                    if (k !== 'wav') t[k] = preset[k]; });
                 var l = lane(t); t._c = l.canvas;
+                var p = box.querySelector('.vn-empty');
+                if (p) p.parentNode.removeChild(p);
                 box.appendChild(l.row); drawLane(t, l.canvas);
                 opts.onchange();
                 return t;
@@ -114,6 +123,7 @@ window.TribalVTracks = (function () {
             clear: function () {
                 tracks = []; box.querySelectorAll('.vfx-lane').forEach(function (r) {
                     r.parentNode.removeChild(r); });
+                showEmpty();
             },
             restore: function (arr) {           // [{buf,name,off,vol,a,b,muted,locked}]
                 var self = this;

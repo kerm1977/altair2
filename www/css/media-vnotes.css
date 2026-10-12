@@ -128,6 +128,22 @@
     background: linear-gradient(135deg, rgba(224,96,46,.35), rgba(240,180,41,.2)); }
 .vfx-sec { color: var(--tb-terra); font: 800 .72rem/1 sans-serif;
     letter-spacing: .12em; text-transform: uppercase; padding: 0 4px; }
+/* pestañas de secciones: una a la vez — nada se superpone en móvil */
+.vfx-tabs { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;
+    justify-content: center; }
+.vfx-tabs button {
+    flex: 1 1 auto; min-width: 74px; padding: 10px 8px;
+    border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--tb-border); background: rgba(0,0,0,.3);
+    color: var(--tb-muted); font: 700 .76rem/1 sans-serif;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    letter-spacing: .05em; text-transform: uppercase; }
+.vfx-tabs button i { font-size: .95rem; }
+.vfx-tabs button.on {
+    background: linear-gradient(135deg, var(--tb-terra), var(--tb-terra2));
+    border-color: var(--tb-gold); color: #fff8ec; }
+.vfx-secwrap { display: none; width: 100%; }
+.vfx-secwrap.on { display: flex; flex-direction: column; align-items: center; }
 /* ------------------------------ carriles ------------------------------- */
 #vfx-lanes { width: 100%; max-width: 860px; display: flex;
     flex-direction: column; gap: 6px; margin-top: 8px; }

@@ -1,8 +1,6 @@
 // === media/vnotesfx.js — Editor multipista de notas (UI) =================
-// Onda A–B (vnoteswave), previa dentro de la selección mezclando las
-// pistas (vnotestracks), cortar/copiar/pegar con crossfade, EQ/fades/eco,
-// pistas ilimitadas arrastrables con mute/lock/recorte, autosave en
-// IndexedDB (vnotesauto), exporta MP3 y descarga. DSP: vnotesdsp.js.
+// A–B (vnoteswave) · previa mezclada (vnotestracks) · crossfade, EQ, fades,
+// eco · autosave (vnotesauto) · exporta MP3 y descarga. DSP: vnotesdsp.js.
 // =========================================================================
 window.TribalVNoteFX = (function () {
     'use strict';
@@ -11,8 +9,8 @@ window.TribalVNoteFX = (function () {
 
     function q(id) { return ov.querySelector(id); }
     function status(t) { q('#vfx-st').textContent = t; }
-    function ft(s) { s = Math.max(0, s || 0);
-        return Math.floor(s / 60) + ':' + ('0' + (s % 60).toFixed(1)).slice(-4); }
+    function ft(s) { s = Math.max(0, s || 0); return Math.floor(s / 60) +
+        ':' + ('0' + (s % 60).toFixed(1)).slice(-4); }
     function times() {
         var r = wv.sel();
         q('#vfx-ta').textContent = 'A ' + ft(r[0]);
@@ -22,14 +20,13 @@ window.TribalVNoteFX = (function () {
     function refresh(msg) { wv.buf(ab); tr.draw(); times(); status(msg || ''); save(); }
     function tl() { return D().tlDur(ab, tr.list()); }
 
-    // -------- autosave (sobrevive cierre de la app) -----------------------
+    // autosave (sobrevive cierre de la app)
     function packNow() {
         return { voice: D().wav(ab), sel: wv.sel(), cfg: collect(),
             fmt: q('#vfx-fmt').value, xf: q('#vfx-xf').value,
             tracks: tr.list().map(function (t) {
                 return { wav: D().wav(t.buf), name: t.name, off: t.off,
-                    vol: t.vol, a: t.a, b: t.b,
-                    muted: t.muted, locked: t.locked };
+                    vol: t.vol, a: t.a, b: t.b, muted: t.muted, locked: t.locked };
             }) };
     }
     function save() {
@@ -46,38 +43,37 @@ window.TribalVNoteFX = (function () {
             }));
             Promise.all(jobs).then(function (rs) {
                 ab = rs[0]; wv.buf(ab); wv.setSel(p.sel[0], p.sel[1]);
-                ['eq', 'fin', 'fout', 'et', 'ef', 'em'].forEach(function (k) {
-                    if (p.cfg && p.cfg[k] != null) q('#vfx-' + k).value = p.cfg[k];
-                });
-                if (p.cfg) { q('#vfx-echo').checked = !!p.cfg.echo;
-                    q('#vfx-avol').value = p.cfg.ambVol * 100 || 25; }
+                [['eq','eq'],['fIn','fin'],['fOut','fout'],['echoT','et'],
+                 ['echoFb','ef'],['echoMix','em']].forEach(function (kv) {
+                    if (p.cfg && p.cfg[kv[0]] != null)
+                        q('#vfx-' + kv[1]).value = p.cfg[kv[0]]; });
+                if (p.cfg) q('#vfx-echo').checked = !!p.cfg.echo;
                 if (p.fmt) q('#vfx-fmt').value = p.fmt;
                 if (p.xf) q('#vfx-xf').value = p.xf;
                 tr.restore(p.tracks); times();
-                status('Borrador restaurado');
+                status('Borrador restaurado · ' + (p.tracks || []).length + ' pista(s)');
             }).catch(function () {});
         });
     }
 
-    // -------- previa A–B mezclando todas las pistas -----------------------
+    // previa A–B mezclando todas las pistas
     function stopPv() {
         if (pvRaf) cancelAnimationFrame(pvRaf); pvRaf = null;
-        if (pv) { try { pv.src.onended = null; pv.src.stop(); pv.ctx.close(); }
-            catch (e) {} pv = null; }
+        if (pv) { try { pv.src.onended = null; pv.src.stop();
+            pv.ctx.close(); } catch (e) {} pv = null; }
         if (wv) { wv.live(null); wv.pos(null); }
         var b = q('#vfx-pv'); if (b) b.innerHTML = '<i class="bi bi-play-fill"></i>';
     }
     function preview() {
         if (pv) return stopPv();
         var r = wv.sel(), a = r[0], b = Math.max(r[1], r[0] + .05);
-        var Ctx = window.AudioContext || window.webkitAudioContext;
-        var ctx = new Ctx(), src = ctx.createBufferSource(),
+        var Ctx = window.AudioContext || window.webkitAudioContext,
+            ctx = new Ctx(), src = ctx.createBufferSource(),
             an = ctx.createAnalyser(), bus = ctx.createGain();
         src.buffer = ab; an.fftSize = 1024;
         src.connect(bus); bus.connect(an); an.connect(ctx.destination);
         tr.list().forEach(function (t) { D().armTrack(ctx, bus, t, a, b); });
-        src.start(0, a, b - a);
-        pv = { ctx: ctx, src: src, t0: ctx.currentTime };
+        src.start(0, a, b - a); pv = { ctx: ctx, src: src, t0: ctx.currentTime };
         wv.live(an); q('#vfx-pv').innerHTML = '<i class="bi bi-stop-fill"></i>';
         (function loop() {
             if (!pv) return;
@@ -87,7 +83,7 @@ window.TribalVNoteFX = (function () {
         src.onended = function () { if (pv) stopPv(); };
     }
 
-    // -------- agregar pistas -----------------------------------------------
+    // agregar pistas
     function addTrackMeta(m) {
         deps.urlFor(m, function (u) {
             fetch(u).then(function (r) { return r.blob(); }).then(D().decode)
@@ -101,8 +97,8 @@ window.TribalVNoteFX = (function () {
                     if (ms && ms[0]) addTrackMeta(ms[0]); });
             return;
         }
-        var inp = document.createElement('input');
-        inp.type = 'file'; inp.accept = 'audio/*';
+        var inp = document.createElement('input'); inp.type = 'file';
+        inp.accept = 'audio/*';
         inp.onchange = function () {
             if (inp.files[0]) D().decode(inp.files[0]).then(function (b) {
                 tr.add(b, inp.files[0].name); status('+ ' + inp.files[0].name); });
@@ -116,8 +112,7 @@ window.TribalVNoteFX = (function () {
             echo: q('#vfx-echo').checked,
             echoT: +q('#vfx-et').value || .35,
             echoFb: Math.min(.85, +q('#vfx-ef').value || .35),
-            echoMix: +q('#vfx-em').value || .4,
-            ambVol: +q('#vfx-avol').value / 100 };
+            echoMix: +q('#vfx-em').value || .4 };
     }
     function exportIt() {
         status('Renderizando mezcla…'); var rdur = 0;
@@ -151,7 +146,8 @@ window.TribalVNoteFX = (function () {
             times(); save(); } });
         wv.onchange(times);
         q('#vfx-x').addEventListener('click', close);
-        ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+        ov.addEventListener('click', function (e) {
+            if (e.target === ov) close(); });
         q('#vfx-pv').addEventListener('click', preview);
         q('#vfx-keep').addEventListener('click', function () {
             var r = wv.sel(); ab = D().slice(ab, r[0], r[1], true); refresh('Recorte aplicado'); });
@@ -172,8 +168,16 @@ window.TribalVNoteFX = (function () {
         });
         q('#vfx-ambpick').addEventListener('click', pickTrack);
         q('#vfx-go').addEventListener('click', exportIt);
+        ov.querySelectorAll('.vfx-tabs button').forEach(function (b) {
+            b.addEventListener('click', function () {
+                ov.querySelectorAll('.vfx-tabs button').forEach(function (x) {
+                    x.classList.toggle('on', x === b); });
+                ov.querySelectorAll('.vfx-secwrap').forEach(function (w) {
+                    w.classList.toggle('on', w.dataset.sec === b.dataset.sec); });
+            });
+        });
         ['vfx-eq', 'vfx-fin', 'vfx-fout', 'vfx-echo', 'vfx-et', 'vfx-ef', 'vfx-em',
-         'vfx-avol', 'vfx-fmt', 'vfx-xf'].forEach(function (id) {
+         'vfx-fmt', 'vfx-xf'].forEach(function (id) {
             q('#' + id).addEventListener('change', function () { times(); save(); });
         });
         wv.buf(ab); times(); restore();
@@ -182,8 +186,7 @@ window.TribalVNoteFX = (function () {
         if (ab && wv && tr) window.TribalVAuto.save(item.id, packNow());
         stopPv();
         if (ov) { ov.parentNode.removeChild(ov); ov = null; }
-        clip = null; wv = tr = null;
-    }
+        clip = null; wv = tr = null; }
     function open(m, d) {
         deps = d; item = m;
         deps.urlFor(m, function (u) {
