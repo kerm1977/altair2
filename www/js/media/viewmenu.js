@@ -18,7 +18,7 @@ window.Sono.register('viewmenu', function (S) {
             mount: S.root, urlFor: S.urlFor, store: window.MediaStore,
             toast: S.showToast, confirm: S.confirm, playP2P: S.playP2P,
             play: S.playAudio, audio: S.audio, reload: S.reload,
-            onDeleted: S.reload, items: S.items
+            onDeleted: S.reload, items: S.items, sono: S
         };
     };
 

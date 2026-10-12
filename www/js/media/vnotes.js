@@ -1,17 +1,16 @@
 // === media/vnotes.js — Notas de audio (grabador tipo podcast) ==========
-// Mic: toca→graba, grabando→pausa, pausa→reanuda. Stop → confirmación:
-// guardar / seguir / eliminar (2ª confirmación). Guarda «Mi grabación N».
-// Viz: TribalViz (vnotesviz.js) · Editor: TribalVNoteFX (vnotesfx.js).
-// ========================================================================
+// Mic: toca→graba / grabando→pausa / pausa→reanuda. Stop → confirmación:
+// guardar / seguir / eliminar (2ª confirmación). Guarda «Mi grabación N»
+// con info.vn=1. Viz: vnotesviz.js · Editor: TribalVNoteFX (vnotesfx.js).
 window.TribalVNotes = (function () {
     'use strict';
-    var ov, deps, rec, stream, viz, chunks, tickT, mime;
-    var state = 'idle', elapsed = 0, startedAt = 0;
+    var ov, deps, rec, stream, viz, chunks, tickT, mime,
+        state = 'idle', elapsed = 0, startedAt = 0;
 
     var MIMES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
     function esc(s) {
-        return String(s || '').replace(/[&<>"]/g,
-            function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+        var E = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+        return String(s || '').replace(/[&<>"]/g, function (c) { return E[c]; });
     }
     function fmtT(s) {
         s = Math.floor(s);
@@ -37,9 +36,8 @@ window.TribalVNotes = (function () {
         var recB = ov.querySelector('#vn-rec'), stopB = ov.querySelector('#vn-stop');
         var st = ov.querySelector('#vn-state');
         recB.classList.toggle('live', s === 'rec');
-        recB.querySelector('i').className = 'bi ' +
-            (s === 'rec' ? 'bi-pause-fill' : s === 'paused' ? 'bi-play-fill'
-                                                         : 'bi-mic-fill');
+        recB.querySelector('i').className = 'bi bi-' +
+            (s === 'rec' ? 'pause' : s === 'paused' ? 'play' : 'mic') + '-fill';
         stopB.hidden = (s === 'idle');
         st.textContent = s === 'rec' ? 'Grabando — toca para pausar' :
             s === 'paused' ? 'En pausa — toca para seguir' :
@@ -84,7 +82,8 @@ window.TribalVNotes = (function () {
         var blob = new Blob(chunks, { type: mime || 'audio/webm' });
         if (!blob.size) return;
         var name = nextName() + ext();
-        deps.store.add(new File([blob], name, { type: blob.type })).then(function () {
+        deps.store.add(new File([blob], name, { type: blob.type })).then(function (m) {
+            if (m && deps.store.updateInfo) deps.store.updateInfo(m.id, { vn: 1 });
             deps.toast('«' + name + '» guardada en la tribu');
             if (deps.reload) deps.reload();
             fillList();
@@ -94,7 +93,6 @@ window.TribalVNotes = (function () {
     // stop → confirmar: guardar / seguir / eliminar (eliminar = doble confirm)
     function askStop() {
         var box = ov.querySelector('#vn-ask');
-        box.dataset.step = '1';
         box.innerHTML = '<p><i class="bi bi-question-circle"></i> ' +
             '¿Qué hago con «' + esc(nextName()) + '»?</p><div class="vn-ask-btns">' +
             '<button data-a="save"><i class="bi bi-check2"></i> Guardar</button>' +
@@ -104,7 +102,6 @@ window.TribalVNotes = (function () {
     }
     function askDelete() {
         var box = ov.querySelector('#vn-ask');
-        box.dataset.step = '2';
         box.innerHTML = '<p><i class="bi bi-exclamation-triangle"></i> ' +
             '¿Seguro? El memo se pierde para siempre.</p><div class="vn-ask-btns">' +
             '<button data-a="del2" class="danger"><i class="bi bi-trash3"></i> Sí, eliminar</button>' +
@@ -128,20 +125,20 @@ window.TribalVNotes = (function () {
         }
     }
 
-    // lista de notas guardadas (audios «Mi grabación …» primero)
+    // lista: SOLO las grabaciones hechas aquí (info.vn o «Mi grabación …»)
     function fillList() {
         var box = ov.querySelector('#vn-list');
         var list = (deps.items || []).filter(function (m) {
-            return m.kind === 'audio';
-        }).sort(function (a, b) {
-            var A = /^mi grabaci/i.test(a.name), B = /^mi grabaci/i.test(b.name);
-            return A === B ? 0 : (A ? -1 : 1);
+            return m.kind === 'audio' &&
+                ((m.info && m.info.vn) || /^mi grabaci/i.test(m.name || ''));
         }).slice(0, 40);
         box.innerHTML = list.length ? list.map(function (m) {
             return '<div class="vn-row"><i class="bi bi-mic"></i>' +
                 '<span>' + esc(m.name) + '</span>' +
                 '<button data-play="' + m.id + '" title="Escuchar">' +
-                '<i class="bi bi-play-circle"></i></button></div>';
+                '<i class="bi bi-play-circle"></i></button>' +
+                '<button data-edit="' + m.id + '" title="Editar">' +
+                '<i class="bi bi-sliders"></i></button></div>';
         }).join('') : '<p class="vn-empty">Sin notas todavía</p>';
     }
 
@@ -162,10 +159,13 @@ window.TribalVNotes = (function () {
         ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
         ov.querySelector('#vn-ask').addEventListener('click', onAsk);
         ov.querySelector('#vn-list').addEventListener('click', function (e) {
-            var b = e.target.closest('[data-play]');
+            var b = e.target.closest('[data-play],[data-edit]');
             if (!b) return;
-            var m = (deps.items || []).find(function (x) { return x.id === b.dataset.play; });
-            if (m && deps.play) { deps.play(m); close(); }
+            var id = b.dataset.play || b.dataset.edit;
+            var m = (deps.items || []).find(function (x) { return x.id === id; });
+            if (!m) return;
+            if (b.dataset.play && deps.play) { deps.play(m); close(); }
+            else if (b.dataset.edit) edit(m, deps);   // editor aquí mismo
         });
         ov.querySelector('#vn-rec').addEventListener('click', function () {
             if (state === 'idle') return startRec();

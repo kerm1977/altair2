@@ -515,7 +515,7 @@
 /* diálogos altos (slideshow cfg, colecciones…): nunca se salen de pantalla.
    Se exceptúan las páginas completas (lector, P2P, libretilla, editor de
    imagen) y el escenario/UI del slideshow — esos sí ocupan el 100%. */
-.tribal-overlay:not(.tribal-reader-ov):not(.tribal-p2p-ov):not(.tribal-ie-ov):not(.tribal-btchat-ov)
+.tribal-overlay:not(.tribal-reader-ov):not(.tribal-p2p-ov):not(.tribal-ie-ov):not(.tribal-btchat-ov):not(.vn-overlay)
     > *:not(.tslide-stage):not(.tslide-ui) {
     max-height: calc(100dvh - 40px);
     overflow-y: auto;
