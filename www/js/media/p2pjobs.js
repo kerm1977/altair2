@@ -88,9 +88,7 @@ window.TribalP2PJobs = (function () {
     }
 
     function fillSeed(box, items) {
-        items = (items || []).filter(function (m) {
-            return m.kind !== 'doc';
-        }).slice(0, 30);
+        items = (items || []).slice(0, 30);   // TODO tipo es sembrable
         box.innerHTML = items.length ? items.map(function (m) {
             return '<div class="tribal-p2p-hit"><span class="tribal-p2p-hit-n">' +
                 X.esc(m.name) + '</span><button class="tribal-btn tribal-btn-xs" ' +

@@ -27,6 +27,7 @@ window.Sono.register('menus', function (S) {
     function prepMenu(m) {
         S.menuItem = m;
         $('menu-conv').style.display = m.kind === 'audio' ? '' : 'none';
+        $('menu-vnote').style.display = m.kind === 'audio' ? '' : 'none';
         $('menu-cover').style.display = m.kind === 'doc' ? '' : 'none';
         $('menu-imgedit').style.display = m.kind === 'image' ? '' : 'none';
         menu.hidden = false;
@@ -218,6 +219,34 @@ window.Sono.register('menus', function (S) {
         window.MediaStore.share(m).then(function () {}).catch(function (e) {
             S.showToast('No se pudo compartir: ' +
                 String((e && e.message) || e || 'error'));
+        });
+    });
+
+    // editar nota de audio: recorte, EQ, fades, echo, ambiente, exportar
+    $('menu-vnote').addEventListener('click', function () {
+        if (!S.menuItem || S.menuItem.kind !== 'audio') return closeMenu();
+        var m = S.menuItem;
+        closeMenu();
+        if (window.TribalVNotes) {
+            window.TribalVNotes.edit(m, {
+                mount: S.root, urlFor: S.urlFor, store: window.MediaStore,
+                toast: S.showToast, items: S.items, reload: S.reload
+            });
+        } else S.showToast('Editor no disponible');
+    });
+
+    // sembrar en P2P — cualquier archivo de la tribu (audio/video/imagen/doc)
+    $('menu-seed').addEventListener('click', function () {
+        var m = S.menuItem;
+        if (!m) return closeMenu();
+        closeMenu();
+        S.urlFor(m, function (u) {
+            if (!u) return S.showToast('No se pudo leer el archivo');
+            fetch(u).then(function (r) { return r.blob(); }).then(function (blob) {
+                var j = window.TribalP2P && window.TribalP2P.seed(m, blob);
+                S.showToast(j ? 'Sembrando «' + m.name + '» — magnet en P2P'
+                            : 'No se pudo sembrar');
+            }).catch(function () { S.showToast('No se pudo leer el archivo'); });
         });
     });
 

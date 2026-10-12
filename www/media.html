@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="css/media.css">
 <link rel="stylesheet" href="css/media-extras.css">
 <link rel="stylesheet" href="css/btchat.css">
+    <link rel="stylesheet" href="css/media-vnotes.css">
 </head>
 <body>
 
@@ -318,6 +319,8 @@
         <button id="menu-share"><i class="bi bi-share"></i>Compartir</button>
         <button id="menu-bt"><i class="bi bi-bluetooth"></i>Compartir por Bluetooth</button>
         <button id="menu-conv"><i class="bi bi-arrow-left-right"></i>Convertir audio</button>
+        <button id="menu-vnote"><i class="bi bi-sliders"></i>Editar nota / efectos</button>
+        <button id="menu-seed"><i class="bi bi-share-alt"></i>Sembrar en P2P</button>
         <button id="menu-rename"><i class="bi bi-pencil"></i>Renombrar</button>
         <button id="menu-delete" class="danger"><i class="bi bi-trash3"></i>Eliminar</button>
     </div>
@@ -386,6 +389,7 @@
     <!-- Menú de opciones generales (⋮ de la fila de filtros) -->
     <div class="tribal-menu-bd" id="view-menu-bd" hidden></div>
     <div class="tribal-menu" id="view-menu" hidden>
+        <button id="vm-vnotes"><i class="bi bi-mic-fill"></i>Notas de audio</button>
         <button id="vm-stats"><i class="bi bi-bar-chart"></i>Estadísticas</button>
         <button id="vm-slide"><i class="bi bi-collection-play"></i>Slideshow de fotos</button>
         <button id="vm-newcol"><i class="bi bi-folder-plus"></i>Nueva colección</button>
@@ -616,6 +620,9 @@
 <script src="js/media/linksact.js"></script>
 <script src="js/media/batch.js"></script>
 <script src="js/media/filemgr.js"></script>
+<script src="js/media/vnotesviz.js"></script>
+<script src="js/media/vnotes.js"></script>
+<script src="js/media/vnotesfx.js"></script>
 <script src="js/media/seed.js"></script>
 <script src="js/media/inbox.js"></script>
 <script src="js/media/btchatnet.js"></script>

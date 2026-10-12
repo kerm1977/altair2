@@ -25,3 +25,12 @@
   y se reproducen directo del asset — nunca copiar el blob al store.
 - Tras cambiar el contenido de la carpeta: regenerar `manifest.json` y
   subir la versión del flag en seed.js para re-sembrar.
+
+## Barra de accesos personalizable — SECCIÓN BLINDADA
+
+`www/js/media/tabfavs.js` + su CSS en `media-extras.css` + markup en
+`media.html` (orden `tribu_bar_order`, Todo siempre primero, 5 por fila en
+móvil, píldora fija al reordenar). **PROHIBIDO modificar esta sección**
+salvo orden explícita del usuario — ni refactor, ni "mejoras", ni tocarla
+al añadir entradas nuevas al menú de opciones. Las nuevas herramientas se
+integran solo agregando su botón al menú ⋮ y un módulo aparte.

@@ -17,7 +17,7 @@ window.Sono.register('viewmenu', function (S) {
         return {
             mount: S.root, urlFor: S.urlFor, store: window.MediaStore,
             toast: S.showToast, confirm: S.confirm, playP2P: S.playP2P,
-            play: S.playAudio, audio: S.audio,
+            play: S.playAudio, audio: S.audio, reload: S.reload,
             onDeleted: S.reload, items: S.items
         };
     };
@@ -50,6 +50,13 @@ window.Sono.register('viewmenu', function (S) {
         S.filter = 'doc';
         S.page = 0;
         S.render();
+    });
+
+    // Notas de audio: grabador tipo podcast (media/vnotes*.js)
+    $('vm-vnotes').addEventListener('click', function () {
+        viewMenu.hidden = true;
+        if (!window.TribalVNotes) return S.showToast('Notas no disponible');
+        window.TribalVNotes.open(S.extDeps());
     });
 
     // P2P torrents
