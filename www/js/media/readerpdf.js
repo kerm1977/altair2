@@ -47,11 +47,16 @@ window.TribalReaderPdf = (function () {
             function show(n, dir) {
                 cur = Math.max(0, Math.min(total - 1, n));
                 var pg = ui.el.querySelector('#tr-page');
-                pg.className = 'tribal-reader-page flip-' + (dir || 'next');
+                if (window.TribalReaderSwipe)
+                    window.TribalReaderSwipe.flip(pg,
+                        dir === 'prev' ? -1 : (dir === 'next' ? 1 : 0));
+                else pg.className = 'tribal-reader-page flip-' + (dir || 'next');
                 ui.counter.textContent = 'Pág. ' + (cur + 1) + ' / ' + total;
                 ii.page = cur + 1;
                 ii.pdfMode = mode;
                 F.save(meta, deps);
+                if (window.TribalReaderBm)
+                    window.TribalReaderBm.sync(ui, meta, { page: cur + 1 });
                 pdf.getPage(cur + 1).then(function (p) {
                     if (mode === 'page') {
                         canvas.hidden = false;
@@ -103,7 +108,8 @@ window.TribalReaderPdf = (function () {
                     return F.selOffsets(pre);
                 },
                 mark: function (sel, color) {
-                    var m = { p: cur, s: sel.s, e: sel.e, c: color, n: '' };
+                    var m = { p: cur, s: sel.s, e: sel.e, c: color, n: '',
+                              t: sel.text.slice(0, 160) };
                     F.marks(meta).push(m);
                     F.save(meta, deps);
                     show(cur, 'none');
@@ -112,7 +118,23 @@ window.TribalReaderPdf = (function () {
                 },
                 unmark: function (m) {
                     var idx = F.marks(meta).indexOf(m);
-                    if (idx >= 0) F.marks(meta).splice(idx, 1);
+                    if (idx < 0) return;
+                    F.marks(meta).splice(idx, 1);
+                    F.save(meta, deps);
+                    show(cur, 'none');            // repinta YA — el color se
+                },                              // quita en el momento
+                // ⊘: quita TODAS las marcas de esta página que tocan la
+                // selección actual
+                unmarkSel: function (sel) {
+                    var n = 0;
+                    F.marks(meta).slice().forEach(function (m) {
+                        if (m.p === cur && m.s < sel.e && m.e > sel.s) {
+                            var i = F.marks(meta).indexOf(m);
+                            if (i >= 0) { F.marks(meta).splice(i, 1); n++; }
+                        }
+                    });
+                    if (n) { F.save(meta, deps); show(cur, 'none'); }
+                    return n;
                 },
                 changed: function () { F.save(meta, deps); show(cur, 'none'); }
             });
@@ -122,7 +144,10 @@ window.TribalReaderPdf = (function () {
                 var m = F.marks(meta)[+mk.dataset.mi];
                 if (!m) return;
                 F.noteDlg(ui, meta, deps, m, function (act) {
-                    if (act === 'del') F.marks(meta).splice(+mk.dataset.mi, 1);
+                    if (act === 'del') {                    // por objeto — el
+                        var i = F.marks(meta).indexOf(m);   // índice render
+                        if (i >= 0) F.marks(meta).splice(i, 1); // puede ser viejo
+                    }
                     F.save(meta, deps);
                     show(cur, 'none');
                 });

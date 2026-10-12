@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="css/main.css">
 <link rel="stylesheet" href="css/media.css">
 <link rel="stylesheet" href="css/media-extras.css">
+<link rel="stylesheet" href="css/btchat.css">
 </head>
 <body>
 
@@ -26,7 +27,9 @@
                 <h1 class="tribal-title">T<span class="tr-sm">R</span>I<span class="tr-b">B</span>AL<span class="accent">s</span></h1>
                 <p class="tribal-sub">El fuego guarda tu música · videos · imágenes</p>
             </div>
-            <!-- Sol tribal -->
+            <!-- Sol tribal: tocar abre el chat Bluetooth directo -->
+            <div class="tribal-sun-wrap" id="sun-btchat" role="button" tabindex="0"
+                 title="Chat Bluetooth" aria-label="Abrir chat Bluetooth">
             <svg class="tribal-sun" viewBox="0 0 64 64" aria-hidden="true">
                 <g fill="#f0b429">
                     <polygon points="32,0 36,10 28,10"/>
@@ -41,6 +44,7 @@
                 <circle cx="32" cy="32" r="15" fill="#e2602e" stroke="#f0b429" stroke-width="2"/>
                 <circle cx="32" cy="32" r="7" fill="none" stroke="#f3e6cf" stroke-width="2" stroke-dasharray="3 3"/>
             </svg>
+            </div>
         </div>
 
         <div class="tribal-tabs" id="media-tabs">
@@ -310,13 +314,14 @@
         <button id="menu-cover"><i class="bi bi-image"></i>Buscar portada</button>
         <button id="menu-imgedit"><i class="bi bi-brush"></i>Editar imagen</button>
         <button id="menu-share"><i class="bi bi-share"></i>Compartir</button>
-        <button id="menu-bt"><i class="bi bi-bluetooth-b"></i>Compartir por Bluetooth</button>
+        <button id="menu-bt"><i class="bi bi-bluetooth"></i>Compartir por Bluetooth</button>
         <button id="menu-conv"><i class="bi bi-arrow-left-right"></i>Convertir audio</button>
         <button id="menu-rename"><i class="bi bi-pencil"></i>Renombrar</button>
         <button id="menu-delete" class="danger"><i class="bi bi-trash3"></i>Eliminar</button>
     </div>
 
-    <!-- Menú de extras del reproductor (⋮) -->
+    <!-- Menú de extras del reproductor (⋮) — centrado + fondo con blur -->
+    <div class="tribal-menu-bd" id="player-menu-bd" hidden></div>
     <div class="tribal-menu tribal-menu-wide" id="player-menu" hidden>
         <button class="tribal-ctrl pm-close" id="pm-close" title="Cerrar y volver al video"><i class="bi bi-x-lg"></i></button>
         <p class="tribal-menu-sec">Biblioteca</p>
@@ -377,12 +382,14 @@
     </div>
 
     <!-- Menú de opciones generales (⋮ de la fila de filtros) -->
+    <div class="tribal-menu-bd" id="view-menu-bd" hidden></div>
     <div class="tribal-menu" id="view-menu" hidden>
         <button id="vm-stats"><i class="bi bi-bar-chart"></i>Estadísticas</button>
         <button id="vm-slide"><i class="bi bi-collection-play"></i>Slideshow de fotos</button>
         <button id="vm-newcol"><i class="bi bi-folder-plus"></i>Nueva colección</button>
         <button id="vm-batch"><i class="bi bi-input-cursor-text"></i>Renombrar en lote</button>
         <button id="vm-undo"><i class="bi bi-arrow-counterclockwise"></i>Deshacer último cambio</button>
+        <button id="vm-btchat"><i class="bi bi-bluetooth"></i>Chat Bluetooth</button>
         <button id="vm-doc"><i class="bi bi-book-half"></i>Libros</button>
         <button id="vm-p2p"><i class="bi bi-diagram-3"></i>P2P Torrents</button>
         <button id="vm-links"><i class="bi bi-link-45deg"></i>Libretilla de enlaces</button>
@@ -541,6 +548,7 @@
 <script src="js/media/rangeguard.js"></script>
 <script src="js/media/readerfx.js"></script>
 <script src="js/media/readerbm.js"></script>
+<script src="js/media/readerswipe.js"></script>
 <script src="js/media/readertxt.js"></script>
 <script src="js/media/readerpdf.js"></script>
 <script src="js/media/readerepub.js"></script>
@@ -579,6 +587,14 @@
 <script src="js/media/batch.js"></script>
 <script src="js/media/seed.js"></script>
 <script src="js/media/inbox.js"></script>
+<script src="js/media/btchatnet.js"></script>
+<script src="js/media/btchatbadge.js"></script>
+<script src="js/media/btchatav.js"></script>
+<script src="js/media/btchatvoice.js"></script>
+<script src="js/media/btchemo.js"></script>
+<script src="js/media/btchat.js"></script>
+<script src="js/media/btchatlib.js"></script>
+<script src="js/media/btchatdb.js"></script>
 <script>if (window.Sono) window.Sono.boot();</script>
 </body>
 </html>

@@ -68,6 +68,9 @@ window.TribalReader = (function () {
                         '<i class="bi bi-circle-half"></i></button>' +
                     '<button class="tribal-ctrl" data-tr-theme="dark" title="Noche">' +
                         '<i class="bi bi-moon"></i></button>' +
+                    '<button class="tribal-ctrl" data-tr-theme="papel" ' +
+                        'title="Papel · lectura accesible">' +
+                        '<i class="bi bi-eyeglasses"></i></button>' +
                     '<input type="range" id="tr-dim" min="0" max="60" ' +
                         'value="0" title="Oscurecer el texto">' +
                 '</div>' +
@@ -109,14 +112,28 @@ window.TribalReader = (function () {
         });
 
         // ---- auto-ocultar interfaz: 5 s sin tocar → solo texto + fab --------
+        // el fab se atenúa tras 30 s más sin tocarlo (apenas visible);
+        // tocarlo lo despierta y reabre las herramientas
+        var fab = ov.querySelector('#tr-fab');
+        function armDim() {
+            clearTimeout(ov._dim);
+            ov._dim = setTimeout(function () {
+                if (ov.classList.contains('tr-clean'))
+                    fab.classList.add('tr-fab-dim');
+            }, 30000);
+        }
         function armIdle() {
             clearTimeout(ov._idle);
             ov._idle = setTimeout(function () {
                 ov.classList.add('tr-clean');
+                fab.classList.remove('tr-fab-dim');
+                armDim();
             }, 5000);
         }
-        ov.querySelector('#tr-fab').addEventListener('click', function (e) {
+        fab.addEventListener('click', function (e) {
             e.stopPropagation();
+            fab.classList.remove('tr-fab-dim');
+            clearTimeout(ov._dim);
             ov.classList.remove('tr-clean');
             armIdle();
         });
@@ -138,21 +155,9 @@ window.TribalReader = (function () {
         });
         ui.el.tabIndex = 0;
         ui.el.focus();
-        // pasar hojas con el dedo: swipe ← siguiente / swipe → anterior
-        var body = ui.el.querySelector('.tribal-reader-body');
-        var sx = 0, sy = 0, on = false;
-        body.addEventListener('touchstart', function (e) {
-            if (e.touches.length === 1) {
-                sx = e.touches[0].clientX; sy = e.touches[0].clientY; on = true;
-            }
-        }, { passive: true });
-        body.addEventListener('touchend', function (e) {
-            if (!on) return;
-            on = false;
-            var dx = e.changedTouches[0].clientX - sx;
-            var dy = e.changedTouches[0].clientY - sy;
-            if (Math.abs(dx) > 60 && Math.abs(dy) < 45) step(dx < 0 ? 1 : -1);
-        }, { passive: true });
+        // pasar hojas con el dedo + efecto "página viva" (readerswipe.js):
+        // enganchado al overlay entero → sirve también con barras ocultas
+        if (window.TribalReaderSwipe) window.TribalReaderSwipe.bind(ui, step);
     }
 
     return {

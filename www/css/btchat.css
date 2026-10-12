@@ -1,0 +1,309 @@
+/* ==========================================================================
+   ARCHIVO: btchat.css — chat tribal Bluetooth, apariencia WhatsApp con la
+   paleta de TRIBALs (terracota/dorado sobre noche).
+   ========================================================================== */
+/* overlay: el chat es una PÁGINA, no un modal — sin blur ni padding del host */
+.tribal-btchat-ov { z-index: 960; padding: 0; background: #0f0b07; backdrop-filter: none; }
+/* contenedor fijo al viewport + grid de filas fijas: la geometría NO depende
+   del flujo del overlay ni de flex-basis — imposible que algo flote a medias */
+.tribal-btchat {
+    position: fixed; inset: 0;
+    display: grid;
+    grid-template-rows: auto 1fr auto auto auto;
+    /* filas: 1 head · 2 lienzo(devs|msgs) · 3 emojis · 4 reply · 5 inputbar */
+    /* "wallpaper" WA: noche tribal + lunar de puntos terracota tenues */
+    background:
+        radial-gradient(circle at 12px 12px, rgba(210, 105, 30, .07) 1.6px, transparent 2.2px),
+        radial-gradient(circle at 36px 36px, rgba(240, 180, 41, .05) 1.3px, transparent 2px),
+        linear-gradient(165deg, #171009 0%, #120d08 60%, #0f0b07 100%);
+    background-size: 48px 48px, 48px 48px, 100% 100%;
+}
+/* guardia universal: dentro del chat [hidden] SIEMPRE gana a cualquier display —
+   ningún panel puede volver a quedar trabado visible (bug histórico emojis) */
+.tribal-btchat [hidden] { display: none !important; }
+/* hijos del grid: fijan su fila y PERMITEN encoger — min-height:0 para que el
+   contenido alto scrollee sin empujar la barra; min-width:0 para que NADA
+   ensanche la página hacia los lados (el desborde que escondía el enviar) */
+.tribal-btchat { overflow-x: hidden; }
+.tribal-btchat > * { min-width: 0; }
+.btchat-head   { grid-row: 1; }
+.btchat-devs, .btchat-msgs { grid-row: 2; min-height: 0; }
+.btchat-emojis { grid-row: 3; }
+.btchat-reply  { grid-row: 4; }
+.btchat-inputbar { grid-row: 5; }
+
+/* ===== cabecera estilo WA: avatar + nombre + estado ===== */
+.btchat-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 8px 8px;
+    background: linear-gradient(180deg, #241305, #1d0f04);
+    border-bottom: 1px solid rgba(210, 105, 30, .4);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .45);
+    position: relative;          /* ancla del desplegable ⋮ */
+}
+/* el círculo de la cabecera es SOLO el avatar (foto o icono persona) */
+.btchat-ava {
+    border: none; cursor: pointer; color: var(--tb-cream, #f2e4c9);
+    background: radial-gradient(circle at 35% 30%, #e06a2e, #a34a15) center / cover no-repeat;
+    border-radius: 50%; width: 38px; height: 38px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; box-shadow: 0 0 0 2px rgba(240, 180, 41, .35);
+    flex: 0 0 auto; overflow: hidden;
+}
+.btchat-ava:active { transform: scale(.92); } .btchat-ava.hasimg i { display: none; }
+.btchat-title {
+    flex: 1; display: flex; flex-direction: column; min-width: 0; gap: 1px;
+    color: var(--tb-cream, #f2e4c9); font-size: .95rem; font-weight: 600;
+    cursor: pointer;             /* toca → lista de dispositivos/peers */
+}
+.btchat-title small { font-size: .62rem; font-weight: 400; letter-spacing: .04em; color: var(--tb-teal, #2a9d8f); }
+.btchat-btn { background: none; border: none; color: var(--tb-cream, #f2e4c9);
+    font-size: 1.25rem; padding: 6px 8px; cursor: pointer; opacity: .8; }
+.btchat-btn:active { opacity: 1; }
+/* iconos planos: clip/mic/emoji/send — plateados, sin emoji de sistema */
+.btchat-btn.flat { font-size: 1.2rem; color: #cfc9c0; padding: 6px; opacity: .9; }
+.btchat-btn.flat:active { color: #fff; transform: scale(1.1); }
+.btchat-btn .bi { pointer-events: none; }
+/* desplegable ⋮ de la cabecera */
+.btchat-dd {
+    position: absolute; right: 8px; top: 100%; z-index: 12;
+    min-width: 190px; padding: 4px 0;
+    background: #241305; border: 1px solid rgba(210, 105, 30, .45);
+    border-radius: 12px; overflow: hidden; overflow-y: auto; max-height: 74dvh;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .6); }
+.btchat-dd button {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 11px 14px; background: none; border: none; cursor: pointer;
+    color: var(--tb-cream, #f2e4c9); font-size: .82rem; text-align: left; }
+.btchat-dd button i { color: var(--tb-gold, #f0b429); font-size: .95rem; }
+.btchat-dd button:active { background: rgba(210, 105, 30, .18); }
+
+/* ===== lista de dispositivos (cards WA) ===== */
+.btchat-devs {
+    overflow-y: auto; overscroll-behavior: contain; padding: 12px;
+    display: flex; flex-direction: column; gap: 8px; }
+.btc-dev {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 12px;
+    background: rgba(255, 255, 255, .045);
+    border: 1px solid rgba(210, 105, 30, .22);
+    color: var(--tb-cream, #f2e4c9); font-size: .85rem; }
+.btc-dev i {
+    color: #f2e4c9; font-size: .95rem; flex: 0 0 auto;
+    background: radial-gradient(circle at 35% 30%, #e06a2e, #a34a15);
+    border-radius: 50%; width: 34px; height: 34px;
+    display: inline-flex; align-items: center; justify-content: center; }
+.btc-dev span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btc-empty { margin: 30px 8px; text-align: center; font-size: .8rem; opacity: .55; line-height: 1.6; }
+/* estados del dispositivo: en línea (verde) / desconectado (atenuado) */
+.btc-dev.on { border-color: rgba(42, 157, 143, .55); }
+.btc-dev.on i { background: radial-gradient(circle at 35% 30%, #3ec6b8, #1f7a6e); }
+.btc-dev.off { opacity: .55; }
+.btc-on { font-size: .6rem; font-weight: 700; letter-spacing: .05em;
+    color: var(--tb-teal, #2a9d8f); text-transform: uppercase; flex: 0 0 auto; }
+
+/* modal de conexión: píldora centrada, entra/sale sola, no bloquea */
+.btc-connpop {
+    position: absolute; left: 50%; top: 46%; z-index: 20;
+    transform: translate(-50%, -50%);
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px; border-radius: 16px;
+    background: rgba(36, 19, 5, .97);
+    border: 1px solid rgba(240, 180, 41, .5);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, .7), 0 0 24px rgba(42, 157, 143, .25);
+    animation: btcConnIn .3s ease both; }
+.btc-connpop i { font-size: 1.9rem; color: var(--tb-teal, #2a9d8f); }
+.btc-connpop-t { display: flex; flex-direction: column; gap: 1px; }
+.btc-connpop-t b { color: var(--tb-cream, #f2e4c9); font-size: .92rem; }
+.btc-connpop-t span { font-size: .68rem; opacity: .6; }
+@keyframes btcConnIn { from { opacity: 0; transform: translate(-50%, -38%) scale(.92); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+.btchat-count {
+    font-size: .62rem; opacity: .5; letter-spacing: .04em;
+    text-align: center; padding: 2px 0 4px; text-transform: uppercase; }
+.btchat-count.on { opacity: 1; color: var(--tb-teal, #2a9d8f); font-weight: 700; }
+
+/* ===== mensajes: burbujas WA con cola ===== */
+.btchat-msgs {
+    overflow-y: auto; overscroll-behavior: contain; padding: 12px 10px;
+    display: block;                 /* apila desde ARRIBA, estilo WhatsApp */
+}
+.btc-msg {
+    position: relative; max-width: min(78%, 560px); width: fit-content;
+    margin: 0 0 6px;
+    padding: 7px 10px 5px;
+    font-size: .86rem; line-height: 1.45;
+    color: var(--tb-cream, #f2e4c9);
+    word-break: break-word;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+}
+.btc-msg.peer {
+    margin-right: auto;             /* izquierda */
+    background: #2a1d10;
+    border-radius: 12px 12px 12px 3px;
+}
+.btc-msg.peer::before, .btc-msg.me::before {   /* colas de burbuja */
+    content: ''; position: absolute; top: 0;
+    border: 6px solid transparent;
+}
+.btc-msg.peer::before { left: -6px; border-top-color: #2a1d10; border-right-color: #2a1d10; }
+.btc-msg.me {
+    margin-left: auto;              /* derecha */
+    background: linear-gradient(160deg, #8a3f12, #6d2f0c);
+    border-radius: 12px 12px 3px 12px;
+}
+.btc-msg.me::before { right: -6px; border-top-color: #8a3f12; border-left-color: #8a3f12; }
+/* emoji gigante dentro del mensaje: ~3× la fuente (.86rem → 2.6rem) */
+.btc-big { font-size: 2.6rem; line-height: 1.1; vertical-align: -0.12em; }
+.btc-msg time {
+    display: inline-block; float: right;
+    font-size: .55rem; opacity: .55;
+    margin: 8px 0 0 10px;
+}
+.btc-msg.me time::after { content: ' ✓✓'; color: var(--tb-gold, #f0b429); }
+.btc-msg audio { max-width: 210px; height: 34px; margin-top: 4px; }
+.btc-media {
+    max-width: 210px; max-height: 170px;
+    border-radius: 9px; display: block;
+}
+.btc-doc {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: .82rem; background: rgba(0, 0, 0, .22);
+    border-radius: 8px; padding: 7px 10px;
+    color: inherit; text-decoration: none; }
+.btc-msg small { display: block; font-size: .6rem; opacity: .6; margin-top: 3px; }
+.btc-nm { display: block; font-size: .66rem; font-weight: 700; margin-bottom: 1px; }
+.btc-del, .btc-rep {
+    position: absolute; top: -8px;
+    background: rgba(20, 12, 6, .95);
+    border: 1px solid rgba(210, 105, 30, .5);
+    border-radius: 50%; width: 22px; height: 22px;
+    font-size: .6rem; line-height: 1; cursor: pointer; opacity: .9;
+    color: #cfc9c0;
+}
+.btc-del { left: -10px; }
+.btc-rep { right: -10px; }
+.btc-msg.flash { animation: btcflash 1.2s; }
+@keyframes btcflash { 0%, 55% { box-shadow: 0 0 0 3px rgba(240, 180, 41, .9); } }
+
+/* ===== cita de respuesta: dentro de la burbuja y barra de entrada ===== */
+.btc-quote, .btchat-reply-q {
+    border-left: 3px solid var(--tb-gold, #f0b429);
+    background: rgba(0, 0, 0, .25); border-radius: 6px;
+    padding: 4px 8px; font-size: .72rem;
+}
+.btc-quote { margin-bottom: 4px; cursor: pointer; }
+.btc-quote b, .btchat-reply-q b { display: block; font-size: .66rem; }
+.btc-quote span, .btchat-reply-q span {
+    display: block; opacity: .8; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; max-width: 200px;
+}
+.btchat-reply {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; background: rgba(29, 15, 4, .96);
+    border-top: 1px solid rgba(210, 105, 30, .3);
+}
+.btchat-reply-q { flex: 1; }
+
+/* ===== avisos de sistema: píldora centrada WA ===== */
+.btc-sys {
+    width: fit-content; margin: 2px auto;
+    font-size: .62rem; letter-spacing: .04em;
+    padding: 5px 14px; border-radius: 9px;
+    background: rgba(240, 180, 41, .13);
+    border: 1px solid rgba(240, 180, 41, .18);
+    color: var(--tb-cream, #f2e4c9);
+    text-align: center; opacity: .85; }
+.btc-voz { display: block; font-size: 1rem; margin-bottom: 2px; }
+
+/* ===== panel de emojis (popup sobre la barra) + barra de entrada WA ===== */
+.btchat-emojis {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px;
+    max-height: 200px; overflow-y: auto; padding: 10px 12px;
+    background: rgba(29, 15, 4, .96);
+    border-top: 1px solid rgba(210, 105, 30, .3); }
+.btchat-emojis::-webkit-scrollbar { display: none; }
+/* cada emoji en su celda táctil de ~42px: aire real entre uno y otro —
+   glifo más chico, área de toque completa, nada apelotado */
+.btc-emo {
+    background: none; border: none; cursor: pointer;
+    font-size: 1.15rem; line-height: 1;
+    min-width: 40px; min-height: 42px; padding: 4px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; }
+.btc-emo:active { transform: scale(1.18); background: rgba(210, 105, 30, .18); }
+/* insignia de mensajes sin leer sobre el botón del sol (fab) */
+.fab-btbadge {
+    position: absolute; top: -6px; right: -6px; z-index: 5;
+    display: flex; align-items: center; gap: 3px;
+    min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px;
+    border: 1px solid var(--tb-gold, #f0b429);
+    background: linear-gradient(135deg, #e5484d, #b7441a);
+    color: #fff8ec; font-size: .62rem; font-weight: 800; cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, .55), 0 0 10px rgba(229, 72, 77, .5);
+    animation: btc-badge-pulse 1.6s ease-in-out infinite; }
+.fab-btbadge i { font-size: .68rem; }
+.fab-btbadge[hidden] { display: none !important; }
+@keyframes btc-badge-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.btchat-inputbar {
+    display: flex; align-items: center; gap: 4px;
+    padding: 7px 8px calc(7px + max(env(safe-area-inset-bottom, 0px), 18px));
+    background: linear-gradient(0deg, #241305, #1d0f04); }
+.btchat-inputbar .tribal-input {
+    flex: 1; min-width: 0; font-size: 1.02rem; padding: 12px 16px;
+    border-radius: 24px; background: rgba(255, 255, 255, .07);
+    border: 1px solid rgba(210, 105, 30, .28);
+    color: #fff4de;                                  /* texto claro, legible */
+    caret-color: var(--tb-gold, #f0b429); }
+.btchat-inputbar .tribal-input::placeholder {
+    color: rgba(240, 180, 41, .55);                  /* dorado sol suave */
+    opacity: 1; }
+.btchat-inputbar .tribal-btn.sm {
+    border-radius: 50%; width: 44px; height: 44px;
+    padding: 0; font-size: 1.1rem; flex: 0 0 auto; }
+/* pantallas angostas: la barra encoge, el enviar nunca se sale */
+@media (max-width: 380px) {
+    .btchat-inputbar { gap: 2px; padding-left: 4px; padding-right: 4px; }
+    .btchat-inputbar .tribal-btn.sm { width: 40px; height: 40px; font-size: 1rem; }
+    .btchat-btn.flat { font-size: 1.1rem; padding: 5px; }
+    .btchat-inputbar .tribal-input { font-size: .95rem; padding: 10px 12px; }
+}
+/* botón 🎤 grabando: pulso rojo */
+.btchat-btn.rec { color: #e5484d; animation: btcRecPulse 1s ease-in-out infinite; }
+@keyframes btcRecPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .55; transform: scale(1.2); } }
+
+/* hoja de borrado estilo WhatsApp: "para todos / para mí / cancelar" */
+.btc-delsh {
+    position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 15;
+    display: flex; flex-direction: column;
+    background: #241305; border: 1px solid rgba(210, 105, 30, .45);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, .62); }
+.btc-delsh button {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 13px 16px; background: none; border: none; cursor: pointer;
+    color: var(--tb-cream, #f2e4c9); font-size: .85rem; text-align: left; }
+.btc-delsh button + button { border-top: 1px solid rgba(210, 105, 30, .2); }
+.btc-delsh button:active { background: rgba(210, 105, 30, .18); }
+#btc-del-all { color: #ff9d7a; }
+#btc-del-all i, #btc-del-me i { color: #ff9d7a; font-size: .95rem; }
+
+/* ===== picker "Enviar de mi biblioteca" (btchatlib) ===== */
+.btclib-ov { z-index: 970; }
+.btclib {
+    width: calc(100% - 24px); max-width: 440px; max-height: 72dvh;
+    margin: auto; display: flex; flex-direction: column;
+    background: #1d0f04; border: 1px solid rgba(210, 105, 30, .45);
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .65);
+}
+.btclib-head {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px 8px;
+    border-bottom: 1px solid rgba(210, 105, 30, .3);
+    color: var(--tb-cream, #f2e4c9); font-size: .85rem; }
+.btclib-head small { flex: 1; opacity: .5; font-weight: 400; font-size: .62rem; }
+.btclib-list { overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.btclib-item small { display: block; opacity: .5; font-size: .62rem; }
+.btclib-item.big { opacity: .35; } .btclib-item.busy { opacity: .55; }

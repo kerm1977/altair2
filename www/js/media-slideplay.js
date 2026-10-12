@@ -109,6 +109,19 @@
             if (e.target === _x.ov || e.target.classList.contains('tslide-stage')) _x.close();
         });
 
+        // teléfono en horizontal → pantalla completa real; en vertical vuelve
+        _x.syncFs = function () {
+            var land = window.innerWidth > window.innerHeight;
+            if (land && document.fullscreenElement !== el && el.requestFullscreen) {
+                el.requestFullscreen().catch(function () {});
+            } else if (!land && document.fullscreenElement === el &&
+                       document.exitFullscreen) {
+                document.exitFullscreen().catch(function () {});
+            }
+        };
+        window.addEventListener('resize', _x.syncFs);
+        _x.syncFs();
+
         // música de fondo en bucle (para horas)
         if (song) {
             _x.audioEl = _x.audioEl || document.createElement('audio');

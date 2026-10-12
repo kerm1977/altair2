@@ -82,6 +82,15 @@
     animation: tribal-spin 40s linear infinite;
 }
 
+/* el sol es botón: abre el chat Bluetooth — ancla de la insignia sin leer */
+.tribal-sun-wrap {
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.tribal-sun-wrap:active .tribal-sun { filter: drop-shadow(0 0 22px rgba(240, 180, 41, .85)); }
+
 @keyframes tribal-spin { to { transform: rotate(360deg); } }
 
 /* banda difuminada: un halo espectral que fluye como viento */
@@ -393,7 +402,9 @@
         border-color: var(--tb-gold); box-shadow: 0 10px 28px rgba(224,96,46,.4); }
     .tribal-fab-wrap:hover .fab-opt { width: 58px; opacity: 1; }
 }
-.tribal-root.has-player .tribal-fab-wrap { bottom: calc(172px + env(safe-area-inset-bottom, 0px)); }
+/* con la barra de reproducción: el sol flota justo encima, dejando un
+   pequeño respiro (~12px) entre la barra y el botón */
+.tribal-root.has-player .tribal-fab-wrap { bottom: calc(126px + env(safe-area-inset-bottom, 0px)); }
 
 /* --------------------------------------------------------------- player -- */
 /* Fijo sobre el viewport: siempre visible pegado a los botones nativos,
@@ -504,7 +515,7 @@
 /* diálogos altos (slideshow cfg, colecciones…): nunca se salen de pantalla.
    Se exceptúan las páginas completas (lector, P2P, libretilla, editor de
    imagen) y el escenario/UI del slideshow — esos sí ocupan el 100%. */
-.tribal-overlay:not(.tribal-reader-ov):not(.tribal-p2p-ov):not(.tribal-ie-ov)
+.tribal-overlay:not(.tribal-reader-ov):not(.tribal-p2p-ov):not(.tribal-ie-ov):not(.tribal-btchat-ov)
     > *:not(.tslide-stage):not(.tslide-ui) {
     max-height: calc(100dvh - 40px);
     overflow-y: auto;
@@ -624,7 +635,9 @@
     -webkit-backdrop-filter: blur(9px);
 }
 .tribal-menu-bd[hidden] { display: none !important; }
-#card-menu {
+#card-menu,
+#player-menu,
+#view-menu {
     position: fixed !important;
     top: 50% !important;
     left: 50% !important;
@@ -699,3 +712,30 @@
 
 /* utilidades locales */
 .tribal-root .d-none { display: none !important; }
+
+/* ============================================================================
+   BLINDAJE RESPONSIVO GLOBAL — el mismo patrón que dejó el chat a prueba de
+   desbordes, aplicado a TODA la interfaz tribal:
+
+   1) min-width/min-height:0 — los items flex/grid NO encogen por defecto:
+      un hijo ancho/alto desborda la vista hacia los lados o empuja elementos
+      fuera de la pantalla. Con esto, todo encoge hasta el tamaño real del
+      dispositivo y el scroll se queda dentro de su contenedor.
+   2) overflow-x recortado en el root.
+   3) medios nunca más anchos que su contenedor.
+   4) media query ≤380px: header, sol, tabs y buscador compactos.
+   ========================================================================== */
+.tribal-root *, .tribal-overlay * { min-width: 0; min-height: 0; }
+.tribal-root { overflow-x: hidden; }
+.tribal-root img, .tribal-root video,
+.tribal-overlay img, .tribal-overlay video { max-width: 100%; }
+
+@media (max-width: 380px) {
+    .tribal-header-inner { gap: 8px; }
+    .tribal-title { font-size: 1.45rem; letter-spacing: 0.06em; }
+    .tribal-sub { font-size: 0.62rem; }
+    .tribal-sun { width: 48px; height: 48px; }
+    .tribal-tabs { gap: 5px; margin-top: 10px; }
+    .tribal-tab { padding: 7px 10px; font-size: 0.72rem; }
+    .tribal-search input { font-size: 0.8rem; }
+}

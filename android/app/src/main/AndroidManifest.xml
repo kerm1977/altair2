@@ -66,6 +66,9 @@
 
     <!-- 8. EXTRAS (Feedback háptico/Vibración) -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Chat BT siempre en escucha (servicio en primer plano) + avisos -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
 
     <!-- Visibilidad de paquetes (Android 11+): sin esto queryIntentActivities
          no ve la app Bluetooth Share ni los demás destinos de ACTION_SEND -->
@@ -139,6 +142,12 @@
             </intent-filter>
 
         </activity>
+
+        <!-- Chat Bluetooth: socket servidor vivo aunque la app esté cerrada -->
+        <service
+            android:name=".TribalBtService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

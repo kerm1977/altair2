@@ -114,11 +114,15 @@ window.TribalP2PWire = (function () {
             var bulk = ov.querySelector('#tp-tracker-bulk').value;
             var one = ov.querySelector('#tp-tracker').value.trim();
             var n = TribalP2P.addTrackers(bulk + '\n' + one);
-            if (!n) return deps.toast('Nada que agregar');
+            var rej = TribalP2P._lastRejected || 0;
+            if (!n)
+                return deps.toast(rej ? 'Rechazados: solo sirven trackers wss://'
+                                      : 'Nada que agregar');
             ov.querySelector('#tp-tracker-bulk').value = '';
             ov.querySelector('#tp-tracker').value = '';
             refreshTrackers();
-            deps.toast(n + ' tracker' + (n > 1 ? 's' : '') + ' agregados');
+            deps.toast(n + ' tracker' + (n > 1 ? 's' : '') + ' agregados' +
+                (rej ? ' · ' + rej + ' descartados (solo wss://)' : ''));
             // probar los recién agregados
             TribalP2P.trackers().slice(-n).forEach(function (u) {
                 var el = ov.querySelector('[data-trk="' +
@@ -136,9 +140,11 @@ window.TribalP2PWire = (function () {
             var reader = new FileReader();
             reader.onload = function () {
                 var n = TribalP2P.addTrackers(reader.result);
+                var rej = TribalP2P._lastRejected || 0;
                 refreshTrackers();
-                deps.toast(n ? (n + ' trackers importados del .txt')
-                             : 'El .txt no traía trackers nuevos');
+                deps.toast(n ? (n + ' trackers importados' +
+                    (rej ? ' · ' + rej + ' descartados (solo wss://)' : ''))
+                             : 'El .txt no traía trackers wss:// válidos');
             };
             reader.readAsText(f);
         });

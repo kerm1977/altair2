@@ -1,8 +1,11 @@
 package com.miapp.local;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.webkit.MimeTypeMap;
@@ -23,8 +26,49 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(TribalNativePlugin.class);
+        registerPlugin(TribalBtPlugin.class);
         super.onCreate(savedInstanceState);
         handleIncoming(getIntent());
+        requestAllPermissions();
+    }
+
+    // Pide TODOS los permisos runtime de una vez al arrancar. Android solo
+    // muestra diálogo por los que falten; los ya concedidos se omiten solos.
+    // Si el usuario revocó algo, se le vuelve a pedir en el próximo arranque —
+    // así el permiso no puede quedar "apagado" en silencio.
+    private void requestAllPermissions() {
+        List<String> want = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= 31) {
+            // Android 12+: Bluetooth cercano
+            want.add(Manifest.permission.BLUETOOTH_SCAN);
+            want.add(Manifest.permission.BLUETOOTH_CONNECT);
+            want.add(Manifest.permission.BLUETOOTH_ADVERTISE);
+        }
+        // ubicación: el escaneo BT clásico la exige en varios OEMs y API<31
+        want.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        want.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        want.add(Manifest.permission.RECORD_AUDIO);   // notas de voz del chat
+        want.add(Manifest.permission.CAMERA);          // captura / escaneo
+        if (Build.VERSION.SDK_INT >= 33) {
+            // Android 13+: avisos del servicio BT + medios separados
+            want.add(Manifest.permission.POST_NOTIFICATIONS);
+            want.add(Manifest.permission.READ_MEDIA_AUDIO);
+            want.add(Manifest.permission.READ_MEDIA_VIDEO);
+            want.add(Manifest.permission.READ_MEDIA_IMAGES);
+        } else {
+            want.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+        }
+        List<String> missing = new ArrayList<>();
+        for (String p : want) {
+            if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
+                missing.add(p);
+            }
+        }
+        if (!missing.isEmpty()) {
+            try {
+                requestPermissions(missing.toArray(new String[0]), 7712);
+            } catch (Exception ignored) {}
+        }
     }
 
     @Override

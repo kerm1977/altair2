@@ -61,6 +61,13 @@ window.TribalSlide = (function () {
     function close() {
         _x.running = false;
         killTimer();
+        if (_x.syncFs) {
+            window.removeEventListener('resize', _x.syncFs);
+            _x.syncFs = null;
+            try {
+                if (document.fullscreenElement) document.exitFullscreen();
+            } catch (e) {}
+        }
         if (_x.audioEl) {
             _x.audioEl.pause();
             _x.audioEl.removeAttribute('src');

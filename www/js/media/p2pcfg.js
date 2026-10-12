@@ -20,13 +20,18 @@
         if (i >= 0) { t.splice(i, 1); _.save(); }
     };
 
-    // alta en bloque: lista de trackers (uno por línea); devuelve cuántos entraron
+    // alta en bloque: lista de trackers (uno por línea); devuelve cuántos
+    // entraron. SOLO acepta wss:// — udp/http jamás funcionan en WebView.
+    P._lastRejected = 0;
     P.addTrackers = function (text) {
-        var t = _.getTrackers(), n = 0;
+        var t = _.getTrackers(), n = 0, rej = 0;
         String(text || '').split(/\r?\n|,|;/).forEach(function (u) {
             u = u.trim();
-            if (u && t.indexOf(u) < 0) { t.push(u); n++; }
+            if (!u) return;
+            if (!/^wss?:\/\//.test(u)) { rej++; return; }
+            if (t.indexOf(u) < 0) { t.push(u); n++; }
         });
+        P._lastRejected = rej;
         if (n) _.save();
         return n;
     };
@@ -34,12 +39,12 @@
     // probar un tracker o URL: vivo/muerto (y latencia)
     P.probeTracker = function (u, cb) {
         u = String(u || '').trim();
-        if (/^wss?:|^https?:/.test(u)) {
+        if (/^wss?:/.test(u)) {
             var t0 = Date.now();
             fetch(u.replace(/^ws/, 'http'), { mode: 'no-cors' })
                 .then(function () { cb(true, Date.now() - t0); })
                 .catch(function () { cb(false); });
-        } else cb(false, null, 'UDP no se puede probar desde el navegador');
+        } else cb(false, null, 'Solo sirven trackers wss:// aquí');
     };
 
     // ---- motores de búsqueda -------------------------------------------------

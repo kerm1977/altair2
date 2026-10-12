@@ -162,8 +162,8 @@
     align-items: center;
     justify-content: center;
     gap: clamp(12px, 2.6vh, 30px);
-    /* +10px arriba: la marca TRIBALs no queda bajo el círculo giratorio */
-    padding: calc(38px + env(safe-area-inset-top, 0px)) 20px
+    /* +24px arriba: la marca TRIBALs no queda bajo el círculo giratorio */
+    padding: calc(52px + env(safe-area-inset-top, 0px)) 20px
              calc(28px + env(safe-area-inset-bottom, 0px));
     background:
         radial-gradient(800px 400px at 50% 0%, rgba(224, 96, 46, 0.22), transparent 65%),
@@ -781,8 +781,12 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 12px 4px 0;
+    /* sube los botones por encima de la barra de navegación nativa */
+    padding: 12px 4px calc(18px + env(safe-area-inset-bottom, 0px));
 }
+/* en fullscreen (landscape) el borde de la pantalla no tiene safe-area, pero
+   mantenemos aire para que los botones no toquen el borde */
+.tslide-ov:fullscreen .tslide-ui { padding-bottom: 16px; }
 .tslide-count {
     color: var(--tb-muted);
     font-size: 0.8rem;
@@ -1202,7 +1206,8 @@
 }
 .tribal-reader-bar {
     display: flex; align-items: center; gap: 8px;
-    padding: 10px 12px; border-bottom: 2px solid var(--tb-gold);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
+    border-bottom: 2px solid var(--tb-gold);
 }
 .tribal-reader-title {
     flex: 1; color: var(--tb-cream); font-size: 0.85rem;
@@ -1251,16 +1256,26 @@
 .tr-clean .tr-music,
 .tr-clean .tribal-reader-nav { display: none; }
 .tr-chrome-fab {
-    position: absolute; right: 14px; bottom: 14px; z-index: 8;
+    position: absolute; left: 50%;
+    bottom: calc(30px + env(safe-area-inset-bottom, 0px)); z-index: 8;
+    transform: translateX(-50%);
     width: 42px; height: 42px; border-radius: 50%; display: none;
     align-items: center; justify-content: center;
-    background: rgba(20,12,6,.88); border: 1px solid #ff8c42;
+    /* negro translúcido con blur: el texto de detrás se entreve */
+    background: rgba(6,4,2,.52); border: 1px solid rgba(255,140,66,.55);
+    -webkit-backdrop-filter: blur(10px) saturate(1.15);
+    backdrop-filter: blur(10px) saturate(1.15);
     color: #ffb347; font-size: 1.05rem; padding: 0;
     box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    transition: opacity .7s ease;
     animation: tr-fab-in .25s ease;
 }
 .tr-clean .tr-chrome-fab { display: flex; }
-@keyframes tr-fab-in { from { transform: scale(.6); opacity: 0; } }
+/* atenuado tras 30 s: apenas perceptible pero sigue tocable */
+.tr-chrome-fab.tr-fab-dim { opacity: .13; }
+@keyframes tr-fab-in {
+    from { transform: translateX(-50%) scale(.6); opacity: 0; }
+}
 .tribal-reader-body { flex: 1; overflow: hidden; padding: 14px; perspective: 1400px; }
 .tribal-reader-page {
     width: 100%; height: 100%; overflow: auto;
@@ -1277,19 +1292,92 @@
     font: 0.92rem/1.7 Georgia, serif; white-space: pre-wrap;
     width: 100%; margin: 0;
 }
-.tribal-reader-page.flip-next { animation: trFlipN .45s ease; }
-.tribal-reader-page.flip-prev { animation: trFlipP .45s ease; }
+/* pasar hoja: la página entra girando sobre el lomo (borde izq. al
+   avanzar / der. al retroceder), con un pequeño sobreimpulso de
+   asentamiento y una sombra de lomo que barre y se apaga */
+.tribal-reader-page.flip-next {
+    animation: trFlipN .55s cubic-bezier(.22,.8,.32,1);
+    transform-origin: left center; }
+.tribal-reader-page.flip-prev {
+    animation: trFlipP .55s cubic-bezier(.22,.8,.32,1);
+    transform-origin: right center; }
 @keyframes trFlipN {
-    0% { transform: rotateY(-65deg); opacity: .2; }
+    0%   { transform: translateX(9%) rotateY(-78deg) skewY(1.5deg);
+           opacity: .08; filter: brightness(.7); }
+    35%  { opacity: 1; filter: none; }
+    72%  { transform: translateX(0) rotateY(7deg); }
     100% { transform: rotateY(0); opacity: 1; }
 }
 @keyframes trFlipP {
-    0% { transform: rotateY(65deg); opacity: .2; transform-origin: right center; }
+    0%   { transform: translateX(-9%) rotateY(78deg) skewY(-1.5deg);
+           opacity: .08; filter: brightness(.7); }
+    35%  { opacity: 1; filter: none; }
+    72%  { transform: translateX(0) rotateY(-7deg); }
     100% { transform: rotateY(0); opacity: 1; }
 }
+/* sombra del lomo que barre la hoja al girar */
+.tribal-reader-page { position: relative; }
+.tribal-reader-page.flip-next::after,
+.tribal-reader-page.flip-prev::after {
+    content: ''; position: absolute; inset: 0; z-index: 3;
+    pointer-events: none; animation: trShade .55s ease forwards; }
+.tribal-reader-page.flip-next::after {
+    background: linear-gradient(90deg,
+        rgba(40,20,5,.45), rgba(40,20,5,.12) 35%, transparent 60%); }
+.tribal-reader-page.flip-prev::after {
+    background: linear-gradient(270deg,
+        rgba(40,20,5,.45), rgba(40,20,5,.12) 35%, transparent 60%); }
+@keyframes trShade { from { opacity: 1; } to { opacity: 0; } }
+
+/* ---- hoja orgánica (readerswipe.js): la página se dobla sobre el lomo
+   siguiendo el dedo — frente = la página, dorso = papel, debajo la
+   "página siguiente" difuminada ------------------------------------- */
+.tr-leaf {
+    position: absolute; z-index: 5;
+    transform-style: preserve-3d; perspective: 1400px;
+    transform-origin: left center; pointer-events: none;
+    will-change: transform;
+}
+.tr-leaf-face {
+    position: absolute; inset: 0; height: auto; overflow: hidden;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+/* pliegue cerca del lomo: sombra suave que da la curvatura */
+.tr-leaf-face::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(90deg, rgba(20,10,0,.32), transparent 20%,
+        transparent 82%, rgba(20,10,0,.14));
+}
+/* dorso de la hoja: papel crema con vetas — lo que se ve al doblar */
+.tr-leaf-back {
+    transform: rotateY(180deg);
+    background:
+        repeating-linear-gradient(0deg, transparent 0 26px,
+            rgba(120,90,40,.06) 26px 27px),
+        linear-gradient(105deg, #cdb98f 0%, #e9d8b0 45%, #d9c49a 100%);
+    border-radius: 6px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.5);
+}
+/* la página que se revela debajo de la hoja que gira */
+.tr-under {
+    position: absolute; z-index: 4; pointer-events: none;
+    filter: blur(2px) brightness(.88) saturate(.8); }
+/* sombra que la hoja proyecta sobre la página de abajo al levantarse —
+   más oscura del lado del borde libre (el que se está despegando) */
+.tr-under-shade {
+    position: absolute; inset: 0; z-index: 2; opacity: 0;
+    pointer-events: none; transition: opacity .3s ease; }
+.tr-under-shade.r {
+    background: linear-gradient(270deg,
+        rgba(15,8,0,.55), rgba(15,8,0,.15) 45%, transparent 70%); }
+.tr-under-shade.l {
+    background: linear-gradient(90deg,
+        rgba(15,8,0,.55), rgba(15,8,0,.15) 45%, transparent 70%); }
 .tribal-reader-nav {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 10px; padding: 10px 14px; border-top: 2px solid var(--tb-gold);
+    gap: 10px; padding: 10px 14px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 2px solid var(--tb-gold);
 }
 .tribal-reader-nav .tribal-btn { padding: 8px 14px; font-size: 0.78rem; }
 .tribal-reader-count { color: var(--tb-gold); font-size: 0.75rem; }
@@ -1309,6 +1397,12 @@
 .tr-sepia .tribal-reader-page { background: #e9dcbe; color: #4a3a26; }
 .tr-dark .tribal-reader-page { background: #14100c; color: #ece4d4; }
 .tr-dark .tribal-reader-page canvas { filter: invert(.92) hue-rotate(180deg); }
+/* tema papel: fondo café kraft + tinta café oscuro — alto contraste
+   cálido sin pares rojo/verde (amigable para daltonismo) */
+.tr-papel .tribal-reader-page { background: #d8c096; color: #46311c; }
+.tr-papel .tribal-reader-txt { color: #46311c; }
+.tr-papel .tribal-reader-page canvas {
+    filter: sepia(.55) brightness(.95) contrast(.95); }
 .tr-dimlay {
     position: absolute; inset: 0; z-index: 6;
     background: #000; opacity: 0; pointer-events: none;
@@ -1385,6 +1479,15 @@
     max-height: 220px; overflow-y: auto;
     border-bottom: 1px solid rgba(216,178,122,.3);
     background: rgba(0,0,0,.3); padding: 8px 12px;
+}
+.tr-music-vol {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 2px 8px; border-bottom: 1px dashed rgba(240,180,41,.3);
+    margin-bottom: 6px;
+}
+.tr-music-vol i { color: var(--tb-gold); font-size: .95rem; flex: 0 0 auto; }
+.tr-music-vol input[type="range"] {
+    flex: 1; min-width: 0; accent-color: var(--tb-gold); height: 18px;
 }
 .tr-music-now {
     display: flex; align-items: center; justify-content: space-between;
@@ -1569,8 +1672,17 @@
     background: rgba(0, 0, 0, 0.35);
     color: var(--tb-cream);
     font-size: 0.95rem;
+    padding: 0;
     display: flex; align-items: center; justify-content: center;
 }
+/* el triángulo de Bootstrap no está ópticamente centrado: se compensa con
+   un pequeño empuje a la derecha y line-height limpio (solo en play —
+   las barras de pausa sí van centradas) */
+.tr-row-play i {
+    display: block;
+    line-height: 1;
+}
+.tr-row-play i.bi-play-fill { transform: translate(1px, 0.5px); }
 .tr-row-play.playing {
     border-color: var(--tb-gold);
     color: var(--tb-gold);

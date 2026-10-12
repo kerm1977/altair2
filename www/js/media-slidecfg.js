@@ -78,11 +78,7 @@
                 '</div>' +
                 '<div class="tribal-dialog-actions" style="margin-top:8px">' +
                     '<button class="tribal-btn tslide-export" id="ts-export" style="margin-top:0">' +
-                        '<i class="bi bi-filetype-mp4"></i> Video</button>' +
-                    '<button class="tribal-btn tslide-export" id="ts-gif" style="margin-top:0">' +
-                        '<i class="bi bi-filetype-gif"></i> GIF</button>' +
-                    '<button class="tribal-btn tslide-export" id="ts-webp" style="margin-top:0">' +
-                        '<i class="bi bi-images"></i> WebP</button>' +
+                        '<i class="bi bi-filetype-mp4"></i> Exportar MP4</button>' +
                 '</div>' +
             '</div>');
 
@@ -175,16 +171,6 @@
             if (!readOpts()) return d.toast('Marca al menos una foto');
             if (d.onBeforeStart) d.onBeforeStart();
             _x.exportVideo(song());
-        });
-        el.querySelector('#ts-gif').addEventListener('click', function () {
-            if (!readOpts()) return d.toast('Marca al menos una foto');
-            if (d.onBeforeStart) d.onBeforeStart();
-            _x.exportGIF();
-        });
-        el.querySelector('#ts-webp').addEventListener('click', function () {
-            if (!readOpts()) return d.toast('Marca al menos una foto');
-            if (d.onBeforeStart) d.onBeforeStart();
-            _x.exportWebP();
         });
     }
 

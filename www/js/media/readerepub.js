@@ -28,6 +28,10 @@ window.TribalReaderEpub = (function () {
                 color: '#4a3a26', background: '#e9dcbe' } });
             rend.themes.register('dark', { body: {
                 color: '#ece4d4', background: '#14100c' } });
+            // papel: café sobre café — alto contraste cálido, amigable
+            // para daltonismo (sin distinciones rojo/verde)
+            rend.themes.register('papel', { body: {
+                color: '#46311c', background: '#d8c096' } });
             F.initLook(ui, meta, deps, {
                 applyLook: function (i) {
                     rend.themes.select(i.theme || 'light');
@@ -43,16 +47,60 @@ window.TribalReaderEpub = (function () {
                     ii.epubCfi = loc.start.cfi;
                     F.save(meta, deps);
                 }
+                if (window.TribalReaderBm)              // 🔖 solo en la hoja
+                    window.TribalReaderBm.sync(ui, meta, // marcada
+                        { cfi: loc.start.cfi });
             });
+            // quitar marca en 3 capas — annotations.remove puede fallar en
+            // silencio y dejar el <mark> pintado + el registro interno (la
+            // marca "volvía" al pasar de página). La cirugía DOM es
+            // infalible: desenvuelve los spans de ESTA cfi ahora mismo.
+            function dropMark(m) {
+                var ms = F.marks(meta), idx = ms.indexOf(m);
+                if (idx >= 0) ms.splice(idx, 1);
+                // 1) API oficial — dos firmas por si el vendor difiere
+                try { rend.annotations.remove(m.cfi, 'highlight'); } catch (e) {}
+                try { rend.annotations.remove(m.cfi); } catch (e) {}
+                // 2) registro interno del gestor — si sobrevive, la marca
+                //    se repinta sola en la siguiente renderización
+                try {
+                    var ann = rend.annotations && rend.annotations._annotations;
+                    if (ann) Object.keys(ann).forEach(function (k) {
+                        if (k === m.cfi ||
+                            (ann[k] && ann[k].cfiRange === m.cfi))
+                            delete ann[k];
+                    });
+                    var bs = rend.annotations && rend.annotations._annotationsBySectionIndex;
+                    if (bs) Object.keys(bs).forEach(function (si) {
+                        bs[si] = bs[si].filter(function (a) {
+                            return !a || a.cfiRange !== m.cfi;
+                        });
+                    });
+                } catch (e) {}
+                // 3) cirugía DOM: desenvolver los <mark data-epubcfi> de
+                //    esta marca en el iframe — desaparece en tiempo real
+                try {
+                    var ifrs = ui.el.querySelectorAll('#tr-epub iframe');
+                    for (var i = 0; i < ifrs.length; i++) {
+                        var d = ifrs[i].contentDocument;
+                        if (!d) continue;
+                        var els = d.querySelectorAll(
+                            '[data-epubcfi="' + m.cfi + '"]');
+                        for (var k2 = els.length - 1; k2 >= 0; k2--) {
+                            var el = els[k2], par = el.parentNode;
+                            while (el.firstChild)
+                                par.insertBefore(el.firstChild, el);
+                            par.removeChild(el);
+                        }
+                    }
+                } catch (e) {}
+                F.save(meta, deps);
+            }
             // restaurar marcas + abrir nota al tocarlas
             function noteFor(m) {
                 F.noteDlg(ui, meta, deps, m, function (act) {
-                    if (act === 'del') {
-                        var ms = F.marks(meta), idx = ms.indexOf(m);
-                        if (idx >= 0) ms.splice(idx, 1);
-                        try { rend.annotations.remove(m.cfi, 'highlight'); } catch (e) {}
-                    }
-                    F.save(meta, deps);
+                    if (act === 'del') dropMark(m);
+                    else F.save(meta, deps);
                 });
             }
             function paint(m) {
@@ -76,7 +124,8 @@ window.TribalReaderEpub = (function () {
                                      : { left: 0, top: 0 };
                         cb({ text: txt,
                             rect: { left: fr.left + r.left, top: fr.top + r.top,
-                                    width: r.width },
+                                    width: r.width,
+                                    bottom: fr.top + (r.bottom || r.top + 40) },
                             payload: { cfi: cfiRange } });
                     });
                 },
@@ -89,10 +138,21 @@ window.TribalReaderEpub = (function () {
                     deps.toast('Marcado');
                     return m;
                 },
-                unmark: function (m) {
-                    var ms = F.marks(meta), idx = ms.indexOf(m);
-                    if (idx >= 0) ms.splice(idx, 1);
-                    try { rend.annotations.remove(m.cfi, 'highlight'); } catch (e) {}
+                unmark: function (m) { dropMark(m); },
+                // ⊘: quita las marcas que tocan la selección — por cfi
+                // exacto o por contención de texto (selección dentro de la
+                // marca o cubriéndola)
+                unmarkSel: function (sel) {
+                    var n = 0;
+                    F.marks(meta).slice().forEach(function (m) {
+                        if (!m.cfi) return;
+                        var same = m.cfi === (sel.payload && sel.payload.cfi);
+                        var text = m.t && sel.text &&
+                            (sel.text.indexOf(m.t) >= 0 ||
+                             m.t.indexOf(sel.text) >= 0);
+                        if (same || text) { dropMark(m); n++; }
+                    });
+                    return n;
                 },
                 changed: function () { F.save(meta, deps); }
             });
@@ -105,30 +165,17 @@ window.TribalReaderEpub = (function () {
                     var d = contents && contents.document;
                     if (!d) return;
                     bm.attachTo(d.documentElement);
-                    // pasar hojas con el dedo dentro del iframe del epub
-                    var tx = 0, ty = 0, on = false;
-                    d.addEventListener('touchstart', function (e) {
-                        if (e.touches.length === 1) {
-                            tx = e.touches[0].clientX;
-                            ty = e.touches[0].clientY;
-                            on = true;
-                        }
-                    }, { passive: true });
-                    d.addEventListener('touchend', function (e) {
-                        if (!on) return;
-                        on = false;
-                        var dx = e.changedTouches[0].clientX - tx;
-                        var dy = e.changedTouches[0].clientY - ty;
-                        if (Math.abs(dx) > 60 && Math.abs(dy) < 45 &&
-                            ui.navStep) {
-                            ui.navStep(dx < 0 ? 1 : -1);
-                        }
-                    }, { passive: true });
+                    // pasar hojas con el dedo dentro del iframe del epub —
+                    // se reengancha en cada página via hooks.content
+                    if (window.TribalReaderSwipe) window.TribalReaderSwipe.bindDoc(d, ui);
                 });
             } catch (e) {}
             R.wireNav(ui, function (d) {
                 var pg = ui.el.querySelector('#tr-page');
-                pg.className = 'tribal-reader-page flip-' + (d > 0 ? 'next' : 'prev');
+                if (window.TribalReaderSwipe)
+                    window.TribalReaderSwipe.flip(pg, d);
+                else pg.className = 'tribal-reader-page flip-' +
+                    (d > 0 ? 'next' : 'prev');
                 d > 0 ? rend.next() : rend.prev();
             });
         }).catch(function () {

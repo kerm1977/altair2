@@ -35,20 +35,86 @@ window.TribalP2P = (function () {
     // navegador/WebView. Sin ellos el cliente no anuncia a nadie → 0 peers.
     var DEFAULT_TRACKERS = [
         'wss://tracker.openwebtorrent.com',
+        'wss://tracker.files.fm:7073/announce',
+        'wss://tracker.magnetoo.io',
         'wss://tracker.webtorrent.dev',
-        'wss://tracker.btorrent.xyz',
-        'wss://tracker.fastcast.nz'
+        'wss://tracker.btorrent.xyz'
     ];
-    function announceList() {
-        return DEFAULT_TRACKERS.concat(extraTrackers);
+
+    // ---- trackers vivos autoactualizables ----------------------------------
+    // ngosang/trackerslist publica la lista de trackers WS vivos (se
+    // actualiza cada hora). Se cachea 12 h en localStorage; si el fetch
+    // falla quedan DEFAULT_TRACKERS + los extras del usuario de reserva.
+    var TRACKERS_URL = 'https://raw.githubusercontent.com/ngosang/' +
+        'trackerslist/master/trackers_all_ws.txt';
+    var TRK_LS = 'tribu_p2p_trk';
+    var liveTrackers = [];
+    try {
+        var _tc = JSON.parse(localStorage.getItem(TRK_LS) || '{}');
+        if (_tc.list && _tc.list.length) liveTrackers = _tc.list;
+    } catch (e) {}
+    function refreshTrackers(force) {
+        var c = {};
+        try { c = JSON.parse(localStorage.getItem(TRK_LS) || '{}'); } catch (e) {}
+        if (!force && c.ts && Date.now() - c.ts < 43200000) return;   // 12 h
+        if (!window.fetch) return;
+        fetch(TRACKERS_URL).then(function (r) {
+            if (!r.ok) throw 0;
+            return r.text();
+        }).then(function (t) {
+            var list = t.split(/\s+/).filter(function (u) {
+                return /^wss?:\/\//.test(u);
+            }).slice(0, 24);
+            if (!list.length) return;
+            liveTrackers = list;
+            try {
+                localStorage.setItem(TRK_LS,
+                    JSON.stringify({ ts: Date.now(), list: list }));
+            } catch (e) {}
+            // los torrents vivos anuncian en los trackers nuevos ya mismo
+            jobs.forEach(function (j) { reannounce(j.torrent); });
+        }).catch(function () {});
     }
-    // el magnet que guardamos debe llevar sus tr= (los de los buscadores
-    // vienen pelados: solo xt + dn)
+
+    // WebTorrent en navegador/WebView solo habla trackers wss://: los
+    // udp:// y http:// que siembran los buscadores nunca conectan.
+    function announceList() {
+        var seen = {};
+        return DEFAULT_TRACKERS.concat(liveTrackers, extraTrackers)
+            .filter(function (u) {
+                if (!/^wss?:\/\//.test(u) || seen[u]) return false;
+                seen[u] = 1;
+                return true;
+            });
+    }
+
+    // pide peers al canal de trackers de un torrent vivo (re-anuncio)
+    function reannounce(t) {
+        if (!t || t.destroyed) return;
+        var tr = t.tracker ||
+                 (t._discovery && t._discovery.tracker) ||
+                 (t.discovery && t.discovery.tracker);
+        try { if (tr && tr.announce) tr.announce(); } catch (e) {}
+    }
+
+    // servidores STUN: sin buen NAT traversal WebRTC no conecta con nadie
+    var ICE_SERVERS = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' },
+        { urls: 'stun:global.stun.twilio.com:3478' }
+    ];
+    // el magnet SIEMPRE debe llevar los tr= wss, aunque ya traiga otros
+    // (http/udp): si no, anuncia en trackers muertos → 0 peers →
+    // se queda eternamente en 'Obteniendo datos…'
     function withTrackers(m) {
         if (!/^magnet:/.test(m)) m = 'magnet:?xt=urn:btih:' + m;
-        if (/[?&]tr=/.test(m)) return m;
+        var add = announceList().filter(function (u) {
+            return m.indexOf('tr=' + encodeURIComponent(u)) < 0;
+        });
+        if (!add.length) return m;
         var sep = m.indexOf('?') >= 0 ? '&' : '?';
-        return m + sep + announceList().map(function (u) {
+        return m + sep + add.map(function (u) {
             return 'tr=' + encodeURIComponent(u);
         }).join('&');
     }
@@ -80,13 +146,36 @@ window.TribalP2P = (function () {
     function ensureClient() {
         if (client) return client;
         if (!window.WebTorrent) return null;
-        client = new WebTorrent({ maxConns: 40 });
+        try {
+            client = new WebTorrent({ maxConns: 55,
+                tracker: { rtcConfig: { iceServers: ICE_SERVERS } } });
+            refreshTrackers();                        // trae trackers vivos
+        } catch (e) { client = null; return null; }
         return client;
     }
 
+    // re-añade el magnet al cliente si el job quedó sin torrent vivo —
+    // autocuración: un job 'downloading' sin torrent nunca descarga
+    function revive(j) {
+        if (j.torrent || !j.magnet) return;
+        var c = ensureClient();
+        if (!c) return;
+        try {
+            wireTorrent(j, c.add(withTrackers(j.magnet),
+                { announce: announceList() }));
+        } catch (e) { j.status = 'error'; j.error = String(e); }
+    }
+
+    // un 'metadata' estancado (sin peers) no debe ocupar un slot para
+    // siempre: pasado el margen deja de contar y otros jobs arrancan
+    var META_STALL = 60000;
     function activeCount() {
+        var now = Date.now();
         return jobs.filter(function (j) {
-            return j.status === 'downloading' || j.status === 'metadata';
+            if (j.status === 'downloading') return true;
+            if (j.status === 'metadata')
+                return now - (j.metaSince || j.addedAt) < META_STALL;
+            return false;
         }).length;
     }
 
@@ -124,6 +213,13 @@ window.TribalP2P = (function () {
             // volvió la red permitida → reencolar
             if (allowed && j.status === 'netwait') j.status = 'queued';
         });
+        // curar jobs sin torrent vivo (restore fallido, add rechazado…):
+        // sin esto quedaban 'downloading' eternamente sin hacer nada
+        jobs.forEach(function (j) {
+            if (!j.torrent && allowed &&
+                (j.status === 'queued' || j.status === 'downloading' ||
+                 j.status === 'metadata')) revive(j);
+        });
         var next = jobs.find(function (j) { return j.status === 'queued'; });
         while (allowed && next && activeCount() < maxSlots) {
             next.status = 'downloading';
@@ -145,9 +241,13 @@ window.TribalP2P = (function () {
         j.name = j.name || t.name || 'Sin nombre';
         j.infoHash = t.infoHash;
         j.magnet = j.magnet || t.magnetURI;
-        j.status = j.status === 'seed' ? 'seed' :
-                   (j.status === 'paused' ? 'paused' : 'metadata');
-        t.on('metadata', function () {
+        if (j.status !== 'seed' && j.status !== 'paused') {
+            j.status = 'metadata';
+            j.metaSince = Date.now();
+        }
+        // 'ready' llega tras metadata; si client.add devolvió un torrent
+        // ya conocido, 'metadata' ya disparó y no volverá → onMeta ahora
+        function onMeta() {
             j.name = t.name || j.name;
             j.files = t.files.map(function (f) {
                 return { name: f.name, length: f.length, path: f.path };
@@ -155,13 +255,17 @@ window.TribalP2P = (function () {
             if (j.status === 'metadata') j.status = 'downloading';
             if (j.status === 'paused') pauseFiles(j);
             save(); emit('change');
-        });
+        }
+        t.on('metadata', onMeta);
+        t.on('ready', onMeta);
+        if (t.ready || (t.files && t.files.length)) onMeta();
         t.on('download', function () { emit('change'); });
         t.on('upload', function () { emit('change'); });
         t.on('wire', function () { emit('change'); });
         t.on('done', function () {
             j.status = 'done';
             save(); emit('change');
+            if (toast) toast('«' + (j.name || 'Torrent') + '» descargado');
             if (window.TribalP2PJobs) TribalP2PJobs.import(j, store, toast);
             emit('done', j);
             pump();
@@ -171,6 +275,24 @@ window.TribalP2P = (function () {
             j.status = 'error';
             save(); emit('change');
         });
+        // si la metadata no llega en un margen razonable el torrent
+        // sigue intentando, pero avisamos para poder re-anunciar
+        setTimeout(function () {
+            if (j.status === 'metadata' && toast)
+                toast('«' + (j.name || 'Torrent') +
+                      '» sigue sin peers — re-anunciando solo');
+        }, 45000);
+        // re-anuncio agresivo: los trackers contestan intervalos de ~15
+        // min — eterno para un swarm web chico. Mientras no haya peers
+        // el motor re-anuncia solo cada 30 s; se apaga al terminar.
+        clearInterval(j._ann);
+        j._ann = setInterval(function () {
+            if (!j.torrent || j.torrent.destroyed || j.torrent.done ||
+                j.status === 'error') { clearInterval(j._ann); return; }
+            if (j.torrent.numPeers > 0 || j.status === 'paused' ||
+                j.status === 'netwait') return;
+            reannounce(j.torrent);
+        }, 30000);
         save(); emit('change');
     }
 
@@ -191,12 +313,18 @@ window.TribalP2P = (function () {
                   status: 'queued', addedAt: Date.now(), files: [] };
         jobs.push(j);
         var c = ensureClient();
-        if (!c) { j.status = 'error'; j.error = 'WebTorrent no disponible'; }
-        else {
+        if (!c) {
+            j.status = 'error'; j.error = 'WebTorrent no disponible';
+            if (toast) toast('WebTorrent no está disponible');
+        } else {
             try {
                 var t = c.add(magnet, { announce: announceList() });
                 wireTorrent(j, t);
-            } catch (e) { j.status = 'error'; j.error = String(e); }
+                if (toast) toast('Torrent añadido — obteniendo datos…');
+            } catch (e) {
+                j.status = 'error'; j.error = String(e);
+                if (toast) toast('No se pudo añadir el torrent');
+            }
         }
         pump(); save(); emit('change');
         return j;
@@ -227,7 +355,8 @@ window.TribalP2P = (function () {
     }
     function addTracker(u) {
         u = String(u || '').trim();
-        if (!u || extraTrackers.indexOf(u) >= 0) return;
+        // solo wss:// sirve: udp/http jamás anuncian desde una WebView
+        if (!/^wss?:\/\//.test(u) || extraTrackers.indexOf(u) >= 0) return;
         extraTrackers.push(u);
         save();
     }
@@ -271,8 +400,10 @@ window.TribalP2P = (function () {
             var i = jobs.findIndex(function (j) { return j.id === id || j.infoHash === id; });
             if (i < 0) return;
             var j = jobs[i];
+            clearInterval(j._ann);
             if (j.torrent) try { j.torrent.destroy(); } catch (e) {}
             jobs.splice(i, 1);
+            if (toast) toast('«' + (j.name || 'Torrent') + '» eliminado');
             save(); emit('change'); pump();
         },
         reconnect: function (id) {
@@ -281,7 +412,9 @@ window.TribalP2P = (function () {
             if (j.torrent) try { j.torrent.destroy(); } catch (e) {}
             j.torrent = null; j.status = st === 'paused' ? 'paused' : 'queued';
             var c = ensureClient();
-            if (c) wireTorrent(j, c.add(j.magnet, { announce: announceList() }));
+            refreshTrackers(true);                    // trackers frescos ya
+            if (c) wireTorrent(j, c.add(withTrackers(j.magnet),
+                { announce: announceList() }));
             pump();
         },
 
@@ -349,6 +482,7 @@ window.TribalP2P = (function () {
             // siembra única con la config de qBittorrent (p2pqbit.js):
             // ~78 motores 'site' + APIs YTS/Snowfl + todos sus trackers
             if (window.TribalP2PQBIT) window.TribalP2PQBIT.seed();
+            refreshTrackers();
             (d.jobs || []).forEach(function (r) {
                 if (jobs.some(function (j) { return j.id === r.id; })) return;
                 var j = { id: r.id, magnet: r.magnet, name: r.name,
@@ -357,8 +491,10 @@ window.TribalP2P = (function () {
                 jobs.push(j);
                 var c = ensureClient();
                 if (c && j.magnet) {
-                    try { wireTorrent(j, c.add(j.magnet, { announce: announceList() })); }
-                    catch (e) { j.status = 'error'; j.error = String(e); }
+                    try {
+                        wireTorrent(j, c.add(withTrackers(j.magnet),
+                            { announce: announceList() }));
+                    } catch (e) { j.status = 'error'; j.error = String(e); }
                 }
             });
             pump();

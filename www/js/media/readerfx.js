@@ -32,7 +32,7 @@ window.TribalReaderFx = (function () {
     function applyLook(ui, meta, deps) {
         var i = info(meta);
         var reader = ui.el.querySelector('.tribal-reader');
-        reader.classList.remove('tr-sepia', 'tr-dark');
+        reader.classList.remove('tr-sepia', 'tr-dark', 'tr-papel');
         if (i.theme && i.theme !== 'light') reader.classList.add('tr-' + i.theme);
         var dim = ui.el.querySelector('#tr-dim');
         var lay = ui.el.querySelector('#tr-dimlay');
@@ -109,7 +109,9 @@ window.TribalReaderFx = (function () {
             '<i class="tr-dot tr-dot-y" data-a="y"></i>' +
             '<i class="tr-dot tr-dot-c" data-a="c"></i>' +
             '<i class="tr-dot tr-dot-p" data-a="p"></i>' +
-            '<i class="tr-dot tr-dot-g" data-a="g"></i>';
+            '<i class="tr-dot tr-dot-g" data-a="g"></i>' +
+            '<button data-a="clear" title="Quitar marca / selección">' +
+                '<i class="bi bi-x-circle"></i></button>';
         ui.el.appendChild(pop);
         var cur = null;
         function show(sel) {
@@ -117,19 +119,37 @@ window.TribalReaderFx = (function () {
             var r = cur.rect;
             pop.style.left = Math.max(8, Math.min(
                 window.innerWidth - 230, r.left + r.width / 2 - 112)) + 'px';
-            pop.style.top = Math.max(56, r.top - 48) + 'px';
+            // DEBAJO de la selección: el menú nativo de Android
+            // (copiar/compartir) flota encima del texto — así no se tapan
+            var below = (r.bottom || (r.top + 40)) + 10;
+            var top = (below + 46 <= window.innerHeight) ? below
+                      : Math.max(8, r.top - 48);
+            pop.style.top = top + 'px';
             pop.hidden = false;
+        }
+        var tmr = null;
+        function probe() {
+            var s = provider.getSel();
+            if (s && s.text) show(s); else pop.hidden = true;
         }
         if (provider.onSelected) {
             provider.onSelected(function (sel) { if (sel) show(sel); });
         } else {
+            // selectionchange dispara en vivo al seleccionar/arrastrar los
+            // mangos: aparece al instante y se reubica con precisión
+            function onSel() {
+                if (!ui.el.isConnected) {
+                    document.removeEventListener('selectionchange', onSel);
+                    return;
+                }
+                clearTimeout(tmr);
+                tmr = setTimeout(probe, 140);
+            }
+            document.addEventListener('selectionchange', onSel);
             ['mouseup', 'touchend'].forEach(function (ev) {
                 ui.el.addEventListener(ev, function () {
-                    setTimeout(function () {
-                        var s = provider.getSel();
-                        if (!s || !s.text) { pop.hidden = true; return; }
-                        show(s);
-                    }, 10);
+                    clearTimeout(tmr);
+                    tmr = setTimeout(probe, 40);
                 });
             });
         }
@@ -158,6 +178,12 @@ window.TribalReaderFx = (function () {
                     if (act === 'del' && provider.unmark) provider.unmark(mk);
                     if (provider.changed) provider.changed();
                 });
+            } else if (a === 'clear') {
+                // si la selección toca una marca de color → quitarla YA
+                // (si no hay marca, el cleanup de abajo limpia el texto
+                // seleccionado igualmente)
+                var n = provider.unmarkSel ? provider.unmarkSel(cur) : 0;
+                if (n) deps.toast('Marca quitada');
             } else if (COLORS[a]) {
                 provider.mark(cur, a);
             }
@@ -165,6 +191,29 @@ window.TribalReaderFx = (function () {
             if (sel) sel.removeAllRanges();
             cur = null;
         });
+    }
+
+    // ---- la nota también vive como .txt en la tribu ---------------------------
+    // kind 'doc' → aparece en la estantería de libros/documentos.
+    // markObj.nid enlaza marca↔archivo: re-guardar actualiza, no duplica
+    function saveNoteDoc(deps, meta, markObj) {
+        if (!deps.store || !markObj.n) return;
+        var body = 'Nota de lectura — «' + meta.name + '»\n' +
+            '────────────────────────\n"' + (markObj.t || '') +
+            '"\n\n' + markObj.n + '\n';
+        var name = ('nota-' + meta.name).replace(/\.[^.]+$/, '')
+            .replace(/[^\wáéíóúñü .()-]/gi, ' ').slice(0, 60) + '.txt';
+        var f = new File([body], name, { type: 'text/plain' });
+        var p = (markObj.nid && deps.store.replaceData)
+            ? deps.store.replaceData(markObj.nid, f) : Promise.resolve(null);
+        p.then(function (m2) {
+            return m2 || deps.store.add(f, name);
+        }).then(function (m3) {
+            if (!m3) return;
+            markObj.nid = m3.id;
+            deps.store.updateInfo(meta.id, info(meta)).catch(function () {});
+            deps.toast('📝 Nota guardada en Documentos');
+        }).catch(function () {});
     }
 
     // ---- diálogo de nota sobre una marca ------------------------------------
@@ -190,7 +239,10 @@ window.TribalReaderFx = (function () {
             var b = e.target.closest('[data-nd]');
             if (!b) return;
             var act = b.dataset.nd;
-            if (act === 'save') markObj.n = d.querySelector('textarea').value.trim();
+            if (act === 'save') {
+                markObj.n = d.querySelector('textarea').value.trim();
+                saveNoteDoc(deps, meta, markObj);
+            }
             d.remove();
             if (onDone) onDone(act);
         });

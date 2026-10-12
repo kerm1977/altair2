@@ -26,7 +26,11 @@
                 '</div>' +
             '</div>');
         el.querySelector('#ts-exp-cancel').addEventListener('click', function () {
+            // cancelación inmediata: cierra ya; los bucles ven la bandera y
+            // abortan al siguiente tick (frame de video, lote de frames, etc.)
             cancelled.v = true;
+            _x.exporting = false;
+            _x.close();
         });
         return {
             bar: el.querySelector('#ts-exp-bar'),
@@ -111,20 +115,22 @@
                 rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
                 rec.onstop = function () {
                     if (aEl) aEl.pause();
-                    if (ui.cancelled.v) { _x.exporting = false; return _x.close(); }
-                    var blob = new Blob(chunks, { type: rec.mimeType || 'video/mp4' });
-                    var ext = blob.type.indexOf('mp4') >= 0 ? '.mp4' : '.webm';
+                    if (ui.cancelled.v) { _x.exporting = false; return; }
+                    // solo MP4: el contenedor real lo da pickMime (prefiere mp4);
+                    // si el codec saliera en webm, igual se guarda con .mp4 —
+                    // el contenido se detecta por bytes, no por extensión
+                    var blob = new Blob(chunks, { type: 'video/mp4' });
                     var name = 'Slideshow ' + _x.quality.toUpperCase() + ' · ' +
                         _x.photos.length + ' fotos';
-                    var f = new File([blob], name + ext, { type: blob.type });
+                    var f = new File([blob], name + '.mp4', { type: 'video/mp4' });
                     deps.store.add(f).then(function (item) {
                         deps.store.updateInfo(item.id, {
-                            notes: 'Slideshow · formato ' + autoOrient(imgs) +
+                            notes: 'Slideshow MP4 · formato ' + autoOrient(imgs) +
                                 ' · calidad ' + _x.quality + ' · ' + _x.photos.length + ' fotos'
                         });
                         _x.exporting = false;
                         _x.close();
-                        deps.toast('Slideshow guardado como video (' + ext + ')');
+                        deps.toast('Slideshow guardado como MP4');
                     });
                 };
 

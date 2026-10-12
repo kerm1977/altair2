@@ -15,12 +15,52 @@ window.TribalLinks = (function () {
     var UI = function () { return window.TribalLinksUI; };
 
     // ------------------------------------------------------------ datos ----
+    // IndexedDB 'tribu_links_db' es el almacén real — localStorage queda solo
+    // como respaldo (el WebView a veces lo pierde al reiniciar). La API sigue
+    // síncrona sobre una caché en memoria que se hidrata al abrir.
+    var mem = null, idb = null;
+    function dbi() {
+        if (idb) return Promise.resolve(idb);
+        return new Promise(function (res) {
+            try {
+                var r = indexedDB.open('tribu_links_db', 1);
+                r.onupgradeneeded = function () { r.result.createObjectStore('kv'); };
+                r.onsuccess = function () { idb = r.result; res(idb); };
+                r.onerror = function () { res(null); };
+            } catch (e) { res(null); }
+        });
+    }
+    function persist(d) {
+        dbi().then(function (x) {
+            if (!x) return;
+            try { x.transaction('kv', 'readwrite').objectStore('kv').put(d, 'data'); }
+            catch (e) {}
+        });
+    }
     function db() {
-        try { return JSON.parse(localStorage.getItem(LS) || '{}'); }
-        catch (e) { return {}; }
+        if (mem == null) {
+            try { mem = JSON.parse(localStorage.getItem(LS) || '{}'); }
+            catch (e) { mem = {}; }
+        }
+        return mem;
     }
     function save(d) {
+        mem = d;
         try { localStorage.setItem(LS, JSON.stringify(d)); } catch (e) {}
+        persist(d);
+    }
+    // IDB → caché al abrir (si localStorage estaba vacío, recupera todo)
+    function hydrate(then) {
+        dbi().then(function (x) {
+            if (!x) return;
+            try {
+                var rq = x.transaction('kv').objectStore('kv').get('data');
+                rq.onsuccess = function () {
+                    var d = rq.result;
+                    if (d && (d.links || d.cats)) { mem = d; then(); }
+                };
+            } catch (e) {}
+        });
     }
     function cats() {
         var d = db(), c = d.cats;
@@ -92,6 +132,7 @@ window.TribalLinks = (function () {
 
         refreshCats();
         render();
+        hydrate(function () { refreshCats(); render(); });
         ov.querySelector('#lk-close').addEventListener('click', close);
         ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
         ov.querySelector('#lk-add').addEventListener('click', act.addOrSave);

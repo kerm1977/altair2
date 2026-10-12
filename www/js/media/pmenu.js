@@ -24,36 +24,33 @@ window.Sono.register('pmenu', function (S) {
     function closePMenu() {
         var resume = S._pmResume && !videoOv.hidden;
         pMenu.hidden = true;
+        var bd = $('player-menu-bd');
+        if (bd) bd.hidden = true;
         S._pmResume = false;
         if (resume) videoEl.play().catch(function () {});
     }
     S.closePMenu = closePMenu;
 
-    function openPlayerMenu(anchor) {
+    // centrado exacto del viewport vía CSS (#player-menu fixed) + fondo blur
+    function openPlayerMenu() {
         if (!pMenu.hidden) { closePMenu(); return; }   // toggle
         showPMenu();
         pMenu.hidden = false;
+        var bd = $('player-menu-bd');
+        if (bd) bd.hidden = false;
         // las secciones de imagen/herramientas solo salen si hay video abierto
         pMenu.classList.toggle('for-video', !videoOv.hidden);
         S.favLabel($('pm-fav'), S.byId(S.activeItemId));
-        var rw = S.root.getBoundingClientRect();
-        var ar = anchor.getBoundingClientRect();
-        var top = ar.top - rw.top - pMenu.offsetHeight - 8;
-        if (top < 10) top = Math.min(ar.bottom - rw.top + 6, rw.height - pMenu.offsetHeight - 10);
-        pMenu.style.top = Math.max(10, top) + 'px';
-        // centrado horizontal total — nada de menú echado a un lado
-        var left = (rw.width - pMenu.offsetWidth) / 2;
-        pMenu.style.left = Math.max(8, left) + 'px';
     }
     S.openPlayerMenu = openPlayerMenu;
 
     $('player-more').addEventListener('click', function (e) {
         e.stopPropagation();
-        openPlayerMenu(e.currentTarget);
+        openPlayerMenu();
     });
     $('video-more').addEventListener('click', function (e) {
         e.stopPropagation();
-        openPlayerMenu(e.currentTarget);
+        openPlayerMenu();
     });
     if (!window.__sonoExtrasBound) {
         window.__sonoExtrasBound = true;

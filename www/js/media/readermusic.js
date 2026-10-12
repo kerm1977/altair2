@@ -17,17 +17,27 @@ window.TribalReaderMusic = (function () {
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    // volumen de la música de lectura — persiste entre sesiones
+    var VOL_KEY = 'tribu_readermusic_vol';
+    function getVol() {
+        var v = parseFloat(localStorage.getItem(VOL_KEY));
+        return isNaN(v) ? 1 : Math.max(0, Math.min(1, v));
+    }
+    function setVol(deps, v) {
+        v = Math.max(0, Math.min(1, v));
+        if (deps.audio) deps.audio.volume = v;
+        try { localStorage.setItem(VOL_KEY, String(v)); } catch (e) {}
+    }
+
     function attach(ui, deps) {
         var btn = ui.el.querySelector('#tr-music-btn');
         var panel = ui.el.querySelector('#tr-music');
         if (!btn || !panel || !deps.play) return;
+        if (deps.audio) deps.audio.volume = getVol();
         btn.addEventListener('click', function () {
             panel.hidden = !panel.hidden;
             if (!panel.hidden) paint();
         });
-        function currentId() {
-            return deps.audio && deps.audio.dataset.current;
-        }
         function paint() {
             var cols = window.MediaStore.listCollections();
             var auds = (deps.items || []).filter(function (m) {
@@ -37,7 +47,13 @@ window.TribalReaderMusic = (function () {
             var playing = !deps.audio || deps.audio.paused ? null : now;
             var cur = auds.filter(function (m) { return m.id === now; })[0];
 
-            var html = '<div class="tr-music-now">' +
+            var html = '<div class="tr-music-vol">' +
+                '<i class="bi bi-volume-down-fill"></i>' +
+                '<input type="range" min="0" max="100" data-mvol ' +
+                    'value="' + Math.round(getVol() * 100) + '" ' +
+                    'title="Volumen de la música">' +
+                '<i class="bi bi-volume-up-fill"></i></div>' +
+                '<div class="tr-music-now">' +
                 (cur ?
                     '<span class="tr-music-track"><i class="bi bi-music-note-beamed"></i> ' +
                         esc(cur.name) + '</span>' +
@@ -73,6 +89,10 @@ window.TribalReaderMusic = (function () {
                     '"></i><span>' + esc(m.name) + '</span></button>';
             }
         }
+        panel.addEventListener('input', function (e) {
+            if (e.target.matches('[data-mvol]'))
+                setVol(deps, e.target.value / 100);
+        });
         panel.addEventListener('click', function (e) {
             var stop = e.target.closest('[data-mstop]');
             if (stop) {

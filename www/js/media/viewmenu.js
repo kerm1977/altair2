@@ -28,6 +28,17 @@ window.Sono.register('viewmenu', function (S) {
         else S.showToast('Lector no disponible');
     };
 
+    // P2P: enganchar store+toast desde el registro — así los avisos
+    // (añadido/descargado/error) funcionan aunque el panel no esté abierto
+    if (window.TribalP2P) TribalP2P.bind(window.MediaStore, S.showToast);
+
+    // Chat Bluetooth local (media/btchat*.js) — sobre Libros
+    $('vm-btchat').addEventListener('click', function () {
+        viewMenu.hidden = true;
+        if (window.TribalBtChat) TribalBtChat.open(S.extDeps());
+        else S.showToast('Chat Bluetooth no disponible');
+    });
+
     // Libros: filtro que antes era un tab — ahora vive aquí, sobre P2P
     $('vm-doc').addEventListener('click', function () {
         viewMenu.hidden = true;
@@ -65,6 +76,10 @@ window.Sono.register('viewmenu', function (S) {
         if (P.Filesystem && P.Filesystem.requestPermissions) {
             P.Filesystem.requestPermissions().catch(function () {});
         }
+        // 1b) diálogo de permisos Bluetooth + notificaciones
+        if (P.TribalBt && P.TribalBt.ensurePerms) {
+            P.TribalBt.ensurePerms().catch(function () {});
+        }
         // 2) abrir "Información de la app" para activar todo manualmente
         if (P.TribalNative && P.TribalNative.openAppSettings) {
             P.TribalNative.openAppSettings().catch(function () {});
@@ -72,14 +87,17 @@ window.Sono.register('viewmenu', function (S) {
         S.showToast('Activa los permisos en Ajustes de TRIBALs');
     });
 
+    // backdrop con blur: se sincroniza solo con el hidden del menú,
+    // cierre quien lo cierre (view-more, sort, batch, tocar fuera)
+    var vmBd = $('view-menu-bd');
+    if (vmBd && window.MutationObserver) {
+        new MutationObserver(function () { vmBd.hidden = viewMenu.hidden; })
+            .observe(viewMenu, { attributes: true, attributeFilter: ['hidden'] });
+        vmBd.addEventListener('click', function () { viewMenu.hidden = true; });
+    }
     $('view-more').addEventListener('click', function (e) {
         e.stopPropagation();
         viewMenu.hidden = !viewMenu.hidden;
-        if (viewMenu.hidden) return;
-        var rw = S.root.getBoundingClientRect();
-        var ar = e.currentTarget.getBoundingClientRect();
-        viewMenu.style.top = (ar.bottom - rw.top + 6) + 'px';
-        viewMenu.style.left = Math.max(8, ar.right - rw.left - viewMenu.offsetWidth) + 'px';
     });
     document.addEventListener('click', function (e) {
         if (!viewMenu.hidden && !viewMenu.contains(e.target) &&
@@ -172,7 +190,7 @@ window.Sono.register('viewmenu', function (S) {
         if (P && P.App && P.App.addListener) {
             P.App.addListener('appUrlOpen', function (e) {
                 if (e && e.url && e.url.indexOf('magnet:') === 0) {
-                    if (TribalP2P.add(e.url)) S.showToast('Magnet añadido — descargando');
+                    TribalP2P.add(e.url);
                 }
             });
         }

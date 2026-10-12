@@ -12,11 +12,22 @@ window.TribalReaderBm = (function () {
 
     function fx() { return window.TribalReaderFx; }
 
-    function sync(ui, meta) {
+    // ¿es esta la misma hoja marcada?  txt/pdf compara página, epub cfi
+    function samePlace(a, b) {
+        if (!a || !b) return false;
+        if (a.page != null && b.page != null) return a.page === b.page;
+        if (a.cfi != null && b.cfi != null) return a.cfi === b.cfi;
+        return false;
+    }
+
+    // sync(ui, meta, now): la cinta 🔖 solo aparece cuando ESTAMOS en la
+    // hoja marcada — en otra página se oculta (now = estado actual)
+    function sync(ui, meta, now) {
         var rib = ui.el.querySelector('#tr-bm');
         var bm = fx().info(meta).bm;
+        var here = !!(bm && now && samePlace(bm, now));
         if (rib) {
-            rib.hidden = !bm;
+            rib.hidden = !here;
             rib.title = bm ? ('Marcador: ' + (bm.txt || '')) : '';
         }
     }
@@ -36,7 +47,7 @@ window.TribalReaderBm = (function () {
             fx().save(meta, deps);
             if (navigator.vibrate) navigator.vibrate(30);
             deps.toast('🔖 Marcador puesto — la lectura retoma aquí');
-            sync(ui, meta);
+            sync(ui, meta, st);
         }
         function attachTo(el) {
             if (!el) return;
@@ -62,10 +73,10 @@ window.TribalReaderBm = (function () {
         if (rib) rib.addEventListener('click', function () {
             delete fx().info(meta).bm;
             fx().save(meta, deps);
-            sync(ui, meta);
+            sync(ui, meta, getState());
             deps.toast('Marcador quitado');
         });
-        sync(ui, meta);
+        sync(ui, meta, getState());
         // attachTo se devuelve: epub lo reusa dentro del iframe por sección
         return { attachTo: attachTo };
     }
