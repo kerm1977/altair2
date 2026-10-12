@@ -101,6 +101,18 @@
     white-space: nowrap; }
 .vn-row button { background: none; border: none; color: var(--tb-gold);
     font-size: 1.3rem; cursor: pointer; }
+.vn-row button.danger { color: #ff9d7a; }
+/* fila en modo renombrar / confirmación de borrado */
+.vn-row.vn-busy { flex-wrap: nowrap; }
+.vn-row .vn-renin { flex: 1; min-width: 0; padding: 7px 10px; font-size: .85rem;
+    background: rgba(0,0,0,.4); border: 1px solid var(--tb-gold);
+    border-radius: 8px; color: var(--tb-cream); outline: none; }
+.vn-row .vn-delq { color: #ff9d7a; font-size: .8rem; white-space: normal; }
+.vn-row button[data-a] { font-size: .78rem; white-space: nowrap;
+    border: 1px solid var(--tb-border); border-radius: 999px; padding: 6px 12px;
+    color: var(--tb-gold); background: rgba(0,0,0,.3); }
+.vn-row button[data-a].danger { border-color: var(--tb-terra); color: #ff9d7a; }
+.vn-row button[data-a].ok { border-color: var(--tb-gold); }
 .vn-empty { color: var(--tb-muted); text-align: center; padding: 12px; }
 /* ------------------------------- editor -------------------------------- */
 .vfx-stage { width: 100%; max-width: 860px; }

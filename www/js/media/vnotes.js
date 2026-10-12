@@ -127,19 +127,26 @@ window.TribalVNotes = (function () {
     }
 
     // lista: SOLO las grabaciones hechas aquí (info.vn o «Mi grabación …»)
+    // cada fila: escuchar · editar · renombrar · eliminar (vnotesrow.js)
     function fillList() {
         var box = ov.querySelector('#vn-list');
         var list = (deps.items || []).filter(function (m) {
             return m.kind === 'audio' &&
                 ((m.info && m.info.vn) || /^mi grabaci/i.test(m.name || ''));
         }).slice(0, 40);
-        box.innerHTML = list.length ? list.map(function (m) {
-            return '<div class="vn-row"><i class="bi bi-mic"></i>' +
-                '<span>' + esc(m.name) + '</span>' +
-                '<button data-play="' + m.id + '" title="Escuchar">' +
-                '<i class="bi bi-play-circle"></i></button><button data-edit="' +
-                m.id + '" title="Editar"><i class="bi bi-sliders"></i></button></div>';
-        }).join('') : '<p class="vn-empty">Sin notas todavía</p>';
+        box.innerHTML = '';
+        if (!list.length) {
+            box.innerHTML = '<p class="vn-empty">Sin notas todavía</p>';
+            return;
+        }
+        list.forEach(function (m) {
+            var r = window.TribalVRow.row(m);
+            box.appendChild(r);
+            window.TribalVRow.attach(r, m, { deps: deps, refresh: fillList,
+                play: function (rw) { if (window.TribalVNotePlay)
+                    TribalVNotePlay.toggle(m, rw, deps); },
+                edit: function () { edit(m, deps); } });
+        });
     }
 
     function build() {
@@ -158,16 +165,6 @@ window.TribalVNotes = (function () {
         ov.querySelector('#vn-x').addEventListener('click', close);
         ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
         ov.querySelector('#vn-ask').addEventListener('click', onAsk);
-        ov.querySelector('#vn-list').addEventListener('click', function (e) {
-            var b = e.target.closest('[data-play],[data-edit]');
-            if (!b) return;
-            var id = b.dataset.play || b.dataset.edit;
-            var m = (deps.items || []).find(function (x) { return x.id === id; });
-            if (!m) return;
-            if (b.dataset.play && window.TribalVNotePlay)
-                TribalVNotePlay.toggle(m, b.closest('.vn-row'), deps);
-            else if (b.dataset.edit) edit(m, deps);   // editor aquí mismo
-        });
         ov.querySelector('#vn-rec').addEventListener('click', function () {
             if (state === 'idle') return startRec();
             if (state === 'rec') {
