@@ -101,6 +101,52 @@ window.TribalP2P = (function () {
         try { if (tr && tr.announce) tr.announce(); } catch (e) {}
     }
 
+    // ---- motor NATIVO (libtorrent real): en la APK los torrents van por ----
+    // TCP/UDP/DHT — el swarm completo. En la preview web cae a WebTorrent.
+    function nativeOK() {
+        var n = window.TribalP2PNative;
+        return !!(n && n.ok);
+    }
+    function nativeStart(j) {
+        window.TribalP2PNative.add(j.magnet).then(function (r) {
+            j.native = true;
+            j.nid = r.id;
+            j.torrent = window.TribalP2PNative.torrentProxy(j);
+            if (j.status === 'paused') window.TribalP2PNative.pause(j.nid);
+            else { j.status = 'metadata'; j.metaSince = Date.now(); }
+            save(); emit('change'); pump();
+        }).catch(function (e) {
+            j.status = 'error';
+            j.error = String(e && e.message || e);
+            save(); emit('change');
+        });
+    }
+    var _nativePollOn = false;
+    function wireNativePoll() {
+        if (!nativeOK() || _nativePollOn) return;
+        _nativePollOn = true;
+        window.TribalP2PNative.onPoll(function () {
+            var dirty = false;
+            jobs.forEach(function (j) {
+                if (!j.native) return;
+                if (j.status === 'metadata' && j.torrent &&
+                    j.torrent.files.length) j.status = 'downloading';
+                if (window.TribalP2PNative.sync(j)) {   // completó ahora
+                    j.status = 'done';
+                    save();
+                    if (toast) toast('«' + (j.name || 'Torrent') +
+                                     '» descargado');
+                    if (window.TribalP2PJobs)
+                        TribalP2PJobs.import(j, store, toast);
+                    emit('done', j);
+                    pump();
+                }
+                dirty = true;
+            });
+            if (dirty) emit('change');
+        });
+    }
+
     // servidores STUN: sin buen NAT traversal WebRTC no conecta con nadie
     var ICE_SERVERS = [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -158,6 +204,7 @@ window.TribalP2P = (function () {
     // autocuración: un job 'downloading' sin torrent nunca descarga
     function revive(j) {
         if (j.torrent || !j.magnet) return;
+        if (nativeOK()) { wireNativePoll(); nativeStart(j); return; }
         var c = ensureClient();
         if (!c) return;
         try {
@@ -230,9 +277,11 @@ window.TribalP2P = (function () {
     }
 
     function resumeFiles(j) {
+        if (j.native) { window.TribalP2PNative.resume(j.nid); return; }
         if (j.torrent) j.torrent.files.forEach(function (f) { f.select(); });
     }
     function pauseFiles(j) {
+        if (j.native) { window.TribalP2PNative.pause(j.nid); return; }
         if (j.torrent) j.torrent.files.forEach(function (f) { f.deselect(); });
     }
 
@@ -315,6 +364,13 @@ window.TribalP2P = (function () {
                   magnet: magnet, name: null, torrent: null,
                   status: 'queued', addedAt: Date.now(), files: [] };
         jobs.push(j);
+        if (nativeOK()) {                    // APK → libtorrent real
+            wireNativePoll();
+            nativeStart(j);
+            if (toast) toast('Torrent añadido — obteniendo datos…');
+            pump(); save(); emit('change');
+            return j;
+        }
         var c = ensureClient();
         if (!c) {
             j.status = 'error'; j.error = 'WebTorrent no disponible';
@@ -414,10 +470,15 @@ window.TribalP2P = (function () {
             var st = j.status;
             if (j.torrent) try { j.torrent.destroy(); } catch (e) {}
             j.torrent = null; j.status = st === 'paused' ? 'paused' : 'queued';
-            var c = ensureClient();
             refreshTrackers(true);                    // trackers frescos ya
-            if (c) wireTorrent(j, c.add(withTrackers(j.magnet),
-                { announce: announceList() }));
+            if (nativeOK()) {
+                j.native = false; j.nid = null;
+                nativeStart(j);
+            } else {
+                var c = ensureClient();
+                if (c) wireTorrent(j, c.add(withTrackers(j.magnet),
+                    { announce: announceList() }));
+            }
             pump();
         },
 
@@ -425,6 +486,12 @@ window.TribalP2P = (function () {
         // los trackers y pide peers otra vez. Si no hay canal vivo → reconectar.
         forceComm: function (id) {
             var j = find(id); if (!j) return false;
+            if (j.native) {
+                if (j.nid) { window.TribalP2PNative.reannounce(j.nid); }
+                else if (j.magnet) { j.status = 'queued'; nativeStart(j); }
+                emit('change'); pump();
+                return true;
+            }
             var t = j.torrent, nudged = false;
             if (t) {
                 // canal de trackers del torrent (bittorrent-tracker Client)
@@ -482,16 +549,21 @@ window.TribalP2P = (function () {
                 else if (e.fixed) { cur.fixed = true; cur.on = true; }
             });
             if (d.trackers) extraTrackers = d.trackers;
-            // siembra única con la config de qBittorrent (p2pqbit.js):
-            // ~78 motores 'site' + APIs YTS/Snowfl + todos sus trackers
+            // siembra versionada de motores + depuración de trackers
+            // muertos (p2pqbit.js) — corre una vez por versión
             if (window.TribalP2PQBIT) window.TribalP2PQBIT.seed();
             refreshTrackers();
+            if (nativeOK()) wireNativePoll();
             (d.jobs || []).forEach(function (r) {
                 if (jobs.some(function (j) { return j.id === r.id; })) return;
                 var j = { id: r.id, magnet: r.magnet, name: r.name,
                           torrent: null, status: r.status || 'queued',
                           addedAt: r.addedAt || Date.now(), files: [] };
                 jobs.push(j);
+                if (nativeOK()) {
+                    nativeStart(j);           // APK → libtorrent real
+                    return;
+                }
                 var c = ensureClient();
                 if (c && j.magnet) {
                     try {
