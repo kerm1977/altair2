@@ -87,6 +87,21 @@ window.Sono.register('viewmenu', function (S) {
         S.showToast('Activa los permisos en Ajustes de TRIBALs');
     });
 
+    // revocar permisos: abre Ajustes de la app (revocar es siempre manual)
+    // y reinicia el registro → el próximo arranque pide todo otra vez
+    $('vm-revoke').addEventListener('click', function () {
+        viewMenu.hidden = true;
+        var C = window.Capacitor;
+        var P = C && C.Plugins;
+        if (!P) return S.showToast('Solo disponible en el APK');
+        if (P.TribalNative) {
+            if (P.TribalNative.resetPermFlag)
+                P.TribalNative.resetPermFlag().catch(function () {});
+            P.TribalNative.openAppSettings().catch(function () {});
+        }
+        S.showToast('Desactiva ahí los permisos — TRIBALs los pedirá de nuevo al abrir');
+    });
+
     // backdrop con blur: se sincroniza solo con el hidden del menú,
     // cierre quien lo cierre (view-more, sort, batch, tocar fuera)
     var vmBd = $('view-menu-bd');

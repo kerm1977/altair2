@@ -371,7 +371,22 @@ window.TribalBtChat = (function () {
             status(peersLabel()); N.listen().catch(function () {}); doScan();
             N.devices().then(function (r) {
                 (r.bonded || []).forEach(function (x) { devs[x.addr] = x; autoConnect(x.addr); }); renderDevs();
-                if (!r.enabled && N.isNative()) toast('Activa el Bluetooth'); }); }); }
+                if (r.enabled || !N.isNative()) return;
+                // BT apagado al entrar: avisar y preguntar si activarlo —
+                // una sola vez por apertura, no en bucle
+                status('bluetooth desconectado');
+                var ask = function () {
+                    N.enable().then(function () {
+                        N.listen().catch(function () {});
+                        sys('📡 Chat tribal escuchando');
+                        status(peersLabel());
+                        setTimeout(doScan, 2500);   // dar tiempo al sistema
+                    }).catch(function () { toast('No se pudo activar el Bluetooth'); });
+                };
+                if (deps.confirm) deps.confirm('Bluetooth desconectado',
+                    'El chat necesita el Bluetooth encendido para escuchar a la tribu. ¿Activarlo?',
+                    'Activar', ask);
+                else toast('Bluetooth desconectado — actívalo para el chat'); }); }); }
     function close() { ov.hidden = true; if (window.TribalBtVoice) window.TribalBtVoice.cancel(); }
     return { open: open, close: close, sendMedia: sendMedia };
 })();

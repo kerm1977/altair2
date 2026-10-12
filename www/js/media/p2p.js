@@ -72,9 +72,13 @@ window.TribalP2P = (function () {
                 localStorage.setItem(TRK_LS,
                     JSON.stringify({ ts: Date.now(), list: list }));
             } catch (e) {}
+            log('Trackers vivos actualizados: ' + list.length);
             // los torrents vivos anuncian en los trackers nuevos ya mismo
             jobs.forEach(function (j) { reannounce(j.torrent); });
-        }).catch(function () {});
+        }).catch(function (e) {
+            log('Lista de trackers: sin red (' +
+                (e && e.message || 'fetch falló') + ')');
+        });
     }
 
     // WebTorrent en navegador/WebView solo habla trackers wss://: los
@@ -108,16 +112,20 @@ window.TribalP2P = (function () {
         return !!(n && n.ok);
     }
     function nativeStart(j) {
+        log('Nativo: añadiendo ' + String(j.magnet).slice(0, 55) + '…');
         window.TribalP2PNative.add(j.magnet).then(function (r) {
             j.native = true;
             j.nid = r.id;
             j.torrent = window.TribalP2PNative.torrentProxy(j);
+            log('Nativo: en sesión como ' + String(r.id).slice(0, 12) +
+                '… (DHT + trackers http/udp)');
             if (j.status === 'paused') window.TribalP2PNative.pause(j.nid);
             else { j.status = 'metadata'; j.metaSince = Date.now(); }
             save(); emit('change'); pump();
         }).catch(function (e) {
             j.status = 'error';
             j.error = String(e && e.message || e);
+            log('Nativo ERROR al añadir: ' + j.error);
             save(); emit('change');
         });
     }
@@ -130,9 +138,15 @@ window.TribalP2P = (function () {
             jobs.forEach(function (j) {
                 if (!j.native) return;
                 if (j.status === 'metadata' && j.torrent &&
-                    j.torrent.files.length) j.status = 'downloading';
+                    j.torrent.files.length) {
+                    j.status = 'downloading';
+                    log('«' + j.name + '»: metadata ✓ → descargando ' +
+                        j.torrent.numPeers + ' peers · ' +
+                        j.torrent.files.length + ' archivos');
+                }
                 if (window.TribalP2PNative.sync(j)) {   // completó ahora
                     j.status = 'done';
+                    log('«' + (j.name || 'Torrent') + '» COMPLETO ✓');
                     save();
                     if (toast) toast('«' + (j.name || 'Torrent') +
                                      '» descargado');
@@ -167,6 +181,16 @@ window.TribalP2P = (function () {
 
     function emit(k, a) {
         (listeners[k] || []).forEach(function (f) { try { f(a); } catch (e) {} });
+    }
+
+    // ---- consola del motor: anillo de eventos visible desde el panel ----
+    var LOG = [];
+    function log(msg) {
+        var d = new Date(), p2 = function (n) { return ('0' + n).slice(-2); };
+        LOG.push({ t: p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' +
+                      p2(d.getSeconds()), m: String(msg) });
+        if (LOG.length > 400) LOG.shift();
+        emit('log');
     }
     function save() {
         try {
@@ -204,6 +228,7 @@ window.TribalP2P = (function () {
     // autocuración: un job 'downloading' sin torrent nunca descarga
     function revive(j) {
         if (j.torrent || !j.magnet) return;
+        log('Reviviendo «' + (j.name || 'torrent') + '» (job sin motor)');
         if (nativeOK()) { wireNativePoll(); nativeStart(j); return; }
         var c = ensureClient();
         if (!c) return;
@@ -290,6 +315,8 @@ window.TribalP2P = (function () {
         j.name = j.name || t.name || 'Sin nombre';
         j.infoHash = t.infoHash;
         j.magnet = j.magnet || t.magnetURI;
+        log('WebTorrent: añadido ' + String(j.infoHash || '').slice(0, 12) +
+            '… con ' + announceList().length + ' trackers');
         if (j.status !== 'seed' && j.status !== 'paused') {
             j.status = 'metadata';
             j.metaSince = Date.now();
@@ -303,6 +330,8 @@ window.TribalP2P = (function () {
             });
             if (j.status === 'metadata') j.status = 'downloading';
             if (j.status === 'paused') pauseFiles(j);
+            log('«' + j.name + '»: metadata ✓ → ' + j.files.length +
+                ' archivos');
             save(); emit('change');
         }
         t.on('metadata', onMeta);
@@ -310,9 +339,14 @@ window.TribalP2P = (function () {
         if (t.ready || (t.files && t.files.length)) onMeta();
         t.on('download', function () { emit('change'); });
         t.on('upload', function () { emit('change'); });
-        t.on('wire', function () { emit('change'); });
+        t.on('wire', function () {
+            emit('change');
+            log('«' + (j.name || 'torrent') + '»: ' + t.numPeers +
+                ' peer(s) conectados');
+        });
         t.on('done', function () {
             j.status = 'done';
+            log('«' + (j.name || 'Torrent') + '» COMPLETO ✓');
             save(); emit('change');
             if (toast) toast('«' + (j.name || 'Torrent') + '» descargado');
             if (window.TribalP2PJobs) TribalP2PJobs.import(j, store, toast);
@@ -322,6 +356,7 @@ window.TribalP2P = (function () {
         t.on('error', function (e) {
             j.error = String(e && e.message || e);
             j.status = 'error';
+            log('«' + (j.name || 'torrent') + '» ERROR: ' + j.error);
             save(); emit('change');
         });
         // si la metadata no llega en un margen razonable el torrent
@@ -343,6 +378,8 @@ window.TribalP2P = (function () {
             if (j.torrent.numPeers > 0 || j.status === 'paused' ||
                 j.status === 'netwait') return;
             if (++j._annN > 8) { clearInterval(j._ann); return; }
+            log('«' + (j.name || 'torrent') + '»: re-anuncio #' +
+                j._annN + ' (0 peers)');
             reannounce(j.torrent);
         }, 75000);
         save(); emit('change');
@@ -364,6 +401,8 @@ window.TribalP2P = (function () {
                   magnet: magnet, name: null, torrent: null,
                   status: 'queued', addedAt: Date.now(), files: [] };
         jobs.push(j);
+        log('Magnet añadido: ' + magnet.slice(0, 70) +
+            (magnet.length > 70 ? '…' : ''));
         if (nativeOK()) {                    // APK → libtorrent real
             wireNativePoll();
             nativeStart(j);
@@ -468,6 +507,7 @@ window.TribalP2P = (function () {
         reconnect: function (id) {
             var j = find(id); if (!j || !j.magnet) return;
             var st = j.status;
+            log('Reconectando «' + (j.name || 'torrent') + '»…');
             if (j.torrent) try { j.torrent.destroy(); } catch (e) {}
             j.torrent = null; j.status = st === 'paused' ? 'paused' : 'queued';
             refreshTrackers(true);                    // trackers frescos ya
@@ -537,8 +577,14 @@ window.TribalP2P = (function () {
             jobs: function () { return jobs; }
         },
 
+        logs: function () { return LOG.slice(); },
+        clearLog: function () { LOG.length = 0; emit('log'); },
+
         restore: function () {
             var d = load();
+            if (d.jobs && d.jobs.length)
+                log('Restaurando ' + d.jobs.length + ' torrent(s) ' +
+                    (nativeOK() ? 'con motor nativo' : 'con WebTorrent'));
             if (d.max) maxSlots = Math.max(1, Math.min(MAX_LIMIT, d.max));
             if (d.net === 'wifi' || d.net === 'data') netPolicy = d.net;
             if (d.engines && d.engines.length) engines = d.engines;

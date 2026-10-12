@@ -26,6 +26,10 @@ import java.util.UUID;
 public class TribalBtService extends Service {
 
     static final String CH = "tribu_bt_chat";
+    // canal propio para el "escuchando": IMPORTANCE_MIN → aparece una vez
+    // en la bandeja, en silencio, sin heads-up nunca más (el canal viejo
+    // era HIGH y re-popaba en cada reinicio del servicio)
+    static final String CH_FG = "tribu_bt_fg";
     private static final int FG_ID = 71, MSG_ID = 72;
     private static final UUID APP_UUID =
         UUID.fromString("7b1d0e5a-3c2f-4a9b-8e6d-5f1a2c3b4d5e");
@@ -59,7 +63,7 @@ public class TribalBtService extends Service {
 
     // sube a primer plano con degradación segura: tipo → sin tipo → rendirse
     private boolean goForeground() {
-        Notification n = note("Chat tribal escuchando", null);
+        Notification n = note(CH_FG, "Chat tribal escuchando", null);
         if (Build.VERSION.SDK_INT >= 34) {
             try {
                 startForeground(FG_ID, n,
@@ -139,18 +143,18 @@ public class TribalBtService extends Service {
         try {
             NotificationManager nm =
                 (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-            if (nm != null) nm.notify(MSG_ID, note("La tribu te llama",
+            if (nm != null) nm.notify(MSG_ID, note(CH, "La tribu te llama",
                 "Mensaje Bluetooth — toca para abrir el chat tribal"));
         } catch (Exception ignored) {}   // sin POST_NOTIFICATIONS → solo vibra
     }
 
-    private Notification note(String title, String text) {
+    private Notification note(String ch, String title, String text) {
         Intent tap = new Intent(this, MainActivity.class)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra("btchat", 1);
         PendingIntent pi = PendingIntent.getActivity(this, 0, tap,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        return new Notification.Builder(this, CH)
+        return new Notification.Builder(this, ch)
             .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
             .setContentTitle(title)
             .setContentText(text == null ? title : text)
@@ -164,9 +168,16 @@ public class TribalBtService extends Service {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm =
             (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        // escucha: silencioso, solo en la bandeja — UNA sola aparición
+        NotificationChannel fg = new NotificationChannel(
+            CH_FG, "Chat tribal (escucha)", NotificationManager.IMPORTANCE_MIN);
+        fg.setDescription("Presencia silenciosa del chat Bluetooth");
+        fg.setShowBadge(false);
+        if (nm != null) nm.createNotificationChannel(fg);
+        // mensajes: sí alertan
         NotificationChannel c = new NotificationChannel(
             CH, "Chat tribal Bluetooth", NotificationManager.IMPORTANCE_HIGH);
-        c.setDescription("Escucha y avisos del chat Bluetooth tribal");
+        c.setDescription("Avisos de mensajes del chat Bluetooth tribal");
         c.enableVibration(true);
         c.setVibrationPattern(new long[]{0, 180, 90, 180});
         if (nm != null) nm.createNotificationChannel(c);

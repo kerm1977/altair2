@@ -121,6 +121,18 @@ public class TribalBtPlugin extends Plugin {
             discovering = true; ad.startDiscovery(); call.resolve();
         } catch (SecurityException e) { call.reject("permiso BT denegado", e); } }
 
+    // pedir al sistema que encienda el Bluetooth (diálogo nativo, una vez)
+    @PluginMethod
+    public void requestEnable(PluginCall call) {
+        BluetoothAdapter ad = adapter();
+        try {
+            if (ad == null) { call.reject("sin Bluetooth"); return; }
+            if (ad.isEnabled()) { call.resolve(); return; }
+            getContext().startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            call.resolve();
+        } catch (Exception e) { call.reject("no se pudo pedir", e); } }
+
     @PluginMethod
     public void discoverable(PluginCall call) {
         try {

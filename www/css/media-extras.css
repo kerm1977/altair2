@@ -974,6 +974,71 @@
     word-break: break-all;
 }
 
+/* renombrar en lote: página completa */
+.tribal-flex { flex: 1; }
+.tribal-batch-ol {
+    list-style: none; margin: 10px 0 30px; padding: 0;
+    counter-reset: bt;
+}
+.tribal-batch-li {
+    counter-increment: bt;
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-bottom: 1px solid var(--tb-border);
+    font-size: 0.85rem;
+}
+.tribal-batch-li::before {
+    content: counter(bt) ".";
+    flex: none; width: 2.2em; text-align: right;
+    color: var(--tb-gold); font-family: monospace; font-size: 0.78rem;
+}
+.tribal-batch-li label {
+    display: flex; align-items: center; gap: 9px;
+    flex: 1; min-width: 0; cursor: pointer;
+}
+.tribal-batch-li label span {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tribal-batch-li .bt-old {
+    flex: 0 1 45%; color: var(--tb-muted); font-size: 0.78rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tribal-batch-li .bt-new {
+    flex: 1; min-width: 0;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(216, 178, 122, 0.3);
+    border-radius: 8px; color: var(--tb-cream);
+    padding: 6px 9px; font-size: 0.8rem;
+}
+.tribal-batch-li .bt-st { flex: none; font-size: 0.75rem; min-width: 5.5em; }
+.tribal-batch-li .bt-st.ok { color: #7fd98f; }
+.tribal-batch-li .bt-st.err { color: #ff7a6b; }
+.tribal-batch-li .bt-st.run { color: var(--tb-teal); }
+.tribal-batch-tools .tribal-btn { flex: none; }
+
+/* ===== administrador de archivos ===== */
+.fm-roots { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.fm-root { flex: none; }
+.fm-crumb {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 2px; margin-bottom: 8px; font-size: 0.78rem;
+    color: var(--tb-muted); word-break: break-all;
+}
+.fm-cb {
+    background: none; border: none; padding: 2px 4px;
+    color: var(--tb-gold); font: inherit; cursor: pointer;
+}
+.fm-sep { opacity: .5; }
+.fm-li { cursor: pointer; user-select: none; -webkit-user-select: none; }
+.fm-li.fm-on { background: rgba(201, 124, 58, 0.12); }
+.fm-ico { flex: none; color: var(--tb-teal); }
+.fm-dir { color: var(--tb-gold); }
+.fm-name {
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fm-size { flex: none; font-size: 0.68rem; color: var(--tb-muted); }
+.fm-li .ms-check { flex: none; color: var(--tb-gold); }
+
 /* ============================================================ stage+cutter */
 .vf-stage { position: relative; width: 100%; display: flex; justify-content: center; }
 /* fullscreen real: el video ocupa TODO lo ancho/alto — solo controles nativos
@@ -2025,6 +2090,25 @@
     border: 1px solid var(--tb-gold); border-radius: 8px;
     padding: 9px 12px; font-size: 0.76rem; font-family: monospace;
 }
+
+/* ===== p2p: consola del motor ===== */
+.tribal-p2p-consola {
+    max-height: 220px; overflow-y: auto;
+    background: #060301; border: 1px solid var(--tb-border);
+    border-radius: 8px; padding: 6px 8px; margin-top: 6px;
+    font-family: monospace; font-size: 0.7rem; line-height: 1.5;
+}
+.tr-log { color: var(--tb-cream); word-break: break-word; opacity: .9; }
+.tr-log span {
+    color: var(--tb-gold); opacity: .65; margin-right: 6px;
+    font-size: 0.62rem;
+}
+.tr-log-err { color: #ff7a6b; }
+.tr-log-ok { color: #7fd98f; }
+.tribal-p2p-consola-btns {
+    display: flex; gap: 8px; margin-top: 6px;
+}
+.tribal-p2p-consola-btns .tribal-btn { flex: 1; justify-content: center; }
 
 /* ---------------------------------------------------- libretilla enlaces -- */
 /* página completa (como el lector/P2P), no diálogo */

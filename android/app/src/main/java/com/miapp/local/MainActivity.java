@@ -2,6 +2,7 @@ package com.miapp.local;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -60,16 +61,51 @@ public class MainActivity extends BridgeActivity {
             want.add(Manifest.permission.READ_EXTERNAL_STORAGE);
         }
         List<String> missing = new ArrayList<>();
+        List<String> nowGranted = new ArrayList<>();
         for (String p : want) {
-            if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
-                missing.add(p);
-            }
+            if (checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED)
+                nowGranted.add(p);
+            else missing.add(p);
         }
-        if (!missing.isEmpty()) {
+        // pedir UNA vez: el set everGranted recuerda lo que se concedió.
+        // Solo se vuelve a pedir si falta algo que ANTES estaba concedido
+        // (el usuario lo revocó) — lo negado de entrada nunca se insiste;
+        // para eso queda el botón "Solicitar permisos" en el menú.
+        SharedPreferences sp =
+            getSharedPreferences("tribu_perms", MODE_PRIVATE);
+        java.util.Set<String> ever = new java.util.HashSet<>(
+            sp.getStringSet("everGranted", new java.util.HashSet<String>()));
+        boolean firstRun = !sp.contains("everGranted");
+        List<String> toAsk = new ArrayList<>();
+        if (firstRun) {
+            toAsk.addAll(missing);
+        } else {
+            for (String p : missing)
+                if (ever.contains(p)) toAsk.add(p);   // revocado → repedir
+        }
+        if (!toAsk.isEmpty()) {
             try {
-                requestPermissions(missing.toArray(new String[0]), 7712);
+                requestPermissions(toAsk.toArray(new String[0]), 7712);
             } catch (Exception ignored) {}
         }
+        ever.addAll(nowGranted);
+        sp.edit().putStringSet("everGranted", ever).apply();
+    }
+
+    // lo concedido en el diálogo entra al set al instante (sin esperar
+    // al próximo arranque) — así detectar revocación es exacto
+    @Override
+    public void onRequestPermissionsResult(int rc, String[] perms,
+                                           int[] results) {
+        super.onRequestPermissionsResult(rc, perms, results);
+        if (rc != 7712) return;
+        SharedPreferences sp = getSharedPreferences("tribu_perms", MODE_PRIVATE);
+        java.util.Set<String> ever = new java.util.HashSet<>(
+            sp.getStringSet("everGranted", new java.util.HashSet<String>()));
+        for (int i = 0; i < perms.length; i++)
+            if (results[i] == PackageManager.PERMISSION_GRANTED)
+                ever.add(perms[i]);
+        sp.edit().putStringSet("everGranted", ever).apply();
     }
 
     @Override

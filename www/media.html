@@ -391,9 +391,11 @@
         <button id="vm-undo"><i class="bi bi-arrow-counterclockwise"></i>Deshacer último cambio</button>
         <button id="vm-btchat"><i class="bi bi-bluetooth"></i>Chat Bluetooth</button>
         <button id="vm-doc"><i class="bi bi-book-half"></i>Libros</button>
+        <button id="vm-files"><i class="bi bi-folder2-open"></i>Administrador de archivos</button>
         <button id="vm-p2p"><i class="bi bi-diagram-3"></i>P2P Torrents</button>
         <button id="vm-links"><i class="bi bi-link-45deg"></i>Libretilla de enlaces</button>
         <button id="vm-perms"><i class="bi bi-shield-lock"></i>Solicitar permisos a Android</button>
+        <button id="vm-revoke"><i class="bi bi-shield-x"></i>Revocar permisos</button>
         <label class="tribal-menu-sort"><i class="bi bi-sort-alpha-down"></i>Ordenar
             <select class="tribal-select" id="vm-sort">
                 <option value="az">A → Z</option>
@@ -443,31 +445,55 @@
         </div>
     </div>
 
-    <!-- Diálogo: renombrar en lote -->
+    <!-- Página completa: renombrar en lote (selección → ejecución) -->
     <div class="tribal-overlay" id="batch-overlay" hidden>
-        <div class="tribal-dialog">
-            <h4>Renombrar en lote</h4>
-            <p id="batch-info">Nombra los archivos marcados de esta vista con numeración.</p>
-            <input type="text" id="batch-base" placeholder="Nombre base — ej. tribu_libre" autocomplete="off">
-            <div class="tribal-batch-row">
-                <label>Desde <input type="number" id="batch-start" min="0" value="1"></label>
-                <label>Cifras
-                    <select id="batch-digits">
-                        <option>2</option><option>3</option><option>4</option>
-                        <option selected>5</option><option>6</option>
-                        <option>7</option><option>8</option>
-                    </select>
-                </label>
+        <div class="tribal-p2p tribal-links">
+            <div class="tribal-p2p-head">
+                <button class="tribal-ctrl lk-back" id="batch-cancel" title="Volver">
+                    <i class="bi bi-arrow-left"></i><span>Volver</span></button>
+                <i class="bi bi-input-cursor-text"></i>
+                <strong>Renombrar en lote</strong>
             </div>
-            <div class="tribal-batch-tools">
-                <button class="tribal-btn" id="batch-all">Todos</button>
-                <button class="tribal-btn" id="batch-none">Ninguno</button>
+            <div class="lk-body" id="batch-page1">
+                <p id="batch-info"></p>
+                <div class="tribal-batch-tools">
+                    <button class="tribal-btn tribal-btn-xs" id="batch-all">Todos</button>
+                    <button class="tribal-btn tribal-btn-xs" id="batch-none">Ninguno</button>
+                    <span class="tribal-flex"></span>
+                    <button class="tribal-btn primary" id="batch-next">Renombrar seleccionados →</button>
+                </div>
+                <ol class="tribal-batch-ol" id="batch-list"></ol>
             </div>
-            <div class="tribal-col-list tribal-batch-list" id="batch-list"></div>
-            <p class="tribal-batch-preview" id="batch-preview"></p>
-            <div class="tribal-dialog-actions">
-                <button class="tribal-btn" id="batch-cancel">Cancelar</button>
-                <button class="tribal-btn primary" id="batch-ok">Renombrar</button>
+            <div class="lk-body" id="batch-page2" hidden>
+                <p id="batch-info2"></p>
+                <div class="tribal-batch-row">
+                    <label>Base <input type="text" id="batch-base"
+                        placeholder="Nombre base — ej. tribu_libre" autocomplete="off"></label>
+                    <label>Desde <input type="number" id="batch-start" min="0" value="1"></label>
+                    <label>Cifras
+                        <select id="batch-digits">
+                            <option>2</option><option>3</option><option>4</option>
+                            <option selected>5</option><option>6</option>
+                            <option>7</option><option>8</option>
+                        </select>
+                    </label>
+                    <button class="tribal-btn tribal-btn-xs" id="batch-apply">Aplicar patrón</button>
+                </div>
+                <div class="tribal-batch-row">
+                    <label><input type="radio" name="batch-mode" value="replace" checked>
+                        Renombrar y sustituir el original</label>
+                    <label><input type="radio" name="batch-mode" value="copy">
+                        Renombrar y crear copia</label>
+                    <label id="batch-colf" hidden>Carpeta
+                        <input type="text" id="batch-col" value="renombrados" autocomplete="off"></label>
+                </div>
+                <div class="tribal-batch-tools">
+                    <button class="tribal-btn tribal-btn-xs" id="batch-back">← Volver a la selección</button>
+                    <span class="tribal-flex"></span>
+                    <button class="tribal-btn primary" id="batch-ok">Iniciar</button>
+                </div>
+                <ol class="tribal-batch-ol" id="batch-run"></ol>
+                <p class="tribal-batch-preview" id="batch-preview"></p>
             </div>
         </div>
     </div>
@@ -586,6 +612,7 @@
 <script src="js/media/links.js"></script>
 <script src="js/media/linksact.js"></script>
 <script src="js/media/batch.js"></script>
+<script src="js/media/filemgr.js"></script>
 <script src="js/media/seed.js"></script>
 <script src="js/media/inbox.js"></script>
 <script src="js/media/btchatnet.js"></script>

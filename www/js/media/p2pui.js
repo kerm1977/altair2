@@ -43,6 +43,21 @@ window.TribalP2PUI = (function () {
         }
     }
 
+    function renderConsole() {
+        var box = ov.querySelector('#tp-console');
+        if (!box) return;
+        var ls = TribalP2P.logs();
+        var atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+        box.innerHTML = ls.map(function (l) {
+            var cls = /ERROR|falló|caído|Rechazados/i.test(l.m) ? ' tr-log-err'
+                    : (/✓|COMPLETO|peer/i.test(l.m) ? ' tr-log-ok' : '');
+            return '<div class="tr-log' + cls + '"><span>' + l.t +
+                '</span>' + X().esc(l.m) + '</div>';
+        }).join('') || '<div class="tribal-empty-mini"><p>Sin eventos aún — ' +
+            'aquí aparece todo lo del motor</p></div>';
+        if (atBottom) box.scrollTop = box.scrollHeight;
+    }
+
     // ----------------------------------------------------------- helpers ---
     function copyMagnet(j) {
         var done = function () { deps.toast('Magnet copiado'); };
@@ -171,8 +186,22 @@ window.TribalP2PUI = (function () {
         X().renderTrackers(ov.querySelector('#tp-trackers'));
         window.TribalP2PJobs.fillSeed(ov.querySelector('#tp-seedlist'), S.items);
         wireCfg();
+        ov.querySelector('#tp-log-clear').addEventListener('click', function () {
+            TribalP2P.clearLog(); renderConsole();
+        });
+        ov.querySelector('#tp-log-copy').addEventListener('click', function () {
+            var txt = TribalP2P.logs().map(function (l) {
+                return '[' + l.t + '] ' + l.m;
+            }).join('\n') || 'sin eventos';
+            var done = function () { deps.toast('Consola copiada'); };
+            if (navigator.clipboard && navigator.clipboard.writeText)
+                navigator.clipboard.writeText(txt).then(done,
+                    function () { fallback(txt, done); });
+            else fallback(txt, done);
+        });
         renderJobs();
-        ticker = setInterval(renderJobs, 1000);
+        renderConsole();
+        ticker = setInterval(function () { renderJobs(); renderConsole(); }, 1000);
     }
 
     return {

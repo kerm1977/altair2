@@ -53,6 +53,16 @@ public class TribalNativePlugin extends Plugin {
         call.resolve();
     }
 
+    // "Revocar permisos": borra el registro de concedidos — el próximo
+    // arranque trata todo como primera vez y vuelve a pedir lo que falte
+    @PluginMethod
+    public void resetPermFlag(PluginCall call) {
+        getContext().getSharedPreferences("tribu_perms",
+            android.content.Context.MODE_PRIVATE)
+            .edit().clear().apply();
+        call.resolve();
+    }
+
     // Compartir directo por Bluetooth: ACTION_SEND dirigido al paquete BT de
     // Android con URI de FileProvider (cache-path está cubierto en
     // file_paths.xml). Si el dispositivo no tiene stack BT, rechaza y el JS

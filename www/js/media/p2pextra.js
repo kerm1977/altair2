@@ -183,6 +183,15 @@ window.TribalP2PExtra = (function () {
                     '<input type="file" id="tp-trk-file-input" accept=".txt,text/plain" hidden>' +
                     '<button class="tribal-btn" id="tp-trk-test">' +
                         '<i class="bi bi-activity"></i> Probar todos</button></div>') +
+            acc('bi-terminal', 'Consola',
+                '<div class="tribal-p2p-consola" id="tp-console">' +
+                    '<div class="tribal-empty-mini"><p>Sin eventos aún — ' +
+                    'aquí aparece todo lo del motor</p></div></div>' +
+                '<div class="tribal-p2p-consola-btns">' +
+                    '<button class="tribal-btn tribal-btn-xs" id="tp-log-copy">' +
+                        '<i class="bi bi-clipboard"></i> Copiar</button>' +
+                    '<button class="tribal-btn tribal-btn-xs" id="tp-log-clear">' +
+                        '<i class="bi bi-eraser"></i> Limpiar</button></div>') +
             acc('bi-upload', 'Sembrar',
                 '<button class="tribal-btn tribal-btn-xs" id="tp-seedfile-btn">' +
                     '<i class="bi bi-folder-plus"></i> Subir archivo del dispositivo</button>' +

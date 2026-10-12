@@ -91,6 +91,12 @@ window.TribalBtNet = (function () {
         return Promise.resolve();
     }
 
+    // diálogo del sistema para encender el Bluetooth (nativo; web = no-op)
+    function enable() {
+        if (nativeOn && BT.requestEnable) return BT.requestEnable();
+        return Promise.resolve();
+    }
+
     function connect(addr) {
         if (nativeOn) return BT.connect({ addr: addr });
         // web: la conexión es el canal entero — "conectar" = marcar abierto
@@ -132,6 +138,7 @@ window.TribalBtNet = (function () {
         scan: scan,
         invite: invite,
         listen: listen,
+        enable: enable,
         connect: connect,
         send: send,
         close: close,
