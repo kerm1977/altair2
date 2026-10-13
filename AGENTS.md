@@ -29,8 +29,16 @@
 ## Barra de accesos personalizable — SECCIÓN BLINDADA
 
 `www/js/media/tabfavs.js` + su CSS en `media-extras.css` + markup en
-`media.html` (orden `tribu_bar_order`, Todo siempre primero, 5 por fila en
-móvil, píldora fija al reordenar). **PROHIBIDO modificar esta sección**
-salvo orden explícita del usuario — ni refactor, ni "mejoras", ni tocarla
-al añadir entradas nuevas al menú de opciones. Las nuevas herramientas se
-integran solo agregando su botón al menú ⋮ y un módulo aparte.
+`media.html` (orden `tribu_bar_order`, Todo siempre primero, píldora
+fija al reordenar). **PROHIBIDO modificar esta sección** salvo orden
+explícita del usuario — ni refactor, ni "mejoras", ni tocarla al añadir
+entradas nuevas al menú de opciones. Las nuevas herramientas se integran
+solo agregando su botón al menú ⋮ y un módulo aparte.
+
+### Tamaños FIJOS de los botones (no tocar NUNCA)
+
+- PC y móvil: círculos de **46×46 px**, `border-radius: 50%`.
+- Móvil (≤640px): `flex: 0 0 46px`, `justify-content: space-evenly`,
+  ícono `1.05rem`. **Sin `aspect-ratio` ni `flex-basis` porcentual** —
+  eso fue lo que los hizo ovalar y luego gigantizar.
+- Ícono en PC: `1.15rem`.
