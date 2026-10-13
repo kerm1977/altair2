@@ -23,7 +23,7 @@ window.TribalVNoteFX = (function () {
     // autosave (sobrevive cierre de la app)
     function packNow() {
         return { voice: D().wav(ab), sel: wv.sel(), cfg: collect(),
-            fmt: q('#vfx-fmt').value, xf: q('#vfx-xf').value, tracks: [] };
+            fmt: q('#vfx-fmt').value };
     }
     function save() {
         clearTimeout(saveT);
@@ -36,13 +36,8 @@ window.TribalVNoteFX = (function () {
             if (!p || !p.voice) return;
             D().decode(p.voice).then(function (b) {
                 ab = b; wv.buf(ab); wv.setSel(p.sel[0], p.sel[1]);
-                [['eq','eq'],['fIn','fin'],['fOut','fout'],['echoT','et'],
-                 ['echoFb','ef'],['echoMix','em']].forEach(function (kv) {
-                    if (p.cfg && p.cfg[kv[0]] != null)
-                        q('#vfx-' + kv[1]).value = p.cfg[kv[0]]; });
-                if (p.cfg) q('#vfx-echo').checked = !!p.cfg.echo;
+                if (p.cfg && p.cfg.eq != null) q('#vfx-eq').value = p.cfg.eq;
                 if (p.fmt) q('#vfx-fmt').value = p.fmt;
-                if (p.xf) q('#vfx-xf').value = p.xf;
                 times(); status('Borrador restaurado');
             }).catch(function () {});
         });
@@ -55,39 +50,8 @@ window.TribalVNoteFX = (function () {
             fx: collect(), wv: wv, btn: q('#vfx-pv'), D: D });
     }
 
-    // agregar audio: carga otro archivo como pista de trabajo
-    function loadMeta(m) {
-        deps.urlFor(m, function (u) {
-            fetch(u).then(function (r) { return r.blob(); }).then(D().decode)
-                .then(function (b) {
-                    ab = b; clip = null;
-                    wv.buf(ab); wv.setSel(0, ab.duration);
-                    refresh('Cargado: ' + m.name); })
-                .catch(function (e) { status(e.message || 'No decodificable'); });
-        });
-    }
-    function pickFile() {
-        if (window.TribalFiles && TribalFiles.native() && deps.sono)
-            return TribalFiles.pick(deps.sono, { kinds: ['audio'],
-                single: true, title: 'Agregar audio' }).then(function (ms) {
-                if (ms && ms[0]) loadMeta(ms[0]); });
-        var inp = document.createElement('input');
-        inp.type = 'file'; inp.accept = 'audio/*';
-        inp.onchange = function () {
-            if (inp.files[0]) D().decode(inp.files[0]).then(function (b) {
-                ab = b; clip = null;
-                wv.buf(ab); wv.setSel(0, ab.duration);
-                refresh('Cargado: ' + inp.files[0].name);
-            }).catch(function (e) { status(e.message || 'No decodificable'); });
-        };
-        inp.click();
-    }
-
     function collect() {
-        var V = function (id) { return q('#vfx-' + id).value; };
-        return { eq: V('eq'), fIn: +V('fin') || 0, fOut: +V('fout') || 0,
-            echo: q('#vfx-echo').checked, echoT: +V('et') || .35,
-            echoFb: Math.min(.85, +V('ef') || .35), echoMix: +V('em') || .4 };
+        return { eq: q('#vfx-eq').value };
     }
     function exportIt() {
         var r = wv.sel(), rdur = 0;
@@ -134,15 +98,8 @@ window.TribalVNoteFX = (function () {
             status('Copiado ' + clip.duration.toFixed(1) + ' s'); });
         q('#vfx-paste').addEventListener('click', function () {
             if (!clip) return status('Nada copiado — usa «Copiar»');
-            ab = D().paste(ab, clip, wv.sel()[1], +q('#vfx-xf').value || 0);
+            ab = D().paste(ab, clip, wv.sel()[1], 0);
             refresh('Pegado en B'); });
-        q('#vfx-amb').addEventListener('change', function () {
-            var id = q('#vfx-amb').value; q('#vfx-amb').value = '';
-            if (!id) return;
-            var m = deps.items.find(function (x) { return x.id === id; });
-            if (m) loadMeta(m);
-        });
-        q('#vfx-ambpick').addEventListener('click', pickFile);
         q('#vfx-cover').addEventListener('click', function () {
             var inp = document.createElement('input');
             inp.type = 'file'; inp.accept = 'image/*';
@@ -162,8 +119,7 @@ window.TribalVNoteFX = (function () {
                     w.classList.toggle('on', w.dataset.sec === b.dataset.sec); });
             });
         });
-        ['vfx-eq', 'vfx-fin', 'vfx-fout', 'vfx-echo', 'vfx-et', 'vfx-ef', 'vfx-em',
-         'vfx-fmt', 'vfx-xf'].forEach(function (id) {
+        ['vfx-eq', 'vfx-fmt'].forEach(function (id) {
             q('#' + id).addEventListener('change', function () { times(); save(); });
         });
         wv.buf(ab); times(); restore();
