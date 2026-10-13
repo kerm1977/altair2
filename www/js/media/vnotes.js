@@ -86,7 +86,8 @@ window.TribalVNotes = (function () {
             if (m && deps.store.updateInfo) deps.store.updateInfo(m.id,
                 { vn: 1, dur: Math.max(.1, elapsed) });
             deps.toast('«' + name + '» guardada en la tribu');
-            if (deps.reload) deps.reload();
+            var p = deps.reload ? deps.reload() : null;   // espera a que
+            if (p && p.then) p.then(fillList);            // S.items refresque
             fillList();
         });
     }

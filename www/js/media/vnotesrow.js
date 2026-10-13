@@ -66,9 +66,10 @@ window.TribalVRow = (function () {
             if (step < 2) return delMode(rw, m, ctx, step + 1);
             if (window.TribalVNotePlay) TribalVNotePlay.stop();
             ctx.deps.store.remove(m.id).then(function () {
-                if (ctx.deps.reload) ctx.deps.reload();
+                var p = ctx.deps.reload ? ctx.deps.reload() : null;
                 if (ctx.deps.toast) ctx.deps.toast('«' + m.name + '» eliminada');
-                ctx.refresh();
+                if (p && p.then) p.then(ctx.refresh);    // la lista se
+                else ctx.refresh();                       // repinta con items frescos
             });
         };
         rw.querySelector('[data-a="x"]').onclick = function () {

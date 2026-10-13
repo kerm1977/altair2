@@ -48,7 +48,7 @@ window.Sono.register('render', function (S) {
     };
 
     S.reload = function () {
-        window.MediaStore.list().then(function (list) {
+        return window.MediaStore.list().then(function (list) {
             S.items = list;
             S.render();
         });

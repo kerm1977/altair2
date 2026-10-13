@@ -109,7 +109,34 @@ window.TribalVDSP = (function () {
         });
         return d;
     }
-    // cadena offline: src → EQ → fades → echo → destino (+ pistas)
+    // cadena compartida: src → EQ → fades → eco → dest.
+    // Sirve igual en vivo (previ­a) que offline (render): los fades se
+    // programan desde ctx.currentTime (0 en offline, "ahora" en vivo).
+    function chain(ctx, src, dest, cfg, dur) {
+        var n = src, t0 = ctx.currentTime;
+        var p = (window.TribalEQ.PRESETS || []).find(function (x) { return x.id === cfg.eq; });
+        if (p && p.id !== 'normal') FREQS.forEach(function (f, k) {
+            var bq = ctx.createBiquadFilter();
+            bq.type = TYPES[k]; bq.frequency.value = f; bq.gain.value = p.gains[k];
+            n.connect(bq); n = bq;
+        });
+        var fg = ctx.createGain();
+        if (cfg.fIn > 0) { fg.gain.setValueAtTime(0, t0);
+            fg.gain.linearRampToValueAtTime(1, t0 + Math.min(cfg.fIn, dur)); }
+        if (cfg.fOut > 0) { fg.gain.setValueAtTime(1, t0 + Math.max(0, dur - cfg.fOut));
+            fg.gain.linearRampToValueAtTime(0, t0 + dur); }
+        n.connect(fg); n = fg;
+        if (cfg.echo) {
+            var mix = ctx.createGain(), dl = ctx.createDelay(4),
+                fb = ctx.createGain(), wet = ctx.createGain();
+            dl.delayTime.value = cfg.echoT; fb.gain.value = cfg.echoFb;
+            wet.gain.value = cfg.echoMix;
+            n.connect(mix); n.connect(dl);
+            dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(mix);
+            n = mix;
+        }
+        n.connect(dest);
+    }
     // renderiza SOLO la ventana [w0,w1) del timeline (las barras A–B)
     function render(buf, cfg, tracks, w0, w1) {
         var a = Math.max(0, w0 || 0),
@@ -120,30 +147,9 @@ window.TribalVDSP = (function () {
             if (t.buf) ch = Math.max(ch, t.buf.numberOfChannels); });
         var octx = new OfflineAudioContext(Math.min(2, ch),
             Math.ceil(dur * buf.sampleRate), buf.sampleRate);
-        var src = octx.createBufferSource(), chain = src;
+        var src = octx.createBufferSource();
         src.buffer = buf;
-        var p = (window.TribalEQ.PRESETS || []).find(function (x) { return x.id === cfg.eq; });
-        if (p && p.id !== 'normal') FREQS.forEach(function (f, k) {
-            var bq = octx.createBiquadFilter();
-            bq.type = TYPES[k]; bq.frequency.value = f; bq.gain.value = p.gains[k];
-            chain.connect(bq); chain = bq;
-        });
-        var fg = octx.createGain();
-        if (cfg.fIn > 0) { fg.gain.setValueAtTime(0, 0);
-            fg.gain.linearRampToValueAtTime(1, Math.min(cfg.fIn, dur)); }
-        if (cfg.fOut > 0) { fg.gain.setValueAtTime(1, Math.max(0, dur - cfg.fOut));
-            fg.gain.linearRampToValueAtTime(0, dur); }
-        chain.connect(fg); chain = fg;
-        if (cfg.echo) {
-            var mix = octx.createGain(), dl = octx.createDelay(4),
-                fb = octx.createGain(), wet = octx.createGain();
-            dl.delayTime.value = cfg.echoT; fb.gain.value = cfg.echoFb;
-            wet.gain.value = cfg.echoMix;
-            chain.connect(mix); chain.connect(dl);
-            dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(mix);
-            chain = mix;
-        }
-        chain.connect(octx.destination);
+        chain(octx, src, octx.destination, cfg, dur);
         var vlen = Math.min(b, buf.duration) - a;   // voz solo dentro de A–B
         if (vlen > 0) src.start(0, a, vlen);
         (tracks || []).forEach(function (t) {
@@ -151,6 +157,6 @@ window.TribalVDSP = (function () {
         });
         return octx.startRendering();
     }
-    return { decode: decode, slice: slice, paste: paste, wav: wav,
+    return { decode: decode, slice: slice, paste: paste, wav: wav, chain: chain,
              render: render, armTrack: armTrack, tlDur: tlDur, actx: actx };
 })();

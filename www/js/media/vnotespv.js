@@ -26,7 +26,9 @@ window.TribalVPV = (function () {
             src = ctx.createBufferSource(),
             an = ctx.createAnalyser(), bus = ctx.createGain();
         src.buffer = env.ab; an.fftSize = 1024;
-        src.connect(bus); bus.connect(an); an.connect(ctx.destination);
+        if (env.fx && env.D().chain) env.D().chain(ctx, src, bus, env.fx, b - a);
+        else src.connect(bus);
+        bus.connect(an); an.connect(ctx.destination);
         var all = [src];
         (env.tracks || []).forEach(function (t) {
             var s = env.D().armTrack(ctx, bus, t, a, b);

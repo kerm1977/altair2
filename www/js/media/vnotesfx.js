@@ -52,7 +52,7 @@ window.TribalVNoteFX = (function () {
     function stopPv() { window.TribalVPV.stop(); }
     function preview() {
         window.TribalVPV.toggle({ sel: wv.sel(), ab: ab, tracks: [],
-            wv: wv, btn: q('#vfx-pv'), D: D });
+            fx: collect(), wv: wv, btn: q('#vfx-pv'), D: D });
     }
 
     // agregar audio: carga otro archivo como pista de trabajo
