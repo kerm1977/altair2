@@ -126,6 +126,10 @@ window.TribalVDSP = (function () {
         if (cfg.fOut > 0) { fg.gain.setValueAtTime(1, t0 + Math.max(0, dur - cfg.fOut));
             fg.gain.linearRampToValueAtTime(0, t0 + dur); }
         n.connect(fg); n = fg;
+        if (cfg.vol != null && cfg.vol !== 1) {   // volumen de la nota (0–2)
+            var vg = ctx.createGain(); vg.gain.value = cfg.vol;
+            n.connect(vg); n = vg;
+        }
         if (cfg.echo) {
             var mix = ctx.createGain(), dl = ctx.createDelay(4),
                 fb = ctx.createGain(), wet = ctx.createGain();

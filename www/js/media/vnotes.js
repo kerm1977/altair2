@@ -145,8 +145,7 @@ window.TribalVNotes = (function () {
             box.appendChild(r);
             window.TribalVRow.attach(r, m, { deps: deps, refresh: fillList,
                 play: function (rw) { if (window.TribalVNotePlay)
-                    TribalVNotePlay.toggle(m, rw, deps); },
-                edit: function () { edit(m, deps); } });
+                    TribalVNotePlay.toggle(m, rw, deps); } });
         });
     }
 

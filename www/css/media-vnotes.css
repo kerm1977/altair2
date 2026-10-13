@@ -96,6 +96,20 @@
     background: linear-gradient(90deg, var(--tb-terra), var(--tb-gold)); }
 .vn-mini-t { color: var(--tb-muted); font: 600 .72rem/1 sans-serif;
     white-space: nowrap; }
+/* fila en dos líneas: acciones arriba, volumen + filtro abajo */
+.vn-r1 { flex: 0 0 100%; display: flex; align-items: center; gap: 10px; }
+.vn-r1 > i { color: var(--tb-terra); }
+.vn-ctl { flex: 0 0 100%; display: flex; align-items: center; gap: 8px;
+    padding: 4px 2px 0; }
+.vn-ctl > i { color: var(--tb-terra); font-size: .95rem; flex-shrink: 0; }
+.vn-ctl .vn-vol { flex: 1; min-width: 60px; max-width: 220px; height: 6px;
+    accent-color: var(--tb-gold); cursor: pointer; }
+.vn-ctl .vn-vpc { color: var(--tb-gold); font: 700 .72rem/1 sans-serif;
+    min-width: 38px; }
+.vn-ctl .vn-eq { flex: 0 1 auto; min-width: 0; max-width: 46%;
+    padding: 5px 8px; border-radius: 999px; font-size: .76rem;
+    border: 1px solid var(--tb-border); background: rgba(0,0,0,.35);
+    color: var(--tb-gold); }
 .vn-row > i { color: var(--tb-terra); }
 .vn-row span { flex: 1; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; }

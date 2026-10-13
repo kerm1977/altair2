@@ -1,8 +1,11 @@
 // === media/vnotesrow.js — fila de nota guardada ==========================
-// Escuchar · editar · renombrar (input inline) · eliminar con 3
-// confirmaciones seguidas. API:
-//   r = TribalVRow.row(m); TribalVRow.attach(r, m, ctx)
-//   ctx = { deps, play(rw), edit(), refresh() }
+// Todo a la mano en cada fila:
+//   línea 1: nombre · ▶ escuchar · ✎ renombrar · ⬇ exportar MP3 · 🗑 (3 pasos)
+//   línea 2: 🔊 volumen (0–200%) · select de filtros EQ
+// Volumen y filtro se guardan en info.{vvol,veq}, se aplican en vivo al
+// reproducir (vnotesplay) y se hornean en la exportación (TribalVDSP).
+// API:  r = TribalVRow.row(m); TribalVRow.attach(r, m, ctx)
+//       ctx = { deps, play(rw), refresh() }
 // =========================================================================
 window.TribalVRow = (function () {
     'use strict';
@@ -11,15 +14,34 @@ window.TribalVRow = (function () {
         return String(s || '').replace(/[&<>"]/g, function (c) { return E[c]; });
     }
     function ext(m) { return (/\.[^.]+$/.exec(m.name || '') || [''])[0]; }
+    function eqOf(m) { return (m.info && m.info.veq) || 'normal'; }
+    function volOf(m) {
+        var v = m.info && m.info.vvol; return v == null ? 1 : +v; }
+    function eqOpts(sel) {
+        return (window.TribalEQ.PRESETS || []).map(function (p) {
+            return '<option value="' + p.id + '"' +
+                (p.id === sel ? ' selected' : '') + '>' + p.label +
+                '</option>'; }).join('');
+    }
     function row(m) {
         var r = document.createElement('div'); r.className = 'vn-row';
-        r.innerHTML = '<i class="bi bi-mic"></i><span class="vn-name">' +
-            esc(m.name) + '</span><button data-play title="Escuchar">' +
-            '<i class="bi bi-play-circle"></i></button><button data-edit ' +
-            'title="Editar"><i class="bi bi-sliders"></i></button><button ' +
-            'data-ren title="Renombrar"><i class="bi bi-pencil"></i></button>' +
+        var pc = Math.round(volOf(m) * 100);
+        r.innerHTML =
+            '<div class="vn-r1"><i class="bi bi-mic"></i>' +
+            '<span class="vn-name">' + esc(m.name) + '</span>' +
+            '<button data-play title="Escuchar"><i class="bi ' +
+            'bi-play-circle"></i></button>' +
+            '<button data-ren title="Renombrar"><i class="bi ' +
+            'bi-pencil"></i></button>' +
+            '<button data-exp title="Exportar a MP3"><i class="bi ' +
+            'bi-download"></i></button>' +
             '<button data-del class="danger" title="Eliminar"><i class="bi ' +
-            'bi-trash3"></i></button>';
+            'bi-trash3"></i></button></div>' +
+            '<div class="vn-ctl"><i class="bi bi-volume-up-fill"></i>' +
+            '<input type="range" class="vn-vol" min="0" max="200" step="5" ' +
+            'value="' + pc + '"><span class="vn-vpc">' + pc + '%</span>' +
+            '<i class="bi bi-sliders"></i><select class="vn-eq">' +
+            eqOpts(eqOf(m)) + '</select></div>';
         return r;
     }
     function ib(a, cls, ic, lb) {
@@ -29,6 +51,51 @@ window.TribalVRow = (function () {
     function restore(rw, m, ctx) {
         var r2 = row(m); rw.className = r2.className;
         rw.innerHTML = r2.innerHTML; attach(rw, m, ctx);
+    }
+    // volumen + filtro: persisten en info y se aplican en vivo si suena
+    function wireFx(rw, m, ctx) {
+        var sl = rw.querySelector('.vn-vol'),
+            pc = rw.querySelector('.vn-vpc'),
+            eq = rw.querySelector('.vn-eq');
+        function apply() {
+            if (!m.info) m.info = {};
+            m.info.veq = eq.value; m.info.vvol = sl.value / 100;
+            pc.textContent = sl.value + '%';
+            if (ctx.deps.store.updateInfo)
+                ctx.deps.store.updateInfo(m.id,
+                    { veq: eq.value, vvol: sl.value / 100 });
+            if (window.TribalVNotePlay && TribalVNotePlay.setFx)
+                TribalVNotePlay.setFx(eq.value, sl.value / 100);
+        }
+        sl.addEventListener('input', apply);
+        eq.addEventListener('change', apply);
+    }
+    // exportar: render offline con filtro + volumen → MP3 320 → tribu + descarga
+    function exportNote(m, ctx) {
+        var deps = ctx.deps, D = window.TribalVDSP;
+        deps.toast('Exportando «' + m.name + '»…');
+        deps.urlFor(m, function (u) {
+            if (!u) return deps.toast('No se pudo leer el audio');
+            fetch(u).then(function (r) { return r.blob(); }).then(D.decode)
+            .then(function (buf) {
+                return D.render(buf, { eq: eqOf(m), vol: volOf(m) },
+                    [], 0, buf.duration); })
+            .then(function (out) {
+                return window.TribalConvert.convert(D.wav(out), 'mp3-320'); })
+            .then(function (r) {
+                var base = m.name.replace(/\.[^.]+$/, '') + ' (fx)' + r.ext;
+                var f = new File([r.blob], base, { type: r.blob.type });
+                return deps.store.add(f).then(function () {
+                    var a = document.createElement('a');
+                    a.href = URL.createObjectURL(r.blob); a.download = base;
+                    document.body.appendChild(a); a.click(); a.remove();
+                    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+                    deps.toast('«' + base + '» exportado y guardado');
+                    if (deps.reload) deps.reload();
+                });
+            }).catch(function (e) {
+                deps.toast('Error: ' + (e && e.message || e)); });
+        });
     }
     // ---- renombrar ------------------------------------------------------
     function renMode(rw, m, ctx) {
@@ -77,11 +144,13 @@ window.TribalVRow = (function () {
     }
     function attach(rw, m, ctx) {
         rw.querySelector('[data-play]').onclick = function () { ctx.play(rw); };
-        rw.querySelector('[data-edit]').onclick = function () { ctx.edit(); };
         rw.querySelector('[data-ren]').onclick = function () {
             renMode(rw, m, ctx); };
+        rw.querySelector('[data-exp]').onclick = function () {
+            exportNote(m, ctx); };
         rw.querySelector('[data-del]').onclick = function () {
             delMode(rw, m, ctx, 0); };
+        wireFx(rw, m, ctx);
     }
     return { row: row, attach: attach };
 })();

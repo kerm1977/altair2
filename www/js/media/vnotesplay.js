@@ -5,7 +5,18 @@
 // =========================================================================
 window.TribalVNotePlay = (function () {
     'use strict';
-    var cur = null;                 // { el, ctx, src, an, ui, row, btn, raf }
+    var FREQS = [60, 230, 910, 3600, 14000],
+        TYPES = ['lowshelf', 'peaking', 'peaking', 'peaking', 'highshelf'];
+    var cur = null;                 // { el, ctx, src, bqs, vg, an, ui, row, btn, raf }
+
+    // cambia filtro/volumen EN VIVO mientras suena (desde la fila)
+    function setFx(eq, vol) {
+        if (!cur) return;
+        var p = (window.TribalEQ.PRESETS || []).filter(function (x) {
+            return x.id === eq; })[0];
+        if (p) cur.bqs.forEach(function (b, i) { b.gain.value = p.gains[i]; });
+        if (vol != null) cur.vg.gain.value = vol;
+    }
 
     function ft(s) {
         s = Math.floor(Math.max(0, s || 0));
@@ -47,8 +58,23 @@ window.TribalVNotePlay = (function () {
             var Ctx = window.AudioContext || window.webkitAudioContext;
             var ctx = new Ctx(), src = ctx.createMediaElementSource(el),
                 an = ctx.createAnalyser();
+            // cadena: src → EQ (filtro de la nota) → volumen → analyser
+            var eqId = (m.info && m.info.veq) || 'normal',
+                pv = (window.TribalEQ.PRESETS || []).filter(function (x) {
+                    return x.id === eqId; })[0];
+            var bqs = FREQS.map(function (f, i) {
+                var b = ctx.createBiquadFilter();
+                b.type = TYPES[i]; b.frequency.value = f;
+                b.gain.value = pv ? pv.gains[i] : 0;
+                return b;
+            });
+            var vg = ctx.createGain();
+            vg.gain.value = m.info && m.info.vvol != null ? +m.info.vvol : 1;
+            var head = src;
+            bqs.forEach(function (b) { head.connect(b); head = b; });
+            head.connect(vg); vg.connect(an);
             an.fftSize = 256;
-            src.connect(an); an.connect(ctx.destination);
+            an.connect(ctx.destination);
             var ui = document.createElement('div');
             ui.className = 'vn-mini';
             ui.innerHTML =
@@ -58,8 +84,9 @@ window.TribalVNotePlay = (function () {
                 '<span class="vn-mini-t">0:00</span>';
             row.appendChild(ui);
             var cv = ui.querySelector('canvas');
-            cur = { el: el, ctx: ctx, src: src, an: an, ui: ui, row: row,
-                    btn: btn, meta: m, g: cv.getContext('2d'), cv: cv,
+            cur = { el: el, ctx: ctx, src: src, bqs: bqs, vg: vg, an: an,
+                    ui: ui, row: row, btn: btn, meta: m,
+                    g: cv.getContext('2d'), cv: cv,
                     fd: new Uint8Array(an.frequencyBinCount),
                     fill: ui.querySelector('.vn-mini-fill'),
                     t: ui.querySelector('.vn-mini-t'), raf: 0 };
@@ -79,5 +106,5 @@ window.TribalVNotePlay = (function () {
             draw();
         });
     }
-    return { toggle: toggle, stop: kill };
+    return { toggle: toggle, stop: kill, setFx: setFx };
 })();
