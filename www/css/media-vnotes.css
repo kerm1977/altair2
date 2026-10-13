@@ -110,6 +110,10 @@
     padding: 5px 8px; border-radius: 999px; font-size: .76rem;
     border: 1px solid var(--tb-border); background: rgba(0,0,0,.35);
     color: var(--tb-gold); }
+/* las opciones del desplegable van sobre fondo claro del sistema:
+   texto oscuro o quedan ilegibles */
+.vn-ctl .vn-eq option,
+.vn-overlay select option { color: #241708; background: #f7ecd7; }
 .vn-row > i { color: var(--tb-terra); }
 .vn-row span { flex: 1; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; }
