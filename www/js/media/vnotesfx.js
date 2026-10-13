@@ -1,10 +1,11 @@
-// === media/vnotesfx.js — Editor multipista de notas (UI) =================
-// A–B (vnoteswave) · previa mezclada (vnotestracks) · crossfade, EQ, fades,
-// eco · autosave (vnotesauto) · exporta MP3 y descarga. DSP: vnotesdsp.js.
+// === media/vnotesfx.js — Editor simple de notas (UI) ======================
+// Agregar audio · cortar fragmento A–B · efectos (EQ/fades/eco) · exportar
+// MP3 con portada opcional. Previa en A–B (vnotespv) · autosave (vnotesauto)
+// · DSP en vnotesdsp.js · onda/selección en vnoteswave.js.
 // =========================================================================
 window.TribalVNoteFX = (function () {
     'use strict';
-    var ov, deps, item, ab, clip = null, wv, tr, saveT, coverB = null,
+    var ov, deps, item, ab, clip = null, wv, saveT, coverB = null,
         D = function () { return window.TribalVDSP; };
 
     function q(id) { return ov.querySelector(id); }
@@ -14,34 +15,27 @@ window.TribalVNoteFX = (function () {
     function times() {
         var r = wv.sel();
         q('#vfx-ta').textContent = 'A ' + ft(r[0]);
-        q('#vfx-td').textContent = ft(D().tlDur(ab, tr.list()));
+        q('#vfx-td').textContent = ft(ab ? ab.duration : 0);
         q('#vfx-tb').textContent = 'B ' + ft(r[1]);
     }
-    function refresh(msg) { wv.buf(ab); tr.draw(); times(); status(msg || ''); save(); }
-    function tl() { return D().tlDur(ab, tr.list()); }
+    function refresh(msg) { wv.buf(ab); times(); status(msg || ''); save(); }
 
     // autosave (sobrevive cierre de la app)
     function packNow() {
         return { voice: D().wav(ab), sel: wv.sel(), cfg: collect(),
-            fmt: q('#vfx-fmt').value, xf: q('#vfx-xf').value,
-            tracks: tr.list().map(function (t) { return { wav: D().wav(t.buf),
-                name: t.name, off: t.off, vol: t.vol, a: t.a, b: t.b,
-                muted: t.muted, locked: t.locked }; }) };
+            fmt: q('#vfx-fmt').value, xf: q('#vfx-xf').value, tracks: [] };
     }
     function save() {
         clearTimeout(saveT);
         saveT = setTimeout(function () {
-            if (ov && ab && wv && tr) window.TribalVAuto.save(item.id, packNow());
+            if (ov && ab && wv) window.TribalVAuto.save(item.id, packNow());
         }, 500);
     }
     function restore() {
         window.TribalVAuto.load(item.id).then(function (p) {
-            if (!p) return;
-            var jobs = [D().decode(p.voice)].concat(p.tracks.map(function (t) {
-                return D().decode(t.wav).then(function (b) { t.buf = b; });
-            }));
-            Promise.all(jobs).then(function (rs) {
-                ab = rs[0]; wv.buf(ab); wv.setSel(p.sel[0], p.sel[1]);
+            if (!p || !p.voice) return;
+            D().decode(p.voice).then(function (b) {
+                ab = b; wv.buf(ab); wv.setSel(p.sel[0], p.sel[1]);
                 [['eq','eq'],['fIn','fin'],['fOut','fout'],['echoT','et'],
                  ['echoFb','ef'],['echoMix','em']].forEach(function (kv) {
                     if (p.cfg && p.cfg[kv[0]] != null)
@@ -49,38 +43,41 @@ window.TribalVNoteFX = (function () {
                 if (p.cfg) q('#vfx-echo').checked = !!p.cfg.echo;
                 if (p.fmt) q('#vfx-fmt').value = p.fmt;
                 if (p.xf) q('#vfx-xf').value = p.xf;
-                tr.restore(p.tracks); times();
-                status('Borrador restaurado · ' + (p.tracks || []).length + ' pista(s)');
+                times(); status('Borrador restaurado');
             }).catch(function () {});
         });
     }
 
-    // previa A–B: TODOS los canales suenan a la vez (vnotespv.js)
+    // previa A–B de la pista de trabajo (vnotespv.js)
     function stopPv() { window.TribalVPV.stop(); }
     function preview() {
-        window.TribalVPV.toggle({ sel: wv.sel(), ab: ab, tracks: tr.list(),
+        window.TribalVPV.toggle({ sel: wv.sel(), ab: ab, tracks: [],
             wv: wv, btn: q('#vfx-pv'), D: D });
     }
 
-    // agregar pistas (máx 8 canales contando la voz)
-    function addTrackMeta(m) {
-        if (tr.full()) return status('Máximo 8 canales (C1–C8)');
+    // agregar audio: carga otro archivo como pista de trabajo
+    function loadMeta(m) {
         deps.urlFor(m, function (u) {
             fetch(u).then(function (r) { return r.blob(); }).then(D().decode)
-                .then(function (b) { tr.add(b, m.name); status('+ ' + m.name); })
+                .then(function (b) {
+                    ab = b; clip = null;
+                    wv.buf(ab); wv.setSel(0, ab.duration);
+                    refresh('Cargado: ' + m.name); })
                 .catch(function (e) { status(e.message || 'No decodificable'); });
         });
     }
-    function pickTrack() {
+    function pickFile() {
         if (window.TribalFiles && TribalFiles.native() && deps.sono)
             return TribalFiles.pick(deps.sono, { kinds: ['audio'],
-                single: true, title: 'Agregar pista' }).then(function (ms) {
-                if (ms && ms[0]) addTrackMeta(ms[0]); });
+                single: true, title: 'Agregar audio' }).then(function (ms) {
+                if (ms && ms[0]) loadMeta(ms[0]); });
         var inp = document.createElement('input');
         inp.type = 'file'; inp.accept = 'audio/*';
         inp.onchange = function () {
             if (inp.files[0]) D().decode(inp.files[0]).then(function (b) {
-                tr.add(b, inp.files[0].name); status('+ ' + inp.files[0].name);
+                ab = b; clip = null;
+                wv.buf(ab); wv.setSel(0, ab.duration);
+                refresh('Cargado: ' + inp.files[0].name);
             }).catch(function (e) { status(e.message || 'No decodificable'); });
         };
         inp.click();
@@ -94,8 +91,8 @@ window.TribalVNoteFX = (function () {
     }
     function exportIt() {
         var r = wv.sel(), rdur = 0;
-        status('Renderizando mezcla A–B…');
-        D().render(ab, collect(), tr.list(), r[0], r[1]).then(function (out) {
+        status('Renderizando A–B…');
+        D().render(ab, collect(), [], r[0], r[1]).then(function (out) {
             rdur = out.duration;
             return window.TribalConvert.convert(D().wav(out), q('#vfx-fmt').value,
                 function (p) { status('Codificando ' + Math.round(p * 100) + '%…'); });
@@ -123,9 +120,6 @@ window.TribalVNoteFX = (function () {
         ov.innerHTML = window.TribalVNoteUI.html(item, deps);
         (deps.mount || document.body).appendChild(ov);
         wv = window.TribalVWave.mount(q('#vfx-wave'));
-        tr = window.TribalVTracks.mount(q('#vfx-lanes'), { tl: tl,
-            onchange: function () { times(); save(); },
-            onfull: function () { status('Máximo 8 canales (C1–C8)'); } });
         wv.onchange(times);
         q('#vfx-x').addEventListener('click', close);
         ov.addEventListener('click', function (e) {
@@ -146,9 +140,9 @@ window.TribalVNoteFX = (function () {
             var id = q('#vfx-amb').value; q('#vfx-amb').value = '';
             if (!id) return;
             var m = deps.items.find(function (x) { return x.id === id; });
-            if (m) addTrackMeta(m);
+            if (m) loadMeta(m);
         });
-        q('#vfx-ambpick').addEventListener('click', pickTrack);
+        q('#vfx-ambpick').addEventListener('click', pickFile);
         q('#vfx-cover').addEventListener('click', function () {
             var inp = document.createElement('input');
             inp.type = 'file'; inp.accept = 'image/*';
@@ -175,12 +169,12 @@ window.TribalVNoteFX = (function () {
         wv.buf(ab); times(); restore();
     }
     function close() {
-        if (ab && wv && tr) window.TribalVAuto.save(item.id, packNow());
+        if (ab && wv) window.TribalVAuto.save(item.id, packNow());
         stopPv();
         if (ov) { ov.parentNode.removeChild(ov); ov = null; }
-        clip = null; wv = tr = null; }
+        clip = null; wv = null; }
     function open(m, d) {
-        deps = d; item = m;
+        deps = d; item = m; coverB = null;
         deps.urlFor(m, function (u) {
             if (!u) return deps.toast('No se pudo leer el audio');
             fetch(u).then(function (r) { return r.blob(); }).then(D().decode)
