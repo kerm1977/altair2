@@ -144,6 +144,19 @@ window.TribalBtNet = (function () {
         close: close,
         setOn: setOn,
         pause: pause,
+        openSettings: function () {
+            if (nativeOn && BT.openBtSettings) return BT.openBtSettings();
+            if (navigator.bluetooth && navigator.bluetooth.requestDevice) {
+                return navigator.bluetooth.requestDevice({ acceptAllDevices: true })
+                    .then(function (dev) {
+                        var a = dev.id || dev.name || 'ble_dev';
+                        fakePeers[a] = { name: dev.name || 'Dispositivo BT', addr: a, kind: 'bt' };
+                        emit({ type: 'device', name: dev.name || 'Dispositivo BT', addr: a, kind: 'bt' });
+                        emit({ type: 'peer', state: 'open', name: dev.name || 'Dispositivo BT', addr: a, kind: 'bt' });
+                    }).catch(function () {});
+            }
+            return Promise.resolve();
+        },
         ensurePerms: function () {
             return nativeOn && BT.ensurePerms ? BT.ensurePerms()
                                              : Promise.resolve();

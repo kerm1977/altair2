@@ -26,6 +26,16 @@ window.TribalNotepadIO = (function () {
         });
     }
 
+    function sortNotes(arr) {
+        arr.sort(function (a, b) {
+            var fa = a && a.fav ? 1 : 0;
+            var fb = b && b.fav ? 1 : 0;
+            if (fb !== fa) return fb - fa;
+            return (b.updatedAt || 0) - (a.updatedAt || 0);
+        });
+        return arr;
+    }
+
     function list() {
         return openDB().then(function (db) {
             return new Promise(function (resolve, reject) {
@@ -33,21 +43,14 @@ window.TribalNotepadIO = (function () {
                 var req = tx.objectStore(STORE).getAll();
                 req.onsuccess = function () {
                     db.close();
-                    var arr = req.result || [];
-                    arr.sort(function (a, b) {
-                        return (b.updatedAt || 0) - (a.updatedAt || 0);
-                    });
-                    resolve(arr);
+                    resolve(sortNotes(req.result || []));
                 };
                 req.onerror = function (e) { db.close(); reject(e.target.error); };
             });
         }).catch(function () {
             try {
                 var arr = JSON.parse(localStorage.getItem(LS_FALLBACK) || '[]');
-                arr.sort(function (a, b) {
-                    return (b.updatedAt || 0) - (a.updatedAt || 0);
-                });
-                return arr;
+                return sortNotes(arr);
             } catch (e) { return []; }
         });
     }

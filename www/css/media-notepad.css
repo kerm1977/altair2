@@ -168,6 +168,25 @@
     transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
+.np-doc-card.np-fav-card {
+    border-color: var(--tb-gold, #f0b429);
+    background: linear-gradient(135deg, rgba(240, 180, 41, 0.14), rgba(226, 96, 46, 0.08));
+}
+
+.np-fav-badge {
+    font-size: 0.72rem;
+    color: #160e07;
+    background: var(--tb-gold, #f0b429);
+    padding: 2px 7px;
+    border-radius: 99px;
+    font-weight: 800;
+    margin-right: 4px;
+}
+
+.np-doc-fav.on {
+    color: var(--tb-gold, #f0b429) !important;
+}
+
 .np-doc-card:active {
     transform: scale(0.99);
     border-color: var(--tb-gold, #f0b429);

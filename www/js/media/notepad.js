@@ -221,6 +221,7 @@ window.TribalNotepad = (function () {
                 '<nav class="np-toolbar" id="np-toolbar">' +
                     '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn np-disk-btn" data-act="save-disk" title="Guardar nota"><i class="bi bi-floppy-fill"></i></button>' +
+                        '<button type="button" class="np-tbtn" id="np-fav-btn" data-act="fav-note" title="Favorito (fijar siempre arriba)"><i class="bi bi-star"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="undo" title="Deshacer"><i class="bi bi-arrow-counterclockwise"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="redo" title="Rehacer"><i class="bi bi-arrow-clockwise"></i></button>' +
                         '<button type="button" class="np-tbtn np-del-xbtn" data-act="del-sel" title="Eliminar elemento o texto seleccionado (✕)"><i class="bi bi-x-lg"></i></button>' +
@@ -411,6 +412,7 @@ window.TribalNotepad = (function () {
                     '<strong id="np-doc-menu-title">Documento</strong>' +
                     '<div class="np-ctx-grid np-doc-acts">' +
                         '<button type="button" data-dm="edit"><i class="bi bi-pencil-square"></i> Leer / Editar en vivo</button>' +
+                        '<button type="button" data-dm="fav"><i class="bi bi-star-fill"></i> <span id="np-dm-fav-lbl">Marcar como Favorita (fijar arriba)</span></button>' +
                         '<button type="button" data-dm="wa"><i class="bi bi-whatsapp"></i> Compartir por WhatsApp</button>' +
                         '<button type="button" data-dm="txt"><i class="bi bi-filetype-txt"></i> Exportar / Compartir TXT</button>' +
                         '<button type="button" data-dm="pdf"><i class="bi bi-file-earmark-pdf"></i> Exportar / Compartir PDF</button>' +
@@ -1013,16 +1015,19 @@ window.TribalNotepad = (function () {
 
             grid.innerHTML = slice.map(function (n) {
                 var prev = String(n.text || '').replace(/\s+/g, ' ').slice(0, 140) || 'Sin texto adicional…';
-                return '<div class="np-doc-card" data-id="' + esc(n.id) + '">' +
-                    '<div class="np-doc-ico"><i class="bi bi-file-earmark-richtext"></i></div>' +
+                return '<div class="np-doc-card' + (n.fav ? ' np-fav-card' : '') + '" data-id="' + esc(n.id) + '">' +
+                    '<div class="np-doc-ico"><i class="bi ' + (n.fav ? 'bi-star-fill' : 'bi-file-earmark-richtext') + '"></i></div>' +
                     '<div class="np-doc-body">' +
-                        '<strong class="np-doc-title">' + esc(n.title || 'Sin título') + '</strong>' +
+                        '<strong class="np-doc-title">' + (n.fav ? '<span class="np-fav-badge">★ Fijada</span> ' : '') + esc(n.title || 'Sin título') + '</strong>' +
                         '<p class="np-doc-prev">' + esc(prev) + '</p>' +
                         '<div class="np-doc-dates">' +
                             '<span>Creado: ' + esc(IO.fmtDateTime(n.createdAt)) + '</span>' +
                             '<span>Modificado: ' + esc(IO.fmtDateTime(n.updatedAt)) + '</span>' +
                         '</div>' +
                     '</div>' +
+                    '<button type="button" class="tribal-ctrl np-doc-fav' + (n.fav ? ' on' : '') + '" data-fav="' + esc(n.id) + '" title="Fijar en favoritos">' +
+                        '<i class="bi ' + (n.fav ? 'bi-star-fill' : 'bi-star') + '"></i>' +
+                    '</button>' +
                     '<button type="button" class="tribal-ctrl np-doc-more" data-more="' + esc(n.id) + '" title="Opciones">' +
                         '<i class="bi bi-three-dots-vertical"></i>' +
                     '</button>' +
@@ -1084,6 +1089,11 @@ window.TribalNotepad = (function () {
         ov.querySelector('#np-ts-created').textContent = IO.fmtDateTime(curNote.createdAt);
         ov.querySelector('#np-ts-updated').textContent = IO.fmtDateTime(curNote.updatedAt);
 
+        var fb = ov.querySelector('#np-fav-btn');
+        if (fb) {
+            fb.classList.toggle('np-disk-btn', !!curNote.fav);
+            fb.innerHTML = '<i class="bi ' + (curNote.fav ? 'bi-star-fill' : 'bi-star') + '"></i>';
+        }
         undoStack = [canvasEl.innerHTML];
         redoStack = [];
         rebindMediaWraps();
@@ -1093,6 +1103,8 @@ window.TribalNotepad = (function () {
         if (!note || !ov) return;
         ctxNote = note;
         ov.querySelector('#np-doc-menu-title').textContent = note.title || 'Documento';
+        var favLbl = ov.querySelector('#np-dm-fav-lbl');
+        if (favLbl) favLbl.textContent = note.fav ? 'Quitar de Favoritos' : 'Marcar como Favorita (fijar arriba)';
         ov.querySelector('#np-doc-menu').hidden = false;
     }
 
@@ -1407,6 +1419,20 @@ window.TribalNotepad = (function () {
                 saveCurrentNoteAndSync(true);
                 return;
             }
+            if (act === 'fav-note') {
+                if (!curNote) return;
+                curNote.fav = !curNote.fav;
+                var fb = ov.querySelector('#np-fav-btn');
+                if (fb) {
+                    fb.classList.toggle('np-disk-btn', !!curNote.fav);
+                    fb.innerHTML = '<i class="bi ' + (curNote.fav ? 'bi-star-fill' : 'bi-star') + '"></i>';
+                }
+                scheduleLiveSave();
+                if (deps && deps.toast) {
+                    deps.toast(curNote.fav ? '★ Nota fijada en Favoritos (siempre arriba)' : 'Quitada de Favoritos');
+                }
+                return;
+            }
             if (act === 'del-sel') {
                 deleteSelectedDetail();
                 return;
@@ -1683,8 +1709,7 @@ window.TribalNotepad = (function () {
         var lpDocT = null, lpDocId = null, lpFired = false, dx0 = 0, dy0 = 0;
 
         docsGrid.addEventListener('pointerdown', function (e) {
-            var more = e.target.closest('[data-more]');
-            if (more) return;
+            if (e.target.closest('[data-more],[data-fav]')) return;
             var card = e.target.closest('.np-doc-card');
             if (!card) return;
             lpDocId = card.getAttribute('data-id');
@@ -1719,6 +1744,22 @@ window.TribalNotepad = (function () {
             if (n) openDocContextMenu(n);
         });
         docsGrid.addEventListener('click', function (e) {
+            var favBtn = e.target.closest('[data-fav]');
+            if (favBtn) {
+                e.stopPropagation();
+                var fid = favBtn.getAttribute('data-fav');
+                var fn = notes.filter(function (x) { return x.id === fid; })[0];
+                if (fn) {
+                    fn.fav = !fn.fav;
+                    IO.save(fn).then(function () {
+                        if (deps && deps.toast) {
+                            deps.toast(fn.fav ? '★ Nota fijada arriba en Favoritos' : 'Nota quitada de Favoritos');
+                        }
+                        renderNotesList();
+                    });
+                }
+                return;
+            }
             var more = e.target.closest('[data-more]');
             if (more) {
                 e.stopPropagation();
@@ -1748,6 +1789,14 @@ window.TribalNotepad = (function () {
             ov.querySelector('#np-doc-menu').hidden = true;
             if (act === 'edit') {
                 openNoteEditor(targetNote);
+            } else if (act === 'fav') {
+                targetNote.fav = !targetNote.fav;
+                IO.save(targetNote).then(function () {
+                    if (deps && deps.toast) {
+                        deps.toast(targetNote.fav ? '★ Nota fijada arriba en Favoritos' : 'Nota quitada de Favoritos');
+                    }
+                    renderNotesList();
+                });
             } else if (act === 'wa') {
                 IO.shareWhatsApp(targetNote);
             } else if (act === 'txt') {

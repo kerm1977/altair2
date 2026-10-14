@@ -60,17 +60,80 @@ public class TribalBtPlugin extends Plugin {
         while (seen.size() > 512) seen.pollFirst();
         return true; }
 
+    private String kindOf(BluetoothDevice dev) {
+        if (dev == null) return "bt";
+        try {
+            String nm = dev.getName() != null ? dev.getName().toLowerCase() : "";
+            BluetoothClass bc = dev.getBluetoothClass();
+            if (bc != null) {
+                int maj = bc.getMajorDeviceClass();
+                int cls = bc.getDeviceClass();
+                if (maj == BluetoothClass.Device.Major.AUDIO_VIDEO) return "audio";
+                if (maj == BluetoothClass.Device.Major.PERIPHERAL) {
+                    if ((cls & 0x0540) == 0x0540) return "keyboard";
+                    if ((cls & 0x0580) == 0x0580) return "mouse";
+                    return "input";
+                }
+                if (maj == BluetoothClass.Device.Major.PHONE) return "phone";
+                if (maj == BluetoothClass.Device.Major.COMPUTER) return "pc";
+                if (maj == BluetoothClass.Device.Major.WEARABLE) return "wear";
+            }
+            if (nm.contains("airpod") || nm.contains("buds") || nm.contains("headphone") ||
+                nm.contains("speaker") || nm.contains("audifon") || nm.contains("audio") ||
+                nm.contains("jbl") || nm.contains("sony")) return "audio";
+            if (nm.contains("keyb") || nm.contains("teclado")) return "keyboard";
+            if (nm.contains("mouse") || nm.contains("raton") || nm.contains("trackpad")) return "mouse";
+        } catch (SecurityException ignored) {}
+        return "bt";
+    }
+
+    private void connectSystemProfiles(final BluetoothDevice dev) {
+        final BluetoothAdapter ad = adapter();
+        if (ad == null || dev == null) return;
+        int[] profs = new int[] { BluetoothProfile.A2DP, BluetoothProfile.HEADSET, 4 }; // 4 = HID_HOST
+        for (final int pr : profs) {
+            try {
+                ad.getProfileProxy(getContext(), new BluetoothProfile.ServiceListener() {
+                    @Override public void onServiceConnected(int profile, BluetoothProfile proxy) {
+                        try {
+                            java.lang.reflect.Method m = proxy.getClass().getMethod("connect", BluetoothDevice.class);
+                            m.setAccessible(true);
+                            m.invoke(proxy, dev);
+                        } catch (Throwable ignored) {}
+                        try { ad.closeProfileProxy(profile, proxy); } catch (Throwable ignored) {}
+                    }
+                    @Override public void onServiceDisconnected(int profile) {}
+                }, pr);
+            } catch (Throwable ignored) {}
+        }
+    }
+
     private final BroadcastReceiver rx = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
             String a = i.getAction(); JSObject d = new JSObject();
             if (BluetoothDevice.ACTION_FOUND.equals(a)) {
                 BluetoothDevice dev =
                     i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if (dev == null) return;
                 try {
                     d.put("type", "device"); d.put("name", dev.getName());
                     d.put("addr", dev.getAddress());
+                    d.put("kind", kindOf(dev));
                     d.put("bonded", dev.getBondState() == BluetoothDevice.BOND_BONDED);
                     emit(d); } catch (SecurityException ignored) {} }
+            else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(a) ||
+                     BluetoothDevice.ACTION_ACL_CONNECTED.equals(a)) {
+                BluetoothDevice dev = i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if (dev == null) return;
+                try {
+                    if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(a) ||
+                        dev.getBondState() == BluetoothDevice.BOND_BONDED) {
+                        connectSystemProfiles(dev);
+                        d.put("type", "peer"); d.put("state", "open");
+                        d.put("addr", dev.getAddress()); d.put("name", dev.getName());
+                        d.put("kind", kindOf(dev)); emit(d);
+                    }
+                } catch (SecurityException ignored) {} }
             else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(a)) {
                 discovering = false; d.put("type", "scanDone"); emit(d); }
         }
@@ -101,6 +164,7 @@ public class TribalBtPlugin extends Plugin {
             if (set != null) for (BluetoothDevice d : set) try {
                 JSONObject o = new JSONObject();
                 o.put("name", d.getName()); o.put("addr", d.getAddress());
+                o.put("kind", kindOf(d));
                 o.put("bonded", true); arr.put(o);
             } catch (Exception ignored) {}
         } catch (SecurityException ignored) {}
@@ -117,6 +181,8 @@ public class TribalBtPlugin extends Plugin {
             if (discovering) ad.cancelDiscovery();
             IntentFilter f = new IntentFilter(BluetoothDevice.ACTION_FOUND);
             f.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+            f.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+            f.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
             getContext().registerReceiver(rx, f, Context.RECEIVER_NOT_EXPORTED);
             discovering = true; ad.startDiscovery(); call.resolve();
         } catch (SecurityException e) { call.reject("permiso BT denegado", e); } }
@@ -180,7 +246,17 @@ public class TribalBtPlugin extends Plugin {
             call.resolve();
         } catch (Exception e) { call.reject("no se pudo", e); } }
 
-    // conectar a un peer (varios a la vez: grupo/malla)
+    @PluginMethod
+    public void openBtSettings(PluginCall call) {
+        try {
+            Intent i = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+            call.resolve();
+        } catch (Exception e) { call.reject("no settings", e); }
+    }
+
+    // conectar a cualquier dispositivo BT (audífonos A2DP/Headset, teclado/mouse HID, o peer RFCOMM)
     @PluginMethod
     public void connect(PluginCall call) {
         final String addr = call.getString("addr");
@@ -189,9 +265,26 @@ public class TribalBtPlugin extends Plugin {
         new Thread(new Runnable() { public void run() {
             try {
                 ad.cancelDiscovery();
-                BluetoothSocket s = ad.getRemoteDevice(addr)
-                    .createInsecureRfcommSocketToServiceRecord(APP_UUID);
-                s.connect(); attach(s);
+                BluetoothDevice dev = ad.getRemoteDevice(addr);
+                String k = kindOf(dev);
+                if (dev.getBondState() == BluetoothDevice.BOND_NONE) {
+                    try { dev.createBond(); } catch (Throwable ignored) {}
+                }
+                connectSystemProfiles(dev);
+                if ("audio".equals(k) || "keyboard".equals(k) || "mouse".equals(k) || "input".equals(k)) {
+                    peerEvt(addr, dev.getName(), "open", peers.size() + 1);
+                    return;
+                }
+                try {
+                    BluetoothSocket s = dev.createInsecureRfcommSocketToServiceRecord(APP_UUID);
+                    s.connect(); attach(s);
+                } catch (Exception rfErr) {
+                    if (dev.getBondState() == BluetoothDevice.BOND_BONDED) {
+                        peerEvt(addr, dev.getName(), "open", peers.size() + 1);
+                    } else {
+                        peerErr(addr, rfErr);
+                    }
+                }
             } catch (Exception e) { peerErr(addr, e); }
         }}).start();
         call.resolve(); }

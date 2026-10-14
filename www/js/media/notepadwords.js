@@ -138,7 +138,18 @@ window.TribalNotepadWords = (function () {
     function autocorrectWord(w) {
         var clean = String(w || '').toLowerCase();
         var custom = getRules();
-        var hit = custom.hasOwnProperty(clean) ? custom[clean] : BASE_CORR[clean];
+        var ext = window.TribalNotepadDict && window.TribalNotepadDict.CORR;
+        var hit = custom.hasOwnProperty(clean) ? custom[clean]
+            : (BASE_CORR[clean] || (ext && ext[clean]));
+        if (!hit && clean.length > 4) {
+            if (/([aeiouáéíóúctnsx])cion$/.test(clean)) hit = clean.slice(0, -4) + 'ción';
+            else if (/([aeiouáéíóúns])sion$/.test(clean)) hit = clean.slice(0, -4) + 'sión';
+            else if (/logia$/.test(clean)) hit = clean.slice(0, -5) + 'logía';
+            else if (/grafia$/.test(clean)) hit = clean.slice(0, -6) + 'grafía';
+            else if (/metria$/.test(clean)) hit = clean.slice(0, -6) + 'metría';
+            else if (/isimo$/.test(clean)) hit = clean.slice(0, -5) + 'ísimo';
+            else if (/isima$/.test(clean)) hit = clean.slice(0, -5) + 'ísima';
+        }
         return hit ? matchCase(w, hit) : w;
     }
     function autocorrectText(t) {
@@ -169,7 +180,8 @@ window.TribalNotepadWords = (function () {
         var stems = stemsOf(w), out = [], seen = {};
         seen[w] = 1; seen[norm(w)] = 1;
         if (!w) return Promise.resolve([]);
-        SYN_GROUPS.forEach(function (grp) {
+        var allGroups = SYN_GROUPS.concat((window.TribalNotepadDict && window.TribalNotepadDict.SYNS) || []);
+        allGroups.forEach(function (grp) {
             var match = grp.some(function (g) {
                 var gn = norm(g);
                 return g === w || stems.indexOf(gn) >= 0 || (gn.length >= 4 && w.length >= 4 && gn.slice(0, 5) === stems[0].slice(0, 5));
@@ -179,15 +191,8 @@ window.TribalNotepadWords = (function () {
                 if (!seen[g] && !seen[gn]) { seen[g] = 1; seen[gn] = 1; out.push(matchCase(clean, g)); }
             });
         });
-        return Promise.resolve(out.slice(0, 18));
+        return Promise.resolve(out.slice(0, 24));
     }
 
-    return {
-        autocorrectWord: autocorrectWord,
-        autocorrectText: autocorrectText,
-        synonymsFor: synonymsFor,
-        getRules: getRules,
-        addRule: addRule,
-        removeRule: removeRule
-    };
+    return { autocorrectWord: autocorrectWord, autocorrectText: autocorrectText, synonymsFor: synonymsFor, getRules: getRules, addRule: addRule, removeRule: removeRule };
 })();
