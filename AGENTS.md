@@ -103,29 +103,8 @@ izquierda.
   Se llama en el `input` directo, en el gesto vertical del lado
   derecho y al abrir el fullscreen. NO cambiar colores, thumb, ni el
   mecanismo de repintado salvo orden explícita del usuario.
-- **Motor P2P** — APK = libtorrent nativo (`TribalTorrentPlugin`,
-  TCP/UDP/DHT/PEX); web = WebTorrent solo wss://. Trackers nativos:
-  `nativeTrackers()` en `p2p.js` (lista viva `trackers_all.txt` de
-  ngosang cacheada 12 h en `tribu_p2p_trk_all` — udp/http/https, NUNCA
-  ws). Prioridad por archivo: `setFilePrio` → plugin
-  `setFilePriority` (0=off, 1 baja, 4 media, 7 alta). Siembra nativa:
-  `seed()` copia el blob a `files/tribu_torrents/` y llama
-  `seedFile()` del plugin (crea .torrent con trackers embebidos →
-  hash-check → seeding); jobs con `seeded:true` quedan como
-  "Sembrando" y NO se reimportan. Motores nuevos → `p2pqbit.js`
-  (subir VER para re-sembrar). Botón 🧪 = torrent de prueba Sintel.
-- **Proveniencia torrent en la biblioteca** — archivos que entran por
-  torrent llevan `info.p2p = 1` (`TribalP2PJobs.import` marca vía
-  `store.updateInfo`). `sections.js` los separa: en Todo/búsqueda van a
-  «Descargados por torrents» (grupo `p2p`, siempre al final); dentro de
-  un tab de tipo van a `<kind>-p2p` («Videos por torrents», etc.).
-  `grpIn(m, S)` es la clasificación con contexto — `grpOf(m)` se queda
-  pura por tipo para estadísticas. Al completar un torrent se emite
-  `imported` (tras indexar todo) → p2pui repinta la biblioteca.
-- **Siembra de cualquier archivo + magnet compartible** — ⋮ de fila
-  «Sembrar en P2P», sección Sembrar del panel y archivo del dispositivo
-  llaman `TribalP2P.seed`; luego `TribalP2PExtra.magnetDialog(j)`
-  muestra el magnet (espera hasta 30 s el hash nativo) con Copiar /
-  WhatsApp (`wa.me/?text=`) / Otra app (Share plugin → chooser del
-  sistema). Lo sembrado desde el dispositivo también se indexa en la
-  tribu con `p2p:1` (con guarda de nombre duplicado).
+- **Selector de archivos nativo** — El botón de subir (`fabdir.js`), el
+  chat Bluetooth (`btchat.js`) y el slideshow (`media-slidecfg.js`) usan
+  directamente el selector nativo de Android/sistema (`<input type="file">`).
+  Los motores y trackers de torrent se extrajeron a
+  `torrents-motores-y-trackers.txt` y el subsistema P2P fue retirado.

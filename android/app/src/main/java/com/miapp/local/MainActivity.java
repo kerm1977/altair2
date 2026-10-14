@@ -28,7 +28,6 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(TribalNativePlugin.class);
         registerPlugin(TribalBtPlugin.class);
-        registerPlugin(TribalTorrentPlugin.class);
         super.onCreate(savedInstanceState);
         handleIncoming(getIntent());
         requestAllPermissions();

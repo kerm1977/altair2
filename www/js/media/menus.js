@@ -235,24 +235,6 @@ window.Sono.register('menus', function (S) {
         } else S.showToast('Editor no disponible');
     });
 
-    // sembrar en P2P — cualquier archivo de la tribu (audio/video/imagen/doc)
-    $('menu-seed').addEventListener('click', function () {
-        var m = S.menuItem;
-        if (!m) return closeMenu();
-        closeMenu();
-        S.urlFor(m, function (u) {
-            if (!u) return S.showToast('No se pudo leer el archivo');
-            fetch(u).then(function (r) { return r.blob(); }).then(function (blob) {
-                var j = window.TribalP2P && window.TribalP2P.seed(m, blob);
-                if (j && window.TribalP2PExtra && window.TribalP2PExtra.magnetDialog)
-                    window.TribalP2PExtra.magnetDialog(j, S.root, S.showToast);
-                else
-                    S.showToast(j ? 'Sembrando «' + m.name + '» — magnet en P2P'
-                                : 'No se pudo sembrar');
-            }).catch(function () { S.showToast('No se pudo leer el archivo'); });
-        });
-    });
-
     // compartir por Bluetooth directo (Android) — en web cae a share normal
     $('menu-bt').addEventListener('click', function () {
         if (!S.menuItem) return closeMenu();

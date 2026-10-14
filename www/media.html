@@ -323,7 +323,6 @@
         <button id="menu-bt"><i class="bi bi-bluetooth"></i>Compartir por Bluetooth</button>
         <button id="menu-conv"><i class="bi bi-arrow-left-right"></i>Convertir audio</button>
         <button id="menu-vnote"><i class="bi bi-sliders"></i>Editar nota / efectos</button>
-        <button id="menu-seed"><i class="bi bi-share-alt"></i>Sembrar en P2P</button>
         <button id="menu-rename"><i class="bi bi-pencil"></i>Renombrar</button>
         <button id="menu-delete" class="danger"><i class="bi bi-trash3"></i>Eliminar</button>
     </div>
@@ -401,8 +400,6 @@
         <button id="vm-undo"><i class="bi bi-arrow-counterclockwise"></i>Deshacer último cambio</button>
         <button id="vm-btchat"><i class="bi bi-bluetooth"></i>Chat Bluetooth</button>
         <button id="vm-doc"><i class="bi bi-book-half"></i>Libros</button>
-        <button id="vm-files"><i class="bi bi-folder2-open"></i>Administrador de archivos</button>
-        <button id="vm-p2p"><i class="bi bi-diagram-3"></i>P2P Torrents</button>
         <button id="vm-links"><i class="bi bi-link-45deg"></i>Libretilla de enlaces</button>
         <button id="vm-perms"><i class="bi bi-shield-lock"></i>Solicitar permisos a Android</button>
         <button id="vm-revoke"><i class="bi bi-shield-x"></i>Revocar permisos</button>
@@ -613,11 +610,6 @@
 <script src="js/vendor/jszip.min.js"></script>
 <script src="js/vendor/pdf.min.js"></script>
 <script src="js/vendor/epub.min.js"></script>
-<script type="module">
-    // webtorrent.min.js es ESM: lo importamos y exponemos como global
-    import WebTorrent from './js/vendor/webtorrent.min.js';
-    window.WebTorrent = WebTorrent;
-</script>
 <script src="js/media/rangeguard.js"></script>
 <script src="js/media/readerfx.js"></script>
 <script src="js/media/readerbm.js"></script>
@@ -632,14 +624,6 @@
 <script src="js/media/imgedit.js"></script>
 <script src="js/media/imgeditui.js"></script>
 <script src="js/media/imgedittouch.js"></script>
-<script src="js/media/p2pnative.js"></script>
-<script src="js/media/p2p.js"></script>
-<script src="js/media/p2pqbit.js"></script>
-<script src="js/media/p2pcfg.js"></script>
-<script src="js/media/p2pextra.js"></script>
-<script src="js/media/p2pjobs.js"></script>
-<script src="js/media/p2pwire.js"></script>
-<script src="js/media/p2pui.js"></script>
 <script src="js/media/core.js"></script>
 <script src="js/media/sort.js"></script>
 <script src="js/media/smartsearch.js"></script>
@@ -661,7 +645,6 @@
 <script src="js/media/links.js"></script>
 <script src="js/media/linksact.js"></script>
 <script src="js/media/batch.js"></script>
-<script src="js/media/filemgr.js"></script>
 <script src="js/media/dupguard.js"></script>
 <script src="js/media/vnotesviz.js"></script>
 <script src="js/media/vnotesdsp.js"></script>

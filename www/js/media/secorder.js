@@ -36,7 +36,7 @@ window.Sono.register('secorder', function (S) {
     }
     // long-press: colapsa TODO dejando solo títulos · otra vez = expandir todo
     function toggleAll() {
-        var keys = ['image', 'audio', 'grab', 'video', 'doc', 'other', 'p2p'];
+        var keys = ['image', 'audio', 'grab', 'video', 'doc', 'other'];
         var allOn = keys.every(function (g) { return S.secCollapsed[g]; });
         S.secCollapsed = {};
         if (!allOn) keys.forEach(function (g) { S.secCollapsed[g] = 1; });

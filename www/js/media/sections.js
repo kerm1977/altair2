@@ -8,51 +8,35 @@
 window.TribalSections = (function () {
     'use strict';
     var LBL = { audio: 'Música', grab: 'Mis grabaciones', video: 'Videos',
-                image: 'Imágenes', doc: 'Documentos', other: 'Archivos',
-                p2p: 'Descargados por torrents' };
+                image: 'Imágenes', doc: 'Documentos', other: 'Archivos' };
 
     function isVN(m) {
         return (m.info && m.info.vn) || /^mi grabaci/i.test(m.name || '');
     }
-    function isP2P(m) { return !!(m.info && m.info.p2p); }
-    // grupo puro por tipo (estadísticas, buscador): no separa torrents
     function grpOf(m) {
         return m.kind === 'audio' && isVN(m) ? 'grab' : m.kind;
     }
-    // grupo visible en la lista: lo sembrado/descargado por torrent va
-    // a su propia sección — «Descargados por torrents» en Todo, y
-    // «Videos por torrents», «Música por torrents»… dentro de cada tab
-    function grpIn(m, S) {
-        if (!isP2P(m)) return grpOf(m);
-        if (S && !S.query && S.viewMode === 'items' &&
-            S.filter && S.filter !== 'all')
-            return m.kind + '-p2p';
-        return 'p2p';
+    function grpIn(m) {
+        return grpOf(m);
     }
     function label(g) {
-        if (/-p2p$/.test(g))
-            return (LBL[g.slice(0, -4)] || 'Archivos') + ' por torrents';
         return LBL[g] || 'Archivos';
     }
 
     function apply(list, S) {
         var secOrder = null;
         if (S.query)
-            secOrder = ['audio', 'grab', 'video', 'image', 'doc', 'other', 'p2p'];
+            secOrder = ['audio', 'grab', 'video', 'image', 'doc', 'other'];
         else if (S.viewMode === 'items' && S.filter === 'all')
-            secOrder = (S.secOrder ||
-                ['image', 'audio', 'video', 'doc', 'other']).concat(['p2p']);
+            secOrder = S.secOrder ||
+                ['image', 'audio', 'video', 'doc', 'other'];
         else if (S.viewMode === 'items' && S.filter === 'audio')
-            secOrder = list.some(isP2P) ? ['audio', 'grab', 'audio-p2p']
-                                        : ['audio', 'grab'];
-        else if (S.viewMode === 'items' && S.filter &&
-                 list.some(isP2P))
-            secOrder = [S.filter, S.filter + '-p2p'];
+            secOrder = ['audio', 'grab'];
         if (!secOrder) return { list: list, secs: null };
 
         var buckets = {};
         list.forEach(function (m) {
-            var g = grpIn(m, S);
+            var g = grpOf(m);
             (buckets[g] = buckets[g] || []).push(m);
         });
         var seq = [];

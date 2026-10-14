@@ -58,43 +58,6 @@ window.Sono.register('player', function (S) {
         });
     };
 
-    // Archivo de un torrent (WebTorrent file) — se reproduce con el mismo
-    // player, descargando en paralelo (renderTo = streaming con seek).
-    S.playP2P = function (f) {
-        var ext = String(f.name || '').split('.').pop().toLowerCase();
-        var isVid = ['mp4','webm','mkv','mov','avi','3gp'].indexOf(ext) >= 0;
-        var isAud = ['mp3','wav','ogg','m4a','aac','flac','opus'].indexOf(ext) >= 0;
-        var isImg = ['jpg','jpeg','png','gif','webp','bmp','heic'].indexOf(ext) >= 0;
-        audio.pause();
-        if (isVid) {
-            S.videoTitle.textContent = f.name;
-            $('vf-proxy-badge').hidden = true;
-            videoOv.hidden = false;
-            try { f.renderTo(videoEl, { autoplay: true }); }
-            catch (e) { S.showToast('Aún no se puede reproducir'); }
-        } else if (isAud) {
-            f.getBlobURL(function (e, u) {
-                if (e || !u) return S.showToast('Esperando datos del torrent…');
-                audio.src = u;
-                audio.dataset.current = 'p2p:' + f.name;
-                S.pTitle.textContent = f.name;
-                var bg = $('player-badges');
-                if (bg) bg.textContent = 'P2P ' +
-                    (f.progress < 1 ? Math.round(f.progress * 100) + '%' : '✓');
-                if (window.TribalEQ) TribalEQ.attach(audio, S.prefs.eq);
-                audio.play().catch(function () {});
-            });
-        } else if (isImg) {
-            f.getBlobURL(function (e, u) {
-                if (e || !u) return S.showToast('Esperando datos del torrent…');
-                S.imageTitle.textContent = f.name;
-                S.imageItem = null;   // p2p no tiene meta en el store
-                S.imageEl.src = u;
-                imageOv.hidden = false;
-            });
-        }
-    };
-
     // doble clic → pantalla completa tribal
     // (el fullscreen se pide aquí, dentro del gesto del doble clic)
     S.openFull = function (m) {

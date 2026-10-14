@@ -12,11 +12,11 @@ window.Sono.register('viewmenu', function (S) {
     var viewMenu = $('view-menu'), statsOv = $('stats-overlay');
     var audio = S.audio, videoEl = S.videoEl, videoOv = S.videoOv;
 
-    // deps comunes para overlays externos (lector, p2p)
+    // deps comunes para overlays externos (lector, notas, zip, chat)
     S.extDeps = function () {
         return {
             mount: S.root, urlFor: S.urlFor, store: window.MediaStore,
-            toast: S.showToast, confirm: S.confirm, playP2P: S.playP2P,
+            toast: S.showToast, confirm: S.confirm,
             play: S.playAudio, audio: S.audio, reload: S.reload,
             onDeleted: S.reload, get items() { return S.items; }, sono: S
         };
@@ -27,10 +27,6 @@ window.Sono.register('viewmenu', function (S) {
         if (window.TribalReader) TribalReader.open(m, S.extDeps());
         else S.showToast('Lector no disponible');
     };
-
-    // P2P: enganchar store+toast desde el registro — así los avisos
-    // (añadido/descargado/error) funcionan aunque el panel no esté abierto
-    if (window.TribalP2P) TribalP2P.bind(window.MediaStore, S.showToast);
 
     // Chat Bluetooth local (media/btchat*.js) — sobre Libros
     $('vm-btchat').addEventListener('click', function () {
@@ -64,13 +60,6 @@ window.Sono.register('viewmenu', function (S) {
         viewMenu.hidden = true;
         if (window.TribalZipUI) TribalZipUI.open(S.extDeps());
         else S.showToast('Compresor no disponible');
-    });
-
-    // P2P torrents
-    $('vm-p2p').addEventListener('click', function () {
-        viewMenu.hidden = true;
-        if (window.TribalP2PUI) TribalP2PUI.open(S.extDeps());
-        else S.showToast('Módulo P2P no disponible');
     });
 
     // libretilla de enlaces
@@ -175,7 +164,7 @@ window.Sono.register('viewmenu', function (S) {
     var STAT_ICO = { audio: 'bi-music-note-beamed',
                      grab: 'bi-mic-fill', video: 'bi-camera-video-fill',
                      image: 'bi-image-fill', doc: 'bi-book-half',
-                     p2p: 'bi-magnet-fill', other: 'bi-file-earmark' };
+                     other: 'bi-file-earmark' };
 
     // aterrizar en un tab de la barra: click + centrarlo horizontalmente
     function goTab(id, extra) {
@@ -292,13 +281,11 @@ window.Sono.register('viewmenu', function (S) {
     // --- lista de archivos del panel: agrupada por tipo, buscador en
     // vivo y paginación de 20 — nunca se amontona ---
     var statsAll = [], fq = '', fpage = 0, FPER = 20;
-    var SGRP_ORD = ['audio', 'grab', 'video', 'image', 'doc', 'p2p', 'other'];
+    var SGRP_ORD = ['audio', 'grab', 'video', 'image', 'doc', 'other'];
     var SGRP_LBL = { audio: 'Música', grab: 'Mis grabaciones',
                      video: 'Videos', image: 'Imágenes',
-                     doc: 'Documentos', p2p: 'Descargados por torrents',
-                     other: 'Otros' };
+                     doc: 'Documentos', other: 'Otros' };
     function fileGrp(f) {
-        if (f.p2p) return 'p2p';
         return f.kind === 'audio' &&
                (f.vn || /^mi grabaci/i.test(f.name || ''))
             ? 'grab' : (f.kind || 'other');
@@ -406,25 +393,4 @@ window.Sono.register('viewmenu', function (S) {
     statsOv.addEventListener('click', function (e) {
         if (e.target === statsOv) statsOv.hidden = true;
     });
-
-    // rehidratar la cola P2P al arrancar: los torrents sobreviven a cierres,
-    // crashes y apagados (localStorage tribu_p2p). Los pausados quedan pausados.
-    if (window.TribalP2P) {
-        TribalP2P.bind(window.MediaStore, S.showToast);
-        setTimeout(function () {
-            try {
-                var saved = JSON.parse(localStorage.getItem('tribu_p2p') || '{}');
-                if (saved.jobs && saved.jobs.length) TribalP2P.restore();
-            } catch (e) {}
-        }, 1500);
-        // abrir enlaces magnet: lanzados desde otra app/navegador
-        var P = window.Capacitor && window.Capacitor.Plugins;
-        if (P && P.App && P.App.addListener) {
-            P.App.addListener('appUrlOpen', function (e) {
-                if (e && e.url && e.url.indexOf('magnet:') === 0) {
-                    TribalP2P.add(e.url);
-                }
-            });
-        }
-    }
 });

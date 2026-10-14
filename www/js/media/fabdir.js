@@ -20,18 +20,9 @@ window.Sono.register('fabdir', function (S) {
         wrap.classList.toggle('open', expanded);
     }
 
-    // 📄 archivos: en la APK el administrador UNIVERSAL propio (con
-    // thumbnails y multi-selección) — el picker del sistema solo en web
+    // 📄 archivos: abre directamente el selector nativo de Android / sistema
     function pickFiles() {
-        if (window.TribalFiles && window.TribalFiles.native()) {
-            window.TribalFiles.pick(S, { title: 'Subir a la tribu' })
-                .then(function (metas) {
-                    if (metas && metas.length)
-                        S.showToast(metas.length + ' archivo(s) en la tribu');
-                });
-        } else {
-            S.input.click();
-        }
+        S.input.click();
     }
 
     // tocar el sol: cerrado → abre el óvalo; ya abierto → sube archivos

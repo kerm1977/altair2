@@ -109,14 +109,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- abrir enlaces magnet:// con TRIBALs -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="magnet" />
-            </intent-filter>
-
             <!-- "Abrir con TRIBALs": audio, video, imágenes y documentos -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -151,12 +143,6 @@
             android:name=".TribalBtService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
-
-        <!-- Motor torrent: sesión libtorrent viva en segundo plano -->
-        <service
-            android:name=".TribalTorrentSvc"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

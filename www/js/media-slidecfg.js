@@ -29,6 +29,7 @@
                     '<div class="tslide-photos" id="ts-photos"></div>' +
                     '<button class="tribal-btn tribal-btn-xs" id="ts-addphotos">' +
                         '<i class="bi bi-plus-lg"></i> Agregar fotos del dispositivo</button>' +
+                    '<input type="file" id="ts-addphotos-in" accept="image/*" multiple hidden>' +
                 '</details>' +
 
                 '<details class="tslide-acc">' +
@@ -115,24 +116,29 @@
             syncCount();
         }
         var addBtn = el.querySelector('#ts-addphotos');
-        if (window.TribalFiles && window.TribalFiles.native()) {
-            addBtn.addEventListener('click', function () {
-                window.TribalFiles.pick(
-                        { root: d.mount, showToast: d.toast },
-                        { kinds: ['image'], title: 'Elegir fotos' })
-                    .then(function (metas) {
-                        if (metas && metas.length) {
-                            addPhotoLabels(metas);
-                            d.toast(metas.length + ' foto(s) agregadas');
-                        }
-                    });
+        var addIn = el.querySelector('#ts-addphotos-in');
+        addBtn.addEventListener('click', function () {
+            addIn.click();
+        });
+        addIn.addEventListener('change', function () {
+            var files = Array.prototype.slice.call(addIn.files || []);
+            addIn.value = '';
+            if (!files.length) return;
+            var metas = [], chain = Promise.resolve();
+            files.forEach(function (f) {
+                chain = chain.then(function () {
+                    return d.store.add(f).then(function (m) {
+                        if (m) metas.push(m);
+                    }).catch(function () {});
+                });
             });
-        } else {
-            addBtn.addEventListener('click', function () {
-                d.toast('Agregar desde el dispositivo solo en el APK — ' +
-                        'usa el botón + de la biblioteca');
+            chain.then(function () {
+                if (metas.length) {
+                    addPhotoLabels(metas);
+                    d.toast(metas.length + ' foto(s) agregadas');
+                }
             });
-        }
+        });
 
         var sel = el.querySelector('#ts-song');
         sel.innerHTML = '<option value="">Sin música</option>' +

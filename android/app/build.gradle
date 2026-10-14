@@ -73,12 +73,6 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
-    // motor torrent nativo (swarm completo TCP/UDP/DHT, no solo WebRTC)
-    implementation "com.frostwire:jlibtorrent:1.2.0.18"
-    implementation "com.frostwire:jlibtorrent-android-arm:1.2.0.18"
-    implementation "com.frostwire:jlibtorrent-android-arm64:1.2.0.18"
-    implementation "com.frostwire:jlibtorrent-android-x86:1.2.0.18"
-    implementation "com.frostwire:jlibtorrent-android-x86_64:1.2.0.18"
 }
 
 apply from: 'capacitor.build.gradle'
