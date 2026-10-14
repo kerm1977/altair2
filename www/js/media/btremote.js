@@ -1,18 +1,16 @@
 // ============================================================================
 // ARCHIVO: media/btremote.js (<= 200 líneas)
-// RESPONSABILIDAD: Control Remoto Multimedia por Bluetooth y Wi-Fi.
-//   - Envía y recibe comandos multimedia (play, pause, toggle, prev, next,
-//     volup, voldn, mute, seekf, seekb, stop, repeat, shuffle)
-//   - Por Bluetooth: usa TribalBtNet (RFCOMM entre dispositivos TRIBALs)
-//   - Por Wi-Fi / Red local: BroadcastChannel + WebSocket / HTTP local opcional
+// RESPONSABILIDAD: Control Remoto Multimedia + Trackpad Táctil (BT y Wi-Fi)
+//   - Vista Trackpad: superficie táctil completa + 3 botones abajo
+//     (Izquierda, Central, Derecha) para Bluetooth y Wi-Fi
+//   - Vista Mandos: rueda direccional + botones de reproducción
 // ============================================================================
 window.TribalRemote = (function () {
     'use strict';
 
     var N = window.TribalBtNet;
-    var ov = null, deps = {}, mode = 'both', wifiUrl = '', ws = null, bc = null;
-    var WIFI_KEY = 'tribu_remote_wifi';
-    try { wifiUrl = localStorage.getItem(WIFI_KEY) || ''; } catch (e) {}
+    var ov = null, deps = {}, mode = 'both', tab = 'pad', bc = null;
+    var curEl = null, curX = 180, curY = 260, hideCurT = null;
 
     function activeMedia() {
         var S = (deps && deps.sono) || window.Sono;
@@ -20,10 +18,33 @@ window.TribalRemote = (function () {
         return (S.videoOv && !S.videoOv.hidden && S.videoEl) ? S.videoEl : S.audio;
     }
 
-    // Ejecuta un comando recibido sobre el reproductor local de TRIBALs
-    function execLocal(cmd) {
-        var S = (deps && deps.sono) || window.Sono;
-        var el = activeMedia();
+    function moveVirtualCursor(dx, dy) {
+        if (!curEl) {
+            curEl = document.createElement('div');
+            curEl.id = 'rc-virtual-cursor';
+            document.body.appendChild(curEl);
+        }
+        curX = Math.max(8, Math.min(window.innerWidth - 16, curX + dx * 1.4));
+        curY = Math.max(8, Math.min(window.innerHeight - 16, curY + dy * 1.4));
+        curEl.style.transform = 'translate(' + Math.round(curX) + 'px,' + Math.round(curY) + 'px)';
+        curEl.classList.add('on');
+        clearTimeout(hideCurT);
+        hideCurT = setTimeout(function () { if (curEl) curEl.classList.remove('on'); }, 3500);
+    }
+
+    function clickAtCursor(btnType) {
+        if (btnType === 'mclick') return execLocal('toggle');
+        var target = document.elementFromPoint(curX, curY);
+        if (!target) return execLocal(btnType === 'rclick' ? 'next' : 'toggle');
+        if (btnType === 'rclick') {
+            target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: curX, clientY: curY }));
+        } else target.click();
+    }
+
+    function execLocal(cmd, data) {
+        if (cmd === 'move' && data) return moveVirtualCursor(data.dx || 0, data.dy || 0);
+        if (cmd === 'lclick' || cmd === 'mclick' || cmd === 'rclick') return clickAtCursor(cmd);
+        var S = (deps && deps.sono) || window.Sono, el = activeMedia();
         if (!el) return;
         if (cmd === 'toggle') {
             if (!el.src && S && S.items && S.items.length) {
@@ -31,15 +52,13 @@ window.TribalRemote = (function () {
                 if (a0 && S.playAudio) return S.playAudio(a0);
             }
             el.paused ? el.play().catch(function () {}) : el.pause();
-        } else if (cmd === 'play') { el.play().catch(function () {}); }
-        else if (cmd === 'pause') { el.pause(); }
-        else if (cmd === 'prev' && S && S.stepAudio) { S.stepAudio(-1); }
-        else if (cmd === 'next' && S && S.stepAudio) { S.stepAudio(1); }
+        } else if (cmd === 'prev' && S && S.stepAudio) S.stepAudio(-1);
+        else if (cmd === 'next' && S && S.stepAudio) S.stepAudio(1);
         else if (cmd === 'volup') { el.muted = false; el.volume = Math.min(1, (el.volume || 0) + 0.1); }
-        else if (cmd === 'voldn') { el.volume = Math.max(0, (el.volume || 1) - 0.1); }
-        else if (cmd === 'mute') { el.muted = !el.muted; }
-        else if (cmd === 'seekf') { el.currentTime = Math.min(el.duration || 99999, (el.currentTime || 0) + 10); }
-        else if (cmd === 'seekb') { el.currentTime = Math.max(0, (el.currentTime || 0) - 10); }
+        else if (cmd === 'voldn') el.volume = Math.max(0, (el.volume || 1) - 0.1);
+        else if (cmd === 'mute') el.muted = !el.muted;
+        else if (cmd === 'seekf') el.currentTime = Math.min(el.duration || 99999, (el.currentTime || 0) + 10);
+        else if (cmd === 'seekb') el.currentTime = Math.max(0, (el.currentTime || 0) - 10);
         else if (cmd === 'stop') { el.pause(); el.currentTime = 0; }
         else if (cmd === 'shuf' && S && S.prefs) { S.prefs.shuffle = !S.prefs.shuffle; if (S.savePrefs) S.savePrefs(); }
         else if (cmd === 'rep' && S && S.prefs) {
@@ -48,33 +67,11 @@ window.TribalRemote = (function () {
         }
     }
 
-    function sendCmd(cmd) {
-        var pkt = { k: 'rc', cmd: cmd, ts: Date.now() };
-        if (mode === 'bt' || mode === 'both') {
-            if (N) N.send(pkt).catch(function () {});
-        }
-        if (mode === 'wifi' || mode === 'both') {
-            if (bc) { try { bc.postMessage(pkt); } catch (e) {} }
-            if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify(pkt)); } catch (e) {} }
-            if (wifiUrl && /^https?:\/\//i.test(wifiUrl) && window.fetch) {
-                fetch(wifiUrl.replace(/\/$/, '') + '/rc?cmd=' + encodeURIComponent(cmd), { method: 'POST', mode: 'no-cors' }).catch(function () {});
-            }
-        }
-        if (mode === 'local') execLocal(cmd);
-    }
-
-    function connectWifi(url) {
-        wifiUrl = String(url || '').trim();
-        try { localStorage.setItem(WIFI_KEY, wifiUrl); } catch (e) {}
-        if (ws) { try { ws.close(); } catch (e) {} ws = null; }
-        if (/^wss?:\/\//i.test(wifiUrl) && window.WebSocket) {
-            try {
-                ws = new WebSocket(wifiUrl);
-                ws.onmessage = function (ev) {
-                    try { var d = JSON.parse(ev.data); if (d && d.k === 'rc') execLocal(d.cmd); } catch (e) {}
-                };
-            } catch (e) {}
-        }
+    function sendPkt(pkt) {
+        pkt.k = 'rc';
+        if ((mode === 'bt' || mode === 'both') && N) N.send(pkt).catch(function () {});
+        if ((mode === 'wifi' || mode === 'both') && bc) { try { bc.postMessage(pkt); } catch (e) {} }
+        if (mode === 'local') execLocal(pkt.cmd, pkt);
     }
 
     function initListener(sono) {
@@ -82,20 +79,13 @@ window.TribalRemote = (function () {
         if (N) {
             N.init(function (d) {
                 if (!d || d.type !== 'msg') return;
-                try {
-                    var m = JSON.parse(d.msg);
-                    if (m && m.k === 'rc' && m.cmd) execLocal(m.cmd);
-                } catch (e) {}
+                try { var m = JSON.parse(d.msg); if (m && m.k === 'rc') execLocal(m.cmd, m); } catch (e) {}
             });
         }
         if ('BroadcastChannel' in window && !bc) {
             bc = new BroadcastChannel('tribu-wifi-rc');
-            bc.onmessage = function (ev) {
-                var d = ev.data;
-                if (d && d.k === 'rc' && d.cmd) execLocal(d.cmd);
-            };
+            bc.onmessage = function (ev) { var d = ev.data; if (d && d.k === 'rc') execLocal(d.cmd, d); };
         }
-        if (wifiUrl) connectWifi(wifiUrl);
     }
 
     function open(d) {
@@ -104,49 +94,104 @@ window.TribalRemote = (function () {
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = document.createElement('div');
         ov.className = 'tribal-overlay tribal-p2p-ov';
-        ov.innerHTML = '<div class="tribal-p2p tribal-links">' +
+        ov.innerHTML = '<div class="tribal-p2p tribal-links rc-shell">' +
             '<div class="tribal-p2p-head">' +
                 '<button class="tribal-ctrl lk-back" id="rc-back"><i class="bi bi-arrow-left"></i><span>Volver</span></button>' +
-                '<i class="bi bi-controller"></i><strong>Control Remoto (BT + Wi-Fi)</strong>' +
+                '<i class="bi bi-controller"></i><strong>Control Remoto & Trackpad</strong>' +
+                '<button class="tribal-btn tribal-btn-xs" id="rc-btmgr" style="margin-left:auto"><i class="bi bi-bluetooth"></i> Equipos BT</button>' +
             '</div>' +
             '<div class="lk-body rc-body">' +
-                '<div class="rc-modes">' +
-                    '<button class="tribal-btn tribal-btn-xs primary" data-m="both"><i class="bi bi-broadcast"></i> BT + Wi-Fi</button>' +
-                    '<button class="tribal-btn tribal-btn-xs" data-m="bt"><i class="bi bi-bluetooth"></i> Solo Bluetooth</button>' +
-                    '<button class="tribal-btn tribal-btn-xs" data-m="wifi"><i class="bi bi-wifi"></i> Solo Wi-Fi</button>' +
-                    '<button class="tribal-btn tribal-btn-xs" data-m="local"><i class="bi bi-phone"></i> Este equipo</button>' +
+                '<div class="rc-top-pills">' +
+                    '<div class="rc-seg" id="rc-tabs">' +
+                        '<button type="button" class="on" data-t="pad"><i class="bi bi-hand-index-thumb"></i> Trackpad Táctil</button>' +
+                        '<button type="button" data-t="btns"><i class="bi bi-disc"></i> Mandos Multimedia</button>' +
+                    '</div>' +
+                    '<div class="rc-seg" id="rc-modes">' +
+                        '<button type="button" class="on" data-m="both">BT + Wi-Fi</button>' +
+                        '<button type="button" data-m="bt">Bluetooth</button>' +
+                        '<button type="button" data-m="wifi">Wi-Fi</button>' +
+                        '<button type="button" data-m="local">Local</button>' +
+                    '</div>' +
                 '</div>' +
-                '<div class="rc-wifi-bar">' +
-                    '<input type="text" id="rc-wifi-in" class="tribal-input" placeholder="IP/WebSocket Wi-Fi opcional (ej. ws://192.168.1.50:8080)" value="' + wifiUrl.replace(/"/g, '&quot;') + '">' +
-                    '<button class="tribal-btn tribal-btn-xs" id="rc-btmgr"><i class="bi bi-bluetooth"></i> Equipos BT</button>' +
+                '<div id="rc-view-pad" class="rc-track-wrap">' +
+                    '<div class="rc-trackpad" id="rc-surface">' +
+                        '<div class="rc-touch-dot" id="rc-dot"></div>' +
+                        '<div class="rc-pad-hint"><i class="bi bi-arrows-move"></i><span>Área táctil completa · Desliza y toca</span></div>' +
+                    '</div>' +
+                    '<div class="rc-mouse-btns">' +
+                        '<button type="button" class="rc-mbtn" data-c="lclick"><i class="bi bi-mouse"></i><span>Izquierda</span></button>' +
+                        '<button type="button" class="rc-mbtn rc-mcenter" data-c="mclick"><i class="bi bi-play-pause"></i><span>Central</span></button>' +
+                        '<button type="button" class="rc-mbtn" data-c="rclick"><i class="bi bi-three-dots"></i><span>Derecha</span></button>' +
+                    '</div>' +
                 '</div>' +
-                '<div class="rc-pad">' +
-                    '<button class="rc-btn" data-c="voldn" title="Bajar volumen"><i class="bi bi-volume-down-fill"></i><span>Vol -</span></button>' +
-                    '<button class="rc-btn" data-c="mute" title="Silenciar"><i class="bi bi-volume-mute-fill"></i><span>Mute</span></button>' +
-                    '<button class="rc-btn" data-c="volup" title="Subir volumen"><i class="bi bi-volume-up-fill"></i><span>Vol +</span></button>' +
-                    '<button class="rc-btn" data-c="prev" title="Anterior"><i class="bi bi-skip-backward-fill"></i><span>Anterior</span></button>' +
-                    '<button class="rc-btn rc-play" data-c="toggle" title="Play / Pausa"><i class="bi bi-play-pause"></i><span>Play/Pausa</span></button>' +
-                    '<button class="rc-btn" data-c="next" title="Siguiente"><i class="bi bi-skip-forward-fill"></i><span>Siguiente</span></button>' +
-                    '<button class="rc-btn" data-c="seekb" title="Retroceder 10s"><i class="bi bi-rewind-fill"></i><span>-10s</span></button>' +
-                    '<button class="rc-btn" data-c="stop" title="Detener"><i class="bi bi-stop-fill"></i><span>Stop</span></button>' +
-                    '<button class="rc-btn" data-c="seekf" title="Adelantar 10s"><i class="bi bi-fast-forward-fill"></i><span>+10s</span></button>' +
-                    '<button class="rc-btn" data-c="rep" title="Repetir"><i class="bi bi-repeat"></i><span>Repetir</span></button>' +
-                    '<button class="rc-btn" data-c="shuf" title="Aleatorio"><i class="bi bi-shuffle"></i><span>Aleatorio</span></button>' +
+                '<div id="rc-view-btns" class="rc-dpad-wrap" hidden>' +
+                    '<div class="rc-wheel">' +
+                        '<button type="button" class="rc-w-up" data-c="volup"><i class="bi bi-volume-up-fill"></i></button>' +
+                        '<button type="button" class="rc-w-left" data-c="prev"><i class="bi bi-skip-backward-fill"></i></button>' +
+                        '<button type="button" class="rc-w-ok" data-c="toggle"><i class="bi bi-play-pause"></i></button>' +
+                        '<button type="button" class="rc-w-right" data-c="next"><i class="bi bi-skip-forward-fill"></i></button>' +
+                        '<button type="button" class="rc-w-down" data-c="voldn"><i class="bi bi-volume-down-fill"></i></button>' +
+                    '</div>' +
+                    '<div class="rc-quick-row">' +
+                        '<button type="button" data-c="mute"><i class="bi bi-volume-mute-fill"></i><span>Mute</span></button>' +
+                        '<button type="button" data-c="seekb"><i class="bi bi-rewind-fill"></i><span>-10s</span></button>' +
+                        '<button type="button" data-c="stop"><i class="bi bi-stop-fill"></i><span>Stop</span></button>' +
+                        '<button type="button" data-c="seekf"><i class="bi bi-fast-forward-fill"></i><span>+10s</span></button>' +
+                        '<button type="button" data-c="rep"><i class="bi bi-repeat"></i><span>Repetir</span></button>' +
+                        '<button type="button" data-c="shuf"><i class="bi bi-shuffle"></i><span>Azar</span></button>' +
+                    '</div>' +
                 '</div>' +
             '</div></div>';
         (deps.mount || document.body).appendChild(ov);
         ov.querySelector('#rc-back').onclick = close;
         ov.querySelector('#rc-btmgr').onclick = function () { close(); if (window.TribalBtMgr) window.TribalBtMgr.open(deps); };
-        ov.querySelector('#rc-wifi-in').onchange = function () { connectWifi(this.value); };
-        ov.querySelector('.rc-modes').onclick = function (e) {
+        ov.querySelector('#rc-tabs').onclick = function (e) {
+            var b = e.target.closest('[data-t]'); if (!b) return;
+            tab = b.getAttribute('data-t');
+            ov.querySelectorAll('#rc-tabs button').forEach(function (x) { x.classList.toggle('on', x === b); });
+            ov.querySelector('#rc-view-pad').hidden = tab !== 'pad';
+            ov.querySelector('#rc-view-btns').hidden = tab !== 'btns';
+        };
+        ov.querySelector('#rc-modes').onclick = function (e) {
             var b = e.target.closest('[data-m]'); if (!b) return;
             mode = b.getAttribute('data-m');
-            ov.querySelectorAll('.rc-modes button').forEach(function (x) { x.classList.toggle('primary', x === b); });
+            ov.querySelectorAll('#rc-modes button').forEach(function (x) { x.classList.toggle('on', x === b); });
         };
-        ov.querySelector('.rc-pad').onclick = function (e) {
-            var b = e.target.closest('[data-c]'); if (!b) return;
-            sendCmd(b.getAttribute('data-c'));
-        };
+        ov.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-c]');
+            if (b) sendPkt({ cmd: b.getAttribute('data-c') });
+        });
+        wireTrackpad(ov.querySelector('#rc-surface'), ov.querySelector('#rc-dot'));
+    }
+
+    function wireTrackpad(surf, dot) {
+        var down = false, lx = 0, ly = 0, moved = false, t0 = 0;
+        surf.addEventListener('pointerdown', function (e) {
+            down = true; moved = false; t0 = Date.now();
+            lx = e.clientX; ly = e.clientY;
+            var r = surf.getBoundingClientRect();
+            dot.style.left = (e.clientX - r.left) + 'px';
+            dot.style.top = (e.clientY - r.top) + 'px';
+            dot.classList.add('on');
+            try { surf.setPointerCapture(e.pointerId); } catch (er) {}
+        });
+        surf.addEventListener('pointermove', function (e) {
+            if (!down) return;
+            var dx = e.clientX - lx, dy = e.clientY - ly;
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+            lx = e.clientX; ly = e.clientY;
+            var r = surf.getBoundingClientRect();
+            dot.style.left = Math.max(12, Math.min(r.width - 12, e.clientX - r.left)) + 'px';
+            dot.style.top = Math.max(12, Math.min(r.height - 12, e.clientY - r.top)) + 'px';
+            sendPkt({ cmd: 'move', dx: Math.round(dx), dy: Math.round(dy) });
+        });
+        function up() {
+            if (!down) return;
+            down = false; dot.classList.remove('on');
+            if (!moved && Date.now() - t0 < 280) sendPkt({ cmd: 'lclick' });
+        }
+        surf.addEventListener('pointerup', up);
+        surf.addEventListener('pointercancel', up);
     }
 
     function close() { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }

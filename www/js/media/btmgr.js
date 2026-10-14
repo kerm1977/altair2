@@ -150,15 +150,20 @@ window.TribalBtMgr = (function () {
                 '<button class="tribal-ctrl lk-back" id="btm-back"><i class="bi bi-arrow-left"></i><span>Volver</span></button>' +
                 '<i class="bi bi-bluetooth"></i><strong>Administrador Bluetooth</strong>' +
             '</div>' +
-            '<div class="lk-body">' +
-                '<div class="btm-actions">' +
-                    '<button class="tribal-btn primary" id="btm-gochat"><i class="bi bi-chat-dots-fill"></i> Ir a chatear</button>' +
-                    '<button class="tribal-btn" id="btm-scan"><i class="bi bi-search"></i> Buscar dispositivos</button>' +
-                    '<button class="tribal-btn" id="btm-vis"><i class="bi bi-broadcast"></i> Hacerme visible</button>' +
-                    '<button class="tribal-btn" id="btm-rc"><i class="bi bi-controller"></i> Control remoto</button>' +
-                    '<button class="tribal-btn" id="btm-en"><i class="bi bi-power"></i> Activar BT</button>' +
+            '<div class="lk-body btm-body">' +
+                '<button class="btm-hero-chat" id="btm-gochat">' +
+                    '<div class="btm-hero-ico"><i class="bi bi-chat-dots-fill"></i></div>' +
+                    '<div class="btm-hero-txt"><strong>Ir a chatear con la tribu</strong>' +
+                        '<span>Abre el chat Bluetooth multi-equipo con voz, fotos y canciones</span></div>' +
+                    '<i class="bi bi-chevron-right"></i>' +
+                '</button>' +
+                '<div class="btm-grid-tiles">' +
+                    '<button class="btm-tile" id="btm-scan"><i class="bi bi-radar"></i><span>Buscar cerca</span></button>' +
+                    '<button class="btm-tile" id="btm-vis"><i class="bi bi-broadcast"></i><span>Hacer visible</span></button>' +
+                    '<button class="btm-tile" id="btm-rc"><i class="bi bi-controller"></i><span>Control remoto</span></button>' +
+                    '<button class="btm-tile" id="btm-en"><i class="bi bi-power"></i><span>Activar BT</span></button>' +
                 '</div>' +
-                '<p class="np-hint" id="btm-status">Iniciando Bluetooth…</p>' +
+                '<p class="btm-status-bar" id="btm-status">Iniciando Bluetooth…</p>' +
                 '<div id="btm-list" class="btm-list"></div>' +
             '</div></div>';
         (deps.mount || document.body).appendChild(ov);
