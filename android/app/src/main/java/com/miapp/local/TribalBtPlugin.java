@@ -20,12 +20,20 @@ import java.util.*;
 // entrantes se emiten al JS y se retransmiten a los demás peers (estrella,
 // dedup por hash): quien escucha actúa de hub grupal.
 @CapacitorPlugin(name = "TribalBt", permissions = {
-    @Permission(strings = { Manifest.permission.BLUETOOTH_SCAN,
+    @Permission(strings = {
+        Manifest.permission.BLUETOOTH_SCAN,
         Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.POST_NOTIFICATIONS }, alias = "bt"),
-    @Permission(strings = { Manifest.permission.BLUETOOTH,
+        Manifest.permission.BLUETOOTH_ADVERTISE,
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION,
+        Manifest.permission.POST_NOTIFICATIONS
+    }, alias = "bt"),
+    @Permission(strings = {
+        Manifest.permission.BLUETOOTH,
         Manifest.permission.BLUETOOTH_ADMIN,
-        Manifest.permission.ACCESS_FINE_LOCATION }, alias = "btLegacy")
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    }, alias = "btLegacy")
 })
 public class TribalBtPlugin extends Plugin {
 
@@ -34,6 +42,7 @@ public class TribalBtPlugin extends Plugin {
     private static TribalBtPlugin inst;
     private BluetoothAdapter adapter;
     private boolean discovering;
+    private boolean rxRegistered;
     private final Map<String, Peer> peers = new HashMap<>();
     private final Deque<Integer> seen = new ArrayDeque<>();   // dedup de relay
 
@@ -139,11 +148,62 @@ public class TribalBtPlugin extends Plugin {
         }
     };
 
+    private boolean isDevConnected(BluetoothDevice dev) {
+        if (dev == null) return false;
+        try {
+            if (peers.containsKey(dev.getAddress())) return true;
+            java.lang.reflect.Method m = dev.getClass().getMethod("isConnected");
+            Object res = m.invoke(dev);
+            if (res instanceof Boolean && (Boolean) res) return true;
+        } catch (Throwable ignored) {}
+        return false;
+    }
+
+    private void ensureRxRegistered() {
+        if (rxRegistered) return;
+        try {
+            IntentFilter f = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+            f.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+            f.addAction(BluetoothAdapter.ACTION_SCAN_MODE_CHANGED);
+            f.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+            f.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
+            f.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+            if (Build.VERSION.SDK_INT >= 33) {
+                getContext().registerReceiver(rx, f, Context.RECEIVER_EXPORTED);
+            } else {
+                getContext().registerReceiver(rx, f);
+            }
+            rxRegistered = true;
+        } catch (Throwable ignored) {}
+    }
+
     @PluginMethod
     public void ensurePerms(PluginCall call) {
-        if (getPermissionState("bt") == PermissionState.GRANTED) {
-            call.resolve(); return; }
-        requestPermissions(call); }
+        List<String> need = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= 31) {
+            need.add(Manifest.permission.BLUETOOTH_SCAN);
+            need.add(Manifest.permission.BLUETOOTH_CONNECT);
+            need.add(Manifest.permission.BLUETOOTH_ADVERTISE);
+        }
+        need.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        need.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        boolean allOk = true;
+        for (String p : need) {
+            if (getContext().checkSelfPermission(p) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                allOk = false;
+                break;
+            }
+        }
+        if (allOk) {
+            call.resolve();
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 31) {
+            requestPermissionForAlias("bt", call, "permsDone");
+        } else {
+            requestPermissionForAlias("btLegacy", call, "permsDone");
+        }
+    }
     @PermissionCallback
     private void permsDone(PluginCall call) { call.resolve(); }
     private BluetoothAdapter adapter() {
@@ -153,6 +213,7 @@ public class TribalBtPlugin extends Plugin {
     @PluginMethod
     public void devices(PluginCall call) {
         BluetoothAdapter ad = adapter();
+        ensureRxRegistered();
         JSObject r = new JSObject();
         JSONArray arr = new JSONArray();
         boolean on = false;
@@ -163,9 +224,13 @@ public class TribalBtPlugin extends Plugin {
             Set<BluetoothDevice> set = ad.getBondedDevices();
             if (set != null) for (BluetoothDevice d : set) try {
                 JSONObject o = new JSONObject();
-                o.put("name", d.getName()); o.put("addr", d.getAddress());
+                String nm = d.getName();
+                o.put("name", (nm != null && !nm.isEmpty()) ? nm : d.getAddress());
+                o.put("addr", d.getAddress());
                 o.put("kind", kindOf(d));
-                o.put("bonded", true); arr.put(o);
+                o.put("bonded", true);
+                o.put("connected", isDevConnected(d));
+                arr.put(o);
             } catch (Exception ignored) {}
         } catch (SecurityException ignored) {}
         r.put("bonded", arr); call.resolve(r); }
@@ -175,17 +240,33 @@ public class TribalBtPlugin extends Plugin {
         BluetoothAdapter ad = adapter();
         if (ad == null) { call.reject("sin Bluetooth"); return; }
         try {
-            if (!ad.isEnabled()) getContext().startActivity(new Intent(
-                BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            if (discovering) ad.cancelDiscovery();
-            IntentFilter f = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-            f.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-            f.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-            f.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
-            getContext().registerReceiver(rx, f, Context.RECEIVER_NOT_EXPORTED);
-            discovering = true; ad.startDiscovery(); call.resolve();
-        } catch (SecurityException e) { call.reject("permiso BT denegado", e); } }
+            ensureRxRegistered();
+            if (!ad.isEnabled()) {
+                getContext().startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            }
+            if (ad.isDiscovering()) ad.cancelDiscovery();
+            // Emitir también los emparejados inmediatamente para que la lista nunca quede vacía
+            Set<BluetoothDevice> set = ad.getBondedDevices();
+            if (set != null) {
+                for (BluetoothDevice dev : set) {
+                    try {
+                        JSObject d = new JSObject();
+                        String nm = dev.getName();
+                        d.put("type", "device");
+                        d.put("name", (nm != null && !nm.isEmpty()) ? nm : dev.getAddress());
+                        d.put("addr", dev.getAddress());
+                        d.put("kind", kindOf(dev));
+                        d.put("bonded", true);
+                        d.put("connected", isDevConnected(dev));
+                        emit(d);
+                    } catch (Throwable ignored) {}
+                }
+            }
+            discovering = ad.startDiscovery();
+            call.resolve();
+        } catch (SecurityException e) { call.reject("permiso BT denegado", e); }
+        catch (Throwable t) { call.reject("error scan: " + t.getMessage()); } }
 
     // pedir al sistema que encienda el Bluetooth (diálogo nativo, una vez)
     @PluginMethod
@@ -202,11 +283,31 @@ public class TribalBtPlugin extends Plugin {
     @PluginMethod
     public void discoverable(PluginCall call) {
         try {
+            if (Build.VERSION.SDK_INT >= 31 &&
+                getContext().checkSelfPermission(Manifest.permission.BLUETOOTH_ADVERTISE)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissionForAlias("bt", call, "discoverableAfterPerm");
+                return;
+            }
+            doDiscoverable(call);
+        } catch (Exception e) { call.reject("no visible: " + e.getMessage(), e); }
+    }
+
+    @PermissionCallback
+    private void discoverableAfterPerm(PluginCall call) {
+        doDiscoverable(call);
+    }
+
+    private void doDiscoverable(PluginCall call) {
+        try {
+            startSvc();
             Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(i); call.resolve();
-        } catch (Exception e) { call.reject("no visible", e); } }
+            getContext().startActivity(i);
+            call.resolve();
+        } catch (Exception e) { call.reject("no visible: " + e.getMessage(), e); }
+    }
 
     private void startSvc() {
         Intent i = new Intent(getContext(), TribalBtService.class);

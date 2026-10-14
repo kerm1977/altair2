@@ -71,17 +71,32 @@ window.TribalBtNet = (function () {
         });
     }
 
-    function scan() {
-        if (nativeOn) return BT.scan();
-        fakePeers = {};
+    function scan(userGesture) {
+        if (nativeOn) {
+            return (BT.ensurePerms ? BT.ensurePerms() : Promise.resolve())
+                .then(function () { return BT.scan(); });
+        }
         post({ type: 'hello', name: 'Tribu ' + tabId.slice(-4) });
-        setTimeout(function () { emit({ type: 'scanDone' }); }, 1500);
+        if (userGesture && navigator.bluetooth && navigator.bluetooth.requestDevice) {
+            navigator.bluetooth.requestDevice({ acceptAllDevices: true })
+                .then(function (dev) {
+                    var a = dev.id || dev.name || 'ble_dev';
+                    var nm = dev.name || 'Dispositivo Bluetooth (' + String(a).slice(0, 6) + ')';
+                    fakePeers[a] = { name: nm, addr: a, kind: 'bt', connected: true };
+                    emit({ type: 'device', name: nm, addr: a, kind: 'bt', bonded: true, connected: true });
+                    emit({ type: 'peer', state: 'open', name: nm, addr: a, kind: 'bt' });
+                }).catch(function () {});
+        }
+        setTimeout(function () { emit({ type: 'scanDone' }); }, 900);
         return Promise.resolve();
     }
 
     // "invitación": hacer visible (nativo) / re-anunciarse (web)
     function invite() {
-        if (nativeOn) return BT.discoverable();
+        if (nativeOn) {
+            return (BT.ensurePerms ? BT.ensurePerms() : Promise.resolve())
+                .then(function () { return BT.discoverable(); });
+        }
         post({ type: 'hello', name: 'Tribu ' + tabId.slice(-4) });
         return Promise.resolve();
     }

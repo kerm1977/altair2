@@ -759,19 +759,122 @@
     border-color: var(--tb-gold, #f0b429);
 }
 
+.btm-cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.btm-cat {
+    flex: 1 1 calc(25% - 8px);
+    min-width: 120px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(240, 180, 41, 0.22);
+    color: var(--tb-cream, #f3e6cf);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btm-cat i {
+    color: var(--tb-gold, #f0b429);
+    font-size: 1rem;
+}
+
+.btm-cat span {
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.btm-cat em {
+    font-style: normal;
+    font-size: 0.74rem;
+    padding: 2px 7px;
+    border-radius: 99px;
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--tb-muted, #b99b82);
+}
+
+.btm-cat.on {
+    background: linear-gradient(135deg, rgba(226, 96, 46, 0.35), rgba(240, 180, 41, 0.25));
+    border-color: var(--tb-gold, #f0b429);
+    color: #fff;
+}
+
+.btm-cat.on em {
+    background: var(--tb-gold, #f0b429);
+    color: #160e07;
+    font-weight: 800;
+}
+
 .btm-status-bar {
     margin: 0;
-    padding: 8px 12px;
-    border-radius: 10px;
-    background: rgba(0, 0, 0, 0.35);
-    font-size: 0.78rem;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px solid rgba(240, 180, 41, 0.18);
+    font-size: 0.8rem;
     color: var(--tb-gold, #f0b429);
 }
 
 .btm-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+}
+
+.btm-empty {
+    padding: 28px 18px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(240, 180, 41, 0.25);
+    text-align: center;
+    color: var(--tb-cream, #f3e6cf);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.btm-empty i {
+    font-size: 2rem;
+    color: var(--tb-gold, #f0b429);
+}
+
+.btm-empty p {
+    margin: 0;
+    font-weight: 700;
+}
+
+.btm-empty small {
+    color: var(--tb-muted, #b99b82);
+    max-width: 340px;
+}
+
+.btm-ico-wrap {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(240, 180, 41, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.btm-row-acts {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .btm-sec {
