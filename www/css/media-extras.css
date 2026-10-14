@@ -1016,7 +1016,13 @@
 .tribal-batch-tools .tribal-btn { flex: none; }
 
 /* ===== administrador de archivos ===== */
-.fm-roots { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+/* [hidden] le gana a display:flex/grid — sin este guard la vista detalle
+   y las barras de selección quedaban SIEMPRE pintadas encima del listado */
+.tribal-p2p [hidden] { display: none !important; }
+/* cuerpo en columna con separación uniforme (flexbox, responsivo) */
+.fm-body { display: flex; flex-direction: column; gap: 10px; }
+.fm-body > * { margin-top: 0; margin-bottom: 0; }
+.fm-roots { display: flex; flex-wrap: wrap; gap: 6px; }
 .fm-root { flex: none; }
 .fm-crumb {
     display: flex; flex-wrap: wrap; align-items: center;

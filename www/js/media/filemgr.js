@@ -117,7 +117,7 @@ window.TribalFiles = (function () {
             '<i class="bi bi-folder2-open"></i>' +
             '<strong id="fm-title">Administrador de archivos</strong>' +
         '</div>' +
-        '<div class="lk-body">' +
+        '<div class="lk-body fm-body">' +
             '<div class="fm-roots" id="fm-roots">' +
                 ROOTS.map(function (r, i) {
                     return '<button class="tribal-btn tribal-btn-xs fm-root"' +

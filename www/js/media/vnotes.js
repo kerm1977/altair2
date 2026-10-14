@@ -1,7 +1,7 @@
 // === media/vnotes.js — Notas de audio (grabador tipo podcast) ==========
 // Mic: toca→graba / grabando→pausa / pausa→reanuda. Stop → confirmación:
 // guardar / seguir / eliminar (2ª confirmación). Guarda «Mi grabación N»
-// con info.vn=1. Viz: vnotesviz.js · Editor: TribalVNoteFX (vnotesfx.js).
+// con info.vn=1. Viz: vnotesviz.js · fila/acciones: vnotesrow.js.
 window.TribalVNotes = (function () {
     'use strict';
     var ov, deps, rec, stream, viz, chunks, tickT, mime,
@@ -190,9 +190,5 @@ window.TribalVNotes = (function () {
         if (ov) close(); build();
         elapsed = 0; setState('idle'); fillList();
     }
-    // editor de la nota guardada → módulo aparte (vnotesfx.js)
-    function edit(m, d) {
-        if (window.TribalVNoteFX) TribalVNoteFX.open(m, d);
-        else (d.toast || function () {})('Editor no disponible'); }
-    return { open: open, edit: edit };
+    return { open: open };
 })();

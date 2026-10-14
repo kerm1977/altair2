@@ -1,6 +1,6 @@
 // === media/vnotesdsp.js — DSP de notas de audio ===========================
 // decode/slice/paste/wav/render offline: EQ tribal, fades, echo y pista
-// ambiental. Usado por vnotesfx.js — sin UI. API: TribalVDSP.*
+// ambiental. Usado por vnotesrow.js (exportar) — sin UI. API: TribalVDSP.*
 // =========================================================================
 window.TribalVDSP = (function () {
     'use strict';
