@@ -158,15 +158,13 @@ window.Sono.register('render', function (S) {
         S.empty.classList.toggle('d-none', list.length > 0);
         S.gridWrap.classList.toggle('d-none', list.length === 0);
 
-        // búsqueda global: agrupar por tipo (música, videos, fotos, libros…)
-        if (S.query) {
-            var order = ['audio', 'video', 'image', 'doc', 'other'];
-            var grouped = [];
-            order.forEach(function (k) {
-                list.forEach(function (m) { if (m.kind === k) grouped.push(m); });
-            });
-            list = grouped;
-        }
+        // secciones por tipo: búsqueda global · «Todo» (orden elegido en el
+        // botón junto al trigger) · «Música» (grabaciones aparte al final)
+        var SEC = window.TribalSections;
+        var grpOf = SEC ? SEC.grpOf : function (m) { return m.kind; };
+        var sec = SEC ? SEC.apply(list, S) : { list: list, secs: null };
+        list = sec.list;
+        var secOrder = sec.secs;
 
         // vista de lista: todo en una sola página — sin paginación
         var listView = !!S.listMode;
@@ -187,18 +185,19 @@ window.Sono.register('render', function (S) {
         var pageList = listView ? list
             : list.slice(S.page * PAGE, S.page * PAGE + PAGE);
 
-        var KIND_PLURAL = { audio: 'Audios', video: 'Videos', image: 'Fotos',
-                            doc: 'Libros', other: 'Archivos' };
         var lastKind = null;
         pageList.forEach(function (m, i) {
-            // separador naranja al cambiar de tipo (solo en búsqueda global)
-            if (S.query && m.kind !== lastKind) {
-                lastKind = m.kind;
-                var sep = document.createElement('div');
-                sep.className = 'tribal-kind-sep';
-                sep.innerHTML = '<i></i><span>' +
-                    (KIND_PLURAL[m.kind] || 'Archivos') + '</span><i></i>';
-                S.grid.appendChild(sep);
+            // separador centrado con hr al cambiar de sección
+            if (secOrder) {
+                var gk = grpOf(m);
+                if (gk !== lastKind) {
+                    lastKind = gk;
+                    var sep = document.createElement('div');
+                    sep.className = 'tribal-kind-sep';
+                    sep.innerHTML = '<i></i><span>' +
+                        (SEC ? SEC.label(gk) : 'Archivos') + '</span><i></i>';
+                    S.grid.appendChild(sep);
+                }
             }
 
             // ---------- fila compacta (vista de lista) ----------
