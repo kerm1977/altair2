@@ -171,35 +171,68 @@ window.Sono.register('viewmenu', function (S) {
 
     $('vm-stats').addEventListener('click', function () {
         viewMenu.hidden = true;
-        var n = { audio: 0, video: 0, image: 0, other: 0 }, size = 0, favs = 0;
+        var n = {}, size = 0, favs = 0;
         S.items.forEach(function (m) {
-            n[m.kind] = (n[m.kind] || 0) + 1;
+            var g = window.TribalSections ? window.TribalSections.grpOf(m)
+                                        : m.kind;
+            n[g] = (n[g] || 0) + 1;
             size += m.size || 0;
             if (m.fav) favs++;
         });
         var cols = window.MediaStore.listCollections().length;
+        var CARDS = [
+            ['audio', 'bi-music-note-beamed', 'Música'],
+            ['grab',  'bi-mic-fill',          'Mis grabaciones'],
+            ['video', 'bi-camera-video-fill', 'Videos'],
+            ['image', 'bi-image-fill',        'Imágenes'],
+            ['doc',   'bi-book-half',         'Documentos'],
+            ['other', 'bi-file-earmark',      'Otros']
+        ];
+        $('stats-cards').innerHTML =
+            CARDS.filter(function (c) { return n[c[0]]; })
+                 .map(function (c) {
+                     return '<div class="stats-card"><i class="bi ' + c[1] +
+                         '"></i><b>' + n[c[0]] + '</b><span>' + c[2] +
+                         '</span></div>';
+                 }).join('') +
+            '<div class="stats-card"><i class="bi bi-heart-fill"></i><b>' +
+                favs + '</b><span>Favoritos</span></div>' +
+            '<div class="stats-card"><i class="bi bi-collection-fill"></i><b>' +
+                cols + '</b><span>Colecciones</span></div>' +
+            '<div class="stats-card"><i class="bi bi-hdd-fill"></i><b>' +
+                S.fmtSize(size) + '</b><span>Espacio usado</span></div>';
         var rowHtml = function (k, v) {
             return '<div class="tmeta-row"><span>' + S.esc(k) + '</span><b>' + S.esc(v) + '</b></div>';
         };
-        statsRows.innerHTML =
-            rowHtml('Música', n.audio) + rowHtml('Videos', n.video) +
-            rowHtml('Fotos', n.image) + (n.other ? rowHtml('Otros', n.other) : '') +
-            rowHtml('Favoritos', favs) + rowHtml('Colecciones', cols) +
-            rowHtml('Espacio usado', S.fmtSize(size));
+        statsRows.innerHTML = '';
+        $('stats-files').innerHTML =
+            '<p class="stats-loading">Leyendo almacenamiento…</p>';
         window.MediaStore.storageInfo().then(function (si) {
-            statsRows.innerHTML +=
-                rowHtml('Almacenamiento', si.mode) +
-                rowHtml('Ubicación', si.base) +
-                '<div class="stats-files">' +
-                    si.files.map(function (f) {
-                        return '<p><b>' + S.esc(f.name) + '</b><span>' +
-                            S.esc(f.path) + ' · ' + S.fmtSize(f.size) + '</span></p>';
-                    }).join('') +
-                '</div>';
+            statsRows.innerHTML =
+                rowHtml('Modo', si.mode) + rowHtml('Ubicación', si.base);
+            $('stats-files').innerHTML =
+                si.files.map(function (f) {
+                    return '<p><b>' + S.esc(f.name) + '</b><span>' +
+                        S.esc(f.path) + ' · ' + S.fmtSize(f.size) + '</span></p>';
+                }).join('') ||
+                '<p class="stats-loading">Sin archivos nativos</p>';
         });
         statsOv.hidden = false;
     });
-    $('stats-ok').addEventListener('click', function () { statsOv.hidden = true; });
+    // «Volver» cierra la página y aterriza en «Todo»: selecciona el tab
+    // y lo centra horizontalmente en la barra de accesos
+    $('stats-back').addEventListener('click', function () {
+        statsOv.hidden = true;
+        var todo = $('tab-all');
+        if (todo) {
+            todo.click();
+            try {
+                todo.scrollIntoView({ block: 'nearest', inline: 'center' });
+            } catch (e) {
+                todo.scrollIntoView(false);
+            }
+        }
+    });
     statsOv.addEventListener('click', function (e) {
         if (e.target === statsOv) statsOv.hidden = true;
     });

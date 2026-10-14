@@ -418,13 +418,21 @@
         </label>
     </div>
 
-    <!-- Diálogo: estadísticas -->
-    <div class="tribal-overlay" id="stats-overlay" hidden>
-        <div class="tribal-dialog">
-            <h4>Estadísticas</h4>
-            <div class="tmeta-rows" id="stats-rows"></div>
-            <div class="tribal-dialog-actions">
-                <button class="tribal-btn primary" id="stats-ok">Cerrar</button>
+    <!-- Página completa: estadísticas -->
+    <div class="tribal-overlay tribal-p2p-ov" id="stats-overlay" hidden>
+        <div class="tribal-p2p stats-page">
+            <div class="tribal-p2p-head">
+                <button class="tribal-ctrl lk-back" id="stats-back" title="Volver">
+                    <i class="bi bi-arrow-left"></i><span>Volver</span></button>
+                <i class="bi bi-bar-chart-fill"></i>
+                <strong>Estadísticas de la tribu</strong>
+            </div>
+            <div class="stats-body">
+                <div class="stats-cards" id="stats-cards"></div>
+                <h5 class="stats-h">Almacenamiento</h5>
+                <div class="tmeta-rows stats-rows" id="stats-rows"></div>
+                <h5 class="stats-h">Archivos</h5>
+                <div class="stats-files" id="stats-files"></div>
             </div>
         </div>
     </div>
