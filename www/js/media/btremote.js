@@ -1,7 +1,8 @@
 // === media/btremote.js (<= 200 líneas): Control Remoto & Trackpad Inteligente ===
 window.TribalRemote = (function () {
     'use strict';
-    var N = window.TribalBtNet;
+    var N = null;
+    function net() { if (!N) N = window.TribalBtNet; return N; }
     var ov = null, deps = {}, tab = 'pad', targetIp = '', showDevs = true;
     var btDevs = {}, btPeers = {}, wifiNets = [], wifiDevs = {}, wifiInfo = {};
     var curEl = null, curX = 180, curY = 260, hideCurT = null;
@@ -68,7 +69,7 @@ window.TribalRemote = (function () {
         else if (d.type === 'scanDone') renderDevs();
     }
     function refreshAll(fromUser) {
-        if (!N) return;
+        if (!net()) return;
         var saved = N.favs ? N.favs() : {};
         Object.keys(saved).forEach(function (a) { btDevs[a] = { addr: a, name: saved[a].name || a }; });
         renderDevs();
@@ -100,7 +101,7 @@ window.TribalRemote = (function () {
         box.hidden = !showDevs;
         var html = '<div class="rc-dev-actions"><button type="button" class="tribal-btn tribal-btn-xs primary" id="rc-scan-now"><i class="bi bi-radar"></i> Buscar BT y Wi-Fi</button><button type="button" class="tribal-btn tribal-btn-xs" id="rc-vis-now"><i class="bi bi-broadcast"></i> Hacerme visible</button><button type="button" class="tribal-btn tribal-btn-xs" id="rc-wifi-cfg"><i class="bi bi-wifi"></i> Wi-Fi / Hotspot</button></div>';
         Object.keys(btDevs).forEach(function (a) {
-            var d = btDevs[a], isC = !!btPeers[a], fav = N.isFav(a);
+            var d = btDevs[a], isC = !!btPeers[a], fav = N && N.isFav(a);
             html += '<div class="btm-row' + (isC ? ' on' : '') + '"><i class="bi bi-bluetooth btm-ico"></i><div class="btm-info"><b>' + esc(d.name || a) + '</b><small>' + (fav ? '★ Favorito auto · ' : '') + (isC ? 'Conectado' : 'Disponible') + '</small></div>' +
                 '<button class="tribal-ctrl np-doc-fav' + (fav ? ' on' : '') + '" data-rfav="' + esc(a) + '" data-rname="' + esc(d.name || a) + '"><i class="bi ' + (fav ? 'bi-star-fill' : 'bi-star') + '"></i></button>' +
                 '<button class="tribal-btn tribal-btn-xs ' + (isC ? '' : 'primary') + '" data-rconn="' + esc(a) + '" data-rname="' + esc(d.name || a) + '">' + (isC ? 'Activo' : 'Conectar') + '</button></div>';
@@ -119,7 +120,7 @@ window.TribalRemote = (function () {
         for (var i = 0; i < 8; i++) rays += '<polygon points="100,2 104,13 96,13" transform="rotate(' + (i * 45) + ' 100 100)"/>';
         return '<svg class="rc-wheel-ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="none" stroke="#f0b429" stroke-width="2" stroke-dasharray="6 6"/><circle cx="100" cy="100" r="88" fill="none" stroke="#e2602e" stroke-width="1.5" stroke-dasharray="3 8"/><g fill="#e2602e">' + rays + '</g></svg>';
     }
-    function initListener(sono) { if (sono) deps.sono = sono; if (N) N.init(onNetEvt); }
+    function initListener(sono) { if (sono) deps.sono = sono; var n = net(); if (n) n.init(onNetEvt); }
 
     function open(d) {
         deps = d || deps || {}; initListener(deps.sono);
