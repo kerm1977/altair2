@@ -341,8 +341,18 @@
 .tribal-vinyl-volrange {
     flex: 1; appearance: none; -webkit-appearance: none;
     height: 7px; border-radius: 999px;
-    background: linear-gradient(90deg, var(--tb-terra), var(--tb-gold));
+    /* vacío: gris a la derecha del thumb; la parte llena la pinta
+       paintVol() por JS (WebKit) y ::-moz-range-progress (Firefox) */
+    background: rgba(255,255,255,.14);
     outline: none; cursor: pointer;
+}
+.tribal-vinyl-volrange::-moz-range-track {
+    height: 7px; border-radius: 999px;
+    background: rgba(255,255,255,.14);
+}
+.tribal-vinyl-volrange::-moz-range-progress {
+    height: 7px; border-radius: 999px;
+    background: linear-gradient(90deg, var(--tb-terra), var(--tb-gold));
 }
 .tribal-vinyl-volrange::-webkit-slider-thumb {
     -webkit-appearance: none;

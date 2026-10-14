@@ -121,6 +121,7 @@ window.TribalVinyl = (function () {
             if (!el) return;
             el.muted = false;
             el.volume = volRange.value / 100;
+            paintVol();
         });
         bar.addEventListener('click', function (e) {
             if (!el || !el.duration) return;
@@ -149,7 +150,10 @@ window.TribalVinyl = (function () {
                 var v = Math.max(0, Math.min(1,
                     gV0 - dy / ov.clientHeight * 1.6));
                 el.muted = false; el.volume = v;
-                if (volRange) volRange.value = Math.round(v * 100);
+                if (volRange) {
+                    volRange.value = Math.round(v * 100);
+                    paintVol();
+                }
             }
         });
         function gUp(e) {
@@ -166,6 +170,15 @@ window.TribalVinyl = (function () {
         ov.addEventListener('pointercancel', gUp);
     }
 
+    // relleno de la barra: dorado a la izquierda del thumb, gris a la
+    // derecha (WebKit por JS; Firefox usa ::-moz-range-progress encima)
+    function paintVol() {
+        if (!volRange) return;
+        var v = +volRange.value;
+        volRange.style.background =
+            'linear-gradient(90deg, var(--tb-terra) 0%, var(--tb-gold) ' +
+            v + '%, rgba(255,255,255,.14) ' + v + '%)';
+    }
     function sync() {
         if (!el) return;
         btnPlay.innerHTML = el.paused ? '<i class="bi bi-play-fill"></i>' : '<i class="bi bi-pause-fill"></i>';
@@ -201,7 +214,10 @@ window.TribalVinyl = (function () {
         el = opts.el;
         cb = { onPrev: opts.onPrev, onNext: opts.onNext, onClose: opts.onClose,
                prefs: opts.prefs, onPref: opts.onPref };
-        if (volRange && el) volRange.value = Math.round((el.volume != null ? el.volume : 1) * 100);
+        if (volRange && el) {
+            volRange.value = Math.round((el.volume != null ? el.volume : 1) * 100);
+            paintVol();
+        }
         var m = opts.meta || {};
         var info = m.info || {};
         titleEl.textContent = info.titulo || m.name || '—';
