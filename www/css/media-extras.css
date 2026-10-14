@@ -1585,9 +1585,24 @@
     color: var(--tb-cream); font-size: 0.75rem;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* etiqueta de archivo incluido de fábrica (builtin/…) */
+.stats-btag {
+    font-weight: 400; font-size: 0.56rem; letter-spacing: .04em;
+    color: var(--tb-terra); border: 1px solid var(--tb-terra);
+    border-radius: 6px; padding: 0 4px; vertical-align: middle;
+}
+/* la ruta exacta está OCULTA: aparece con long-press en la fila */
 .stats-finfo span {
-    color: var(--tb-muted); font-size: 0.62rem;
+    display: none;
+    color: var(--tb-terra); font-size: 0.62rem;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stats-file.showpath .stats-finfo span { display: block; }
+.stats-file.showpath { background: rgba(201,124,58,.12); }
+.stats-fhint {
+    flex: none; margin: 0; padding: 4px 14px 0;
+    color: var(--tb-muted); font-size: 0.62rem; text-align: center;
+    opacity: .8;
 }
 .stats-file em {
     font-style: normal; flex: none;

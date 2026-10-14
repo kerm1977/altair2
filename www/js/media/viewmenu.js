@@ -323,9 +323,12 @@ window.Sono.register('viewmenu', function (S) {
                 html += '<div class="stats-fgrp">' + SGRP_LBL[g] + '</div>';
                 last = g;
             }
+            var builtin = /^builtin\//.test(f.path || '');
             html += '<div class="stats-file"><i class="bi ' +
                 (STAT_ICO[g] || 'bi-file-earmark') + '"></i>' +
                 '<div class="stats-finfo"><b>' + S.esc(f.name) +
+                (builtin ? ' <span class="stats-btag">incluida</span>'
+                         : '') +
                 '</b><span>' + S.esc(f.path) + '</span></div>' +
                 '<em>' + S.fmtSize(f.size) + '</em></div>';
         });
@@ -346,6 +349,32 @@ window.Sono.register('viewmenu', function (S) {
         fpage++;
         renderStatsFiles();
     });
+    // long-press (~450 ms) sobre un archivo revela/oculta su ruta exacta
+    (function () {
+        var box = $('stats-files');
+        var t = null, x = 0, y = 0;
+        box.addEventListener('pointerdown', function (e) {
+            var r = e.target.closest('.stats-file');
+            x = e.clientX; y = e.clientY;
+            clearTimeout(t); t = null;
+            if (!r) return;
+            t = setTimeout(function () {
+                r.classList.toggle('showpath');
+            }, 450);
+        });
+        box.addEventListener('pointerup', function () {
+            clearTimeout(t); t = null;
+        });
+        box.addEventListener('pointercancel', function () {
+            clearTimeout(t); t = null;
+        });
+        box.addEventListener('pointermove', function (e) {
+            if (t && (Math.abs(e.clientX - x) > 10 ||
+                      Math.abs(e.clientY - y) > 10)) {
+                clearTimeout(t); t = null;
+            }
+        });
+    })();
 
     // «Archivos guardados» → panel emergente con fondo difuminado
     var statsFov = $('stats-fov');
