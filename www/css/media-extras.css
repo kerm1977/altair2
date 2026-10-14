@@ -1504,120 +1504,124 @@
     color: var(--tb-muted); font-size: 0.7rem;
 }
 .stats-fopen-arrow { margin-left: 0; opacity: .6; }
-/* panel emergente: blur cubre TODO lo demás — la lista se lee limpia */
+/* ============ panel «Archivos guardados» — hoja limpia ============
+   CERO líneas divisoras duras: la separación es por espacio y fondos
+   suaves, nunca por bordes apilados. En móvil sube como bottom-sheet;
+   en PC es una tarjeta centrada flotante. */
 .stats-fov {
     position: fixed; inset: 0; z-index: 80;
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px;
+    display: flex; align-items: flex-end; justify-content: center;
     background: rgba(8, 4, 1, 0.55);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
 .stats-fov[hidden] { display: none !important; }
 .stats-fov-card {
-    width: 100%; max-width: 560px; max-height: 80dvh;
+    width: 100%; max-width: 560px; max-height: 86dvh;
     display: flex; flex-direction: column;
-    background: linear-gradient(165deg, #241408, #160e07);
-    border: 1px solid var(--tb-gold); border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.7);
+    background: linear-gradient(180deg, #221407, #140d06);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -14px 50px rgba(0,0,0,.65);
     overflow: hidden;
-    animation: stats-fov-in .2s ease-out;
+    animation: stats-fov-in .22s ease-out;
+}
+@media (min-width: 641px) {
+    .stats-fov { align-items: center; padding: 24px; }
+    .stats-fov-card {
+        border-radius: 20px; max-height: 80dvh;
+        box-shadow: 0 24px 60px rgba(0,0,0,.7);
+    }
 }
 @keyframes stats-fov-in {
-    from { transform: translateY(16px) scale(.97); opacity: 0; }
+    from { transform: translateY(24px); opacity: 0; }
     to   { transform: none; opacity: 1; }
 }
+/* cabecera: ícono + título + cerrar — sin línea debajo */
 .stats-fov-head {
     flex: none; display: flex; align-items: center; gap: 10px;
-    padding: 12px 14px; border-bottom: 2px solid var(--tb-gold);
+    padding: 16px 16px 8px;
 }
-.stats-fov-head > i { color: var(--tb-gold); }
+.stats-fov-head > i { color: var(--tb-gold); font-size: 1rem; }
 .stats-fov-head strong {
-    flex: 1; color: var(--tb-cream); font-size: 0.85rem;
-    letter-spacing: .06em;
+    flex: 1; min-width: 0; color: var(--tb-cream); font-size: 0.92rem;
+    letter-spacing: .05em;
 }
-/* buscador en vivo del panel */
+/* buscador en vivo: píldora contenida, sin línea divisoria */
 .stats-fbar {
     flex: none; display: flex; align-items: center; gap: 8px;
-    padding: 8px 14px; border-bottom: 1px solid var(--tb-border);
+    padding: 2px 16px 8px;
 }
-.stats-fbar i { color: var(--tb-gold); font-size: 0.85rem; }
+.stats-fbar i { color: var(--tb-gold); font-size: 0.9rem; flex: none; }
 .stats-fbar input {
-    flex: 1; min-width: 0; height: 30px; outline: none;
-    border-radius: 8px; border: 1px solid var(--tb-border);
-    background: rgba(0,0,0,.35); color: var(--tb-cream);
-    padding: 0 10px; font-size: 0.78rem;
+    flex: 1; min-width: 0; height: 36px; outline: none;
+    border: none; border-radius: 18px;
+    background: rgba(0,0,0,.4); color: var(--tb-cream);
+    padding: 0 14px; font-size: 0.8rem;
 }
-.stats-fbar input:focus { border-color: var(--tb-gold); }
-/* encabezado de grupo dentro de la lista (Música, Videos…) — con aire
-   suficiente para que una fila revelada nunca se le monte encima */
+.stats-fbar input::placeholder { color: var(--tb-muted); }
+.stats-fbar input:focus { box-shadow: 0 0 0 1.5px var(--tb-gold); }
+.stats-fhint {
+    flex: none; margin: 0; padding: 0 20px 8px;
+    color: var(--tb-muted); font-size: 0.62rem; opacity: .7;
+}
+/* lista con su scroll interno, sin encadenarse al fondo */
+.stats-files {
+    flex: 1; min-height: 0; overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex; flex-direction: column;
+    padding: 2px 10px 14px;
+}
+/* título de grupo: solo texto espaciado, sin ninguna raya */
 .stats-fgrp {
-    margin-top: 6px;
-    padding: 10px 2px 6px; font-size: 0.66rem; font-weight: 800;
-    letter-spacing: .1em; text-transform: uppercase;
+    margin: 14px 6px 4px; font-size: 0.64rem; font-weight: 800;
+    letter-spacing: .15em; text-transform: uppercase;
     color: var(--tb-terra);
-    border-bottom: 1px solid var(--tb-border);
 }
+.stats-files > .stats-fgrp:first-child { margin-top: 4px; }
+/* fila: plana, redondeada; el toque solo la tiñe suavemente */
 .stats-file {
     display: flex; align-items: center; gap: 10px;
-    padding: 7px 4px;
-    border-bottom: 1px solid rgba(90, 58, 28, 0.35);
+    padding: 8px; border-radius: 10px;
     /* sin selección de texto: el long-press del WebView la activaba y el
        texto seleccionado flotaba encima del título de la sección */
     user-select: none; -webkit-user-select: none;
     -webkit-touch-callout: none;
 }
-.stats-file:last-child { border-bottom: none; }
-/* al revelar la ruta la fila se convierte en tarjeta — separada de todo */
-.stats-file.showpath {
-    margin: 4px 0; padding: 8px 8px;
-    border: 1px solid var(--tb-terra); border-radius: 8px;
-    background: rgba(201,124,58,.12);
-}
-/* paginador: 20 en 20 */
-.stats-fpager {
-    flex: none; display: flex; align-items: center;
-    justify-content: center; gap: 12px;
-    padding: 8px 14px; border-top: 1px solid var(--tb-border);
-}
-.stats-fpager .tribal-btn { flex: none; width: 34px; padding: 6px 0; }
-.stats-fpager span {
-    color: var(--tb-muted); font-size: 0.75rem; min-width: 44px;
-    text-align: center;
-}
-.stats-files {
-    display: flex; flex-direction: column;
-    padding: 6px 14px 12px; overflow-y: auto; flex: 1; min-height: 0;
-}
+.stats-file:active { background: rgba(212,160,82,.07); }
 .stats-file > i { color: var(--tb-gold); font-size: 0.95rem; flex: none; }
 .stats-finfo {
-    flex: 1; min-width: 0; display: flex; flex-direction: column;
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
 }
 .stats-finfo b {
-    color: var(--tb-cream); font-size: 0.75rem;
+    color: var(--tb-cream); font-size: 0.76rem; font-weight: 600;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* etiqueta de archivo incluido de fábrica (builtin/…) */
+/* etiqueta «incluida»: texto plano terracota, sin cajita */
 .stats-btag {
-    font-weight: 400; font-size: 0.56rem; letter-spacing: .04em;
-    color: var(--tb-terra); border: 1px solid var(--tb-terra);
-    border-radius: 6px; padding: 0 4px; vertical-align: middle;
+    font-weight: 400; font-size: 0.62rem; letter-spacing: .03em;
+    color: var(--tb-terra);
 }
-/* la ruta exacta está OCULTA: aparece con long-press en la fila */
+/* la ruta exacta está OCULTA: el long-press la revela como texto bajo
+   el nombre — crece hacia abajo en flujo normal, jamás sobre el título */
 .stats-finfo span {
-    display: none;
-    color: var(--tb-terra); font-size: 0.62rem;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: none; color: var(--tb-terra); font-size: 0.62rem;
+    line-height: 1.4; word-break: break-all;
 }
+.stats-file.showpath { background: rgba(201,124,58,.10); }
 .stats-file.showpath .stats-finfo span { display: block; }
-.stats-fhint {
-    flex: none; margin: 0; padding: 4px 14px 0;
-    color: var(--tb-muted); font-size: 0.62rem; text-align: center;
-    opacity: .8;
-}
 .stats-file em {
     font-style: normal; flex: none;
     color: var(--tb-teal); font-size: 0.7rem;
+}
+/* paginador: 20 en 20, centrado, sin línea superior */
+.stats-fpager {
+    flex: none; display: flex; align-items: center;
+    justify-content: center; gap: 16px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+}
+.stats-fpager .tribal-btn { flex: none; width: 36px; padding: 7px 0; }
+.stats-fpager span {
+    color: var(--tb-muted); font-size: 0.74rem; min-width: 44px;
+    text-align: center;
 }
 
 /* sin barras de desplazamiento visibles en TODA la interfaz tribal —
