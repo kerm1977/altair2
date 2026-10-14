@@ -194,6 +194,12 @@ window.TribalCover = (function () {
             timer = setTimeout(function () {
                 timer = null;
                 S._lpBlock = true;
+                if (m.info && m.info.noteId && window.TribalNotepad &&
+                    window.TribalNotepad.openContextMenuForNoteId) {
+                    window.TribalNotepad.openContextMenuForNoteId(
+                        m.info.noteId, S.extDeps ? S.extDeps() : { mount: S.root, store: window.MediaStore, toast: S.showToast, confirm: S.confirm, reload: S.reload, items: S.items });
+                    return;
+                }
                 open(m, S);
             }, 550);
         });

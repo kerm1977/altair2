@@ -13,7 +13,7 @@ window.Sono.register('secorder', function (S) {
         image: { i: 'bi-image', t: 'Imágenes' },
         audio: { i: 'bi-music-note-beamed', t: 'Música' },
         video: { i: 'bi-camera-video', t: 'Videos' },
-        doc:   { i: 'bi-book', t: 'Documentos' },
+        doc:   { i: 'bi-book', t: 'Libros y notas' },
         other: { i: 'bi-file-earmark', t: 'Otros' }
     };
     try {

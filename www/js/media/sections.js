@@ -8,7 +8,7 @@
 window.TribalSections = (function () {
     'use strict';
     var LBL = { audio: 'Música', grab: 'Mis grabaciones', video: 'Videos',
-                image: 'Imágenes', doc: 'Documentos', other: 'Archivos' };
+                image: 'Imágenes', doc: 'Libros y notas', other: 'Archivos' };
 
     function isVN(m) {
         return (m.info && m.info.vn) || /^mi grabaci/i.test(m.name || '');

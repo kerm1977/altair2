@@ -327,8 +327,11 @@ window.Sono.register('menus', function (S) {
         // si es la foto abierta en el visor, lo cerramos
         if (S.imageItem && S.imageItem.id === id) S.closeImage();
         if (S.urlCache[id]) { try { URL.revokeObjectURL(S.urlCache[id]); } catch (e) {} delete S.urlCache[id]; }
+        var dm = S.byId(id);
+        var noteId = dm && dm.info && dm.info.noteId;
         var px = S.findProxy(id);
         window.MediaStore.remove(id).then(function () {
+            if (noteId && window.TribalNotepadIO) window.TribalNotepadIO.remove(noteId);
             if (px) return window.MediaStore.remove(px.id);
         }).then(function () {
             S.showToast('Devuelto a las cenizas');

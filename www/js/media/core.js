@@ -57,7 +57,7 @@ window.Sono = (function () {
 
         // ------------------------------------------------------------ estado
         S.KIND_ICON = { audio: 'bi-music-note-beamed', video: 'bi-camera-video-fill', image: 'bi-image-fill', doc: 'bi-book-half', other: 'bi-file-earmark' };
-        S.KIND_LABEL = { audio: 'Audio', video: 'Video', image: 'Foto', doc: 'Libro', other: 'Archivo' };
+        S.KIND_LABEL = { audio: 'Audio', video: 'Video', image: 'Foto', doc: 'Libro / Nota', other: 'Archivo' };
         S.SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
         S.REPEAT_LABEL = { off: 'desactivado', all: 'lista', one: 'una' };
 

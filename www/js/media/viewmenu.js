@@ -22,20 +22,23 @@ window.Sono.register('viewmenu', function (S) {
         };
     };
 
-    // abrir un libro con el lector (pdf/txt/epub)
+    // abrir un libro con el lector (pdf/txt/epub) o una nota en vivo
     S.openReader = function (m) {
+        if (m && m.info && m.info.noteId && window.TribalNotepad) {
+            return window.TribalNotepad.open(S.extDeps(), m.info.noteId);
+        }
         if (window.TribalReader) TribalReader.open(m, S.extDeps());
         else S.showToast('Lector no disponible');
     };
 
-    // Chat Bluetooth local (media/btchat*.js) — sobre Libros
+    // Chat Bluetooth local (media/btchat*.js) — sobre Libros y notas
     $('vm-btchat').addEventListener('click', function () {
         viewMenu.hidden = true;
         if (window.TribalBtChat) TribalBtChat.open(S.extDeps());
         else S.showToast('Chat Bluetooth no disponible');
     });
 
-    // Libros: filtro que antes era un tab — ahora vive aquí, sobre P2P
+    // Libros y notas: filtro en el menú
     $('vm-doc').addEventListener('click', function () {
         viewMenu.hidden = true;
         S.tabs.querySelectorAll('.tribal-tab').forEach(function (b) {
@@ -47,6 +50,15 @@ window.Sono.register('viewmenu', function (S) {
         S.page = 0;
         S.render();
     });
+
+    // Bloc de notas WYSIWYG en vivo
+    if ($('vm-notes')) {
+        $('vm-notes').addEventListener('click', function () {
+            viewMenu.hidden = true;
+            if (window.TribalNotepad) window.TribalNotepad.open(S.extDeps());
+            else S.showToast('Bloc de notas no disponible');
+        });
+    }
 
     // Notas de audio: grabador tipo podcast (media/vnotes*.js)
     $('vm-vnotes').addEventListener('click', function () {
@@ -220,9 +232,9 @@ window.Sono.register('viewmenu', function (S) {
             ['audio', 'bi-music-note-beamed', 'Música',      'go:tab-audio',      n.audio || 0, sz.audio],
             ['grab',  'bi-mic-fill',          'Grabaciones', 'go:tab-audio+grab', n.grab || 0,  sz.grab],
             ['video', 'bi-camera-video-fill', 'Videos',      'go:tab-video',      n.video || 0, sz.video],
-            ['image', 'bi-image-fill',        'Imágenes',    'go:tab-image',      n.image || 0, sz.image],
-            ['doc',   'bi-book-half',         'Documentos',  'f:doc',             n.doc || 0,   sz.doc],
-            ['other', 'bi-file-earmark',      'Otros',       'f:other',           n.other || 0, sz.other],
+            ['image', 'bi-image-fill',        'Imágenes',       'go:tab-image',      n.image || 0, sz.image],
+            ['doc',   'bi-book-half',         'Libros y notas', 'f:doc',             n.doc || 0,   sz.doc],
+            ['other', 'bi-file-earmark',      'Otros',          'f:other',           n.other || 0, sz.other],
             [null,    'bi-heart-fill',        'Favoritos',   'fav',               favs,         0],
             [null,    'bi-collection-fill',   'Colecciones', 'go:tab-cols',       cols,         0],
             [null,    'bi-hdd-fill',          'Espacio',     'to:store',          S.fmtSize(total), 0]
@@ -284,7 +296,7 @@ window.Sono.register('viewmenu', function (S) {
     var SGRP_ORD = ['audio', 'grab', 'video', 'image', 'doc', 'other'];
     var SGRP_LBL = { audio: 'Música', grab: 'Mis grabaciones',
                      video: 'Videos', image: 'Imágenes',
-                     doc: 'Documentos', other: 'Otros' };
+                     doc: 'Libros y notas', other: 'Otros' };
     function fileGrp(f) {
         return f.kind === 'audio' &&
                (f.vn || /^mi grabaci/i.test(f.name || ''))

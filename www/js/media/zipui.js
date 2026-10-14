@@ -7,7 +7,7 @@ window.TribalZipUI = (function () {
     'use strict';
     var ov, deps, sel = {};
     var FILTERS = [['all', 'Todo'], ['audio', 'Audio'], ['video', 'Video'],
-                   ['image', 'Imágenes'], ['doc', 'Libros/Docs'], ['other', 'Otros']];
+                   ['image', 'Imágenes'], ['doc', 'Libros y notas'], ['other', 'Otros']];
     function esc(s) {
         var E = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
         return String(s || '').replace(/[&<>"]/g, function (c) { return E[c]; });
