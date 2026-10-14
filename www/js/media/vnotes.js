@@ -45,6 +45,7 @@ window.TribalVNotes = (function () {
 
     function setState(s) {
         ctx.state = s;
+        if (viz && viz.setPaused) viz.setPaused(s === 'paused');
         var recB = ov.querySelector('#vn-rec'), stopB = ov.querySelector('#vn-stop');
         var st = ov.querySelector('#vn-state');
         recB.classList.toggle('live', s === 'rec');

@@ -20,13 +20,31 @@ window.TribalViz = (function () {
         src.connect(an);
         var data = new Uint8Array(an.fftSize);
         var g = canvas.getContext('2d');
-        var raf = null, ang = 0;
+        var raf = null, ang = 0, paused = false;
+
+        function drawPaused(w, h) {
+            var cx = w / 2, cy = h / 2;
+            var barW = Math.round(Math.min(w, h) * 0.11);
+            var barH = Math.round(Math.min(w, h) * 0.44);
+            var gap = Math.round(barW * 0.85);
+            g.save();
+            g.fillStyle = '#f0b429';
+            g.shadowColor = 'rgba(226, 96, 46, 0.55)';
+            g.shadowBlur = 16;
+            g.fillRect(Math.round(cx - gap / 2 - barW), Math.round(cy - barH / 2), barW, barH);
+            g.fillRect(Math.round(cx + gap / 2), Math.round(cy - barH / 2), barW, barH);
+            g.restore();
+        }
 
         function draw() {
             raf = requestAnimationFrame(draw);
-            an.getByteTimeDomainData(data);
             var w = canvas.width, h = canvas.height;
             g.clearRect(0, 0, w, h);
+            if (paused) {
+                drawPaused(w, h);
+                return;
+            }
+            an.getByteTimeDomainData(data);
 
             // nivel RMS 0..1 — conduce el pulso de los anillos
             var sum = 0, i, v;
@@ -76,6 +94,9 @@ window.TribalViz = (function () {
         }
         draw();
         return {
+            setPaused: function (p) {
+                paused = !!p;
+            },
             stop: function () {
                 if (raf) cancelAnimationFrame(raf);
                 try { src.disconnect(); ctx.close(); } catch (e) {}
