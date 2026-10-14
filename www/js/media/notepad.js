@@ -1099,9 +1099,14 @@ window.TribalNotepad = (function () {
     function wireEvents() {
         var canvas = ov.querySelector('#np-canvas');
         var titleEl = ov.querySelector('#np-title');
+        function onEl(sel, ev, fn) {
+            var el = ov && ov.querySelector(sel);
+            if (el) el.addEventListener(ev, fn);
+        }
+        if (!canvas || !titleEl) return;
 
         // Evitar perder selección al pulsar botones de la barra WYSIWYG
-        ov.querySelector('#np-toolbar').addEventListener('mousedown', function (e) {
+        onEl('#np-toolbar', 'mousedown', function (e) {
             if (e.target.closest('button')) e.preventDefault();
         });
 
@@ -1150,45 +1155,49 @@ window.TribalNotepad = (function () {
         });
 
         // Botón Volver y Texto completo
-        ov.querySelector('#np-back').addEventListener('click', function () {
+        onEl('#np-back', 'click', function () {
             if (!ov.querySelector('#np-edit-view').hidden && curNote) {
                 saveCurrentNoteAndSync(true).then(showListView);
                 return;
             }
             close();
         });
-        ov.querySelector('#np-read-btn').addEventListener('click', function () {
+        onEl('#np-read-btn', 'click', function () {
             var tb = ov.querySelector('#np-toolbar');
             tb.hidden = !tb.hidden;
             this.innerHTML = tb.hidden
                 ? '<i class="bi bi-sliders"></i><span>Herramientas</span>'
                 : '<i class="bi bi-arrows-fullscreen"></i><span>Texto completo</span>';
         });
-        ov.querySelector('#np-new-btn').addEventListener('click', function () {
+        onEl('#np-new-btn', 'click', function () {
             openNoteEditor(null);
         });
 
         // Buscador en vivo de notas y paginación cada 10 notas
         var searchAir = ov.querySelector('#np-note-search');
         var clearBtn = ov.querySelector('#np-search-clear');
-        searchAir.addEventListener('input', function () {
-            searchQuery = (this.innerText || this.textContent || '').trim();
-            currentPage = 0;
-            renderNotesList();
-        });
-        searchAir.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') e.preventDefault();
-        });
-        clearBtn.addEventListener('click', function () {
-            searchAir.textContent = '';
-            searchQuery = '';
-            currentPage = 0;
-            renderNotesList();
-        });
-        ov.querySelector('#np-prev-page').addEventListener('click', function () {
+        if (searchAir) {
+            searchAir.addEventListener('input', function () {
+                searchQuery = (this.innerText || this.textContent || '').trim();
+                currentPage = 0;
+                renderNotesList();
+            });
+            searchAir.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') e.preventDefault();
+            });
+        }
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                if (searchAir) searchAir.textContent = '';
+                searchQuery = '';
+                currentPage = 0;
+                renderNotesList();
+            });
+        }
+        onEl('#np-prev-page', 'click', function () {
             if (currentPage > 0) { currentPage--; renderNotesList(); }
         });
-        ov.querySelector('#np-next-page').addEventListener('click', function () {
+        onEl('#np-next-page', 'click', function () {
             currentPage++;
             renderNotesList();
         });
@@ -1227,7 +1236,7 @@ window.TribalNotepad = (function () {
         });
 
         // Dropdowns de Títulos, Alineación, Mayús/Minús e Interlineado
-        ov.querySelector('#np-dd-block').addEventListener('change', function () {
+        onEl('#np-dd-block', 'change', function () {
             var v = this.value;
             this.value = '';
             if (!v) return;
@@ -1237,25 +1246,25 @@ window.TribalNotepad = (function () {
             pushHistory();
             scheduleLiveSave();
         });
-        ov.querySelector('#np-dd-align').addEventListener('change', function () {
+        onEl('#np-dd-align', 'change', function () {
             var v = this.value;
             this.value = '';
             if (!v) return;
             applyAlignment(v);
         });
-        ov.querySelector('#np-dd-case').addEventListener('change', function () {
+        onEl('#np-dd-case', 'change', function () {
             var v = this.value;
             this.value = '';
             if (!v) return;
             transformSelectedCase(v);
         });
-        ov.querySelector('#np-dd-lh').addEventListener('change', function () {
+        onEl('#np-dd-lh', 'change', function () {
             if (!this.value) return;
             applyLineHeight(this.value);
         });
 
         // Barra de herramientas WYSIWYG
-        ov.querySelector('#np-toolbar').addEventListener('click', function (e) {
+        onEl('#np-toolbar', 'click', function (e) {
             var btn = e.target.closest('button');
             if (!btn) return;
             var cmd = btn.getAttribute('data-cmd');
@@ -1343,21 +1352,13 @@ window.TribalNotepad = (function () {
                 });
                 return;
             }
-            if (act === 'lh') {
-                var curLh = curNote.lineHeight || '1.5';
-                var nextLh = LINE_HEIGHTS[(LINE_HEIGHTS.indexOf(curLh) + 1) % LINE_HEIGHTS.length];
-                curNote.lineHeight = nextLh;
-                canvas.style.lineHeight = nextLh;
-                ov.querySelector('#np-lh-lbl').textContent = nextLh;
-                scheduleLiveSave();
-                return;
-            }
             if (act === 'ls') {
                 var curLs = curNote.letterSpacing || '0px';
                 var nextLs = LETTER_SPACINGS[(LETTER_SPACINGS.indexOf(curLs) + 1) % LETTER_SPACINGS.length];
                 curNote.letterSpacing = nextLs;
                 canvas.style.letterSpacing = nextLs;
-                ov.querySelector('#np-ls-lbl').textContent = nextLs;
+                var lsLbl = ov.querySelector('#np-ls-lbl');
+                if (lsLbl) lsLbl.textContent = nextLs;
                 scheduleLiveSave();
                 return;
             }
