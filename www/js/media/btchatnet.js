@@ -15,7 +15,7 @@ window.TribalBtNet = (function () {
     function saveFavs(map) { try { localStorage.setItem(FAV_KEY, JSON.stringify(map || {})); } catch (e) {} }
     function isFav(addr) { var f = favs(); return !!(addr && f[addr] && f[addr].fav !== false); }
 
-    function setFav(addr, name, kind, favFlag) {
+    function setFav(addr, name, kind, favFlag, extra) {
         if (!addr) return;
         var f = favs(), prev = f[addr] || {};
         f[addr] = {
@@ -23,6 +23,7 @@ window.TribalBtNet = (function () {
             kind: kind || prev.kind || 'bt',
             fav: favFlag == null ? true : !!favFlag, ts: Date.now()
         };
+        if (extra) for (var k in extra) f[addr][k] = extra[k];
         saveFavs(f);
     }
     function toggleFav(addr, name, kind) {
@@ -180,13 +181,18 @@ window.TribalBtNet = (function () {
         if (nativeOn && BT.wifiSend) return BT.wifiSend({ msg: s, ip: toIp || '255.255.255.255' });
         return Promise.resolve();
     }
+    function wifiConnect(o) {
+        if (nativeOn && BT.wifiConnect) return ensurePerms().then(function () { return BT.wifiConnect(o); });
+        return Promise.reject(new Error('wifi solo en la app'));
+    }
+    function wifiForget(ssid) { return (nativeOn && BT.wifiForget) ? BT.wifiForget({ ssid: ssid }) : Promise.resolve(); }
 
     return {
         isNative: isNative, init: init, devices: devices, scan: scan, invite: invite,
         listen: listen, enable: enable, connect: connect, send: send, close: close,
         setOn: setOn, pause: pause, ensurePerms: ensurePerms,
         favs: favs, isFav: isFav, setFav: setFav, toggleFav: toggleFav,
-        wifiScan: wifiScan, wifiSend: wifiSend,
+        wifiScan: wifiScan, wifiSend: wifiSend, wifiConnect: wifiConnect, wifiForget: wifiForget,
         openSettings: function () { return (nativeOn && BT.openBtSettings) ? BT.openBtSettings() : scan(true); },
         openWifiSettings: function () { return (nativeOn && BT.openWifiSettings) ? BT.openWifiSettings() : Promise.resolve(); },
         openHotspotSettings: function () { return (nativeOn && BT.openHotspotSettings) ? BT.openHotspotSettings() : Promise.resolve(); }

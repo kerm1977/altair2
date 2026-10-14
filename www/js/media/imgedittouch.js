@@ -55,6 +55,27 @@ window.TribalImgEditTouch = (function () {
         b.w = Math.max(.08, Math.min(1, b.w));
         b.h = Math.max(.08, Math.min(1, b.h));
     }
+    // ajusta b para respetar E.cropRatio (w/h en px) anclando la esquina opuesta
+    function ratioFix(E, b, o, hd) {
+        var t = E.cropRatio * E.cv.height / E.cv.width; // w/h en unidades 0-1
+        if (Math.abs(b.w - o.w) / o.w >= Math.abs(b.h - o.h) / o.h) b.h = b.w / t;
+        else b.w = b.h * t;
+        if (hd.indexOf('w') >= 0) b.x = o.x + o.w - b.w;
+        if (hd.indexOf('n') >= 0) b.y = o.y + o.h - b.h;
+        clampBox(b);
+        if (b.w / b.h > t) b.w = b.h * t; else if (b.w / b.h < t) b.h = b.w / t;
+        if (hd.indexOf('w') >= 0) b.x = o.x + o.w - b.w;
+        if (hd.indexOf('n') >= 0) b.y = o.y + o.h - b.h;
+        clampBox(b);
+    }
+    // fija un aspecto de recorte (r = w/h en px, 0 = libre) y encuadra el máximo
+    function setRatio(E, r) { E.cropRatio = r || null;
+        if (!r) { placeCropDiv(E); return; }
+        var t = r * E.cv.height / E.cv.width, w = 1, h = 1 / t;
+        if (h > 1) { h = 1; w = t; }
+        if (w < .08 || h < .08) return;
+        E.cropBox = { x: (1 - w) / 2, y: (1 - h) / 2, w: w, h: h };
+        placeCropDiv(E); }
     function wireCrop(E) {
         var d = E.ov.querySelector('#ie-crop');
         var drag = null;
@@ -82,7 +103,8 @@ window.TribalImgEditTouch = (function () {
             if (drag.h.indexOf('s') >= 0) b.h = o.h + dy;
             if (drag.h.indexOf('w') >= 0) { b.x = o.x + dx; b.w = o.w - dx; }
             if (drag.h.indexOf('n') >= 0) { b.y = o.y + dy; b.h = o.h - dy; }
-            clampBox(b);
+            if (E.cropRatio && drag.h !== 'move') ratioFix(E, b, o, drag.h);
+            else clampBox(b);
             placeCropDiv(E);
         });
         ['pointerup', 'pointercancel'].forEach(function (ev) {
@@ -160,7 +182,7 @@ window.TribalImgEditTouch = (function () {
             E.st.r = 100; E.st.g = 100; E.st.b = 100;
             E.st.sharp = 0; E.st.blur = 0; E.st.edgeBlur = 0; E.st.vig = 0;
             E.st.vx = .5; E.st.vy = .5;
-            E.st.crop = null; E.cropBox = null; E.sel = sel;
+            E.st.crop = null; E.cropBox = null; E.cropRatio = null; E.sel = sel;
             placeCropDiv(E);
             var on = E.ov.querySelector('.ie-tab.on');
             if (on && window.TribalImgEditUI) {
@@ -173,5 +195,5 @@ window.TribalImgEditTouch = (function () {
         ni.src = c2.toDataURL('image/png');
     }
 
-    return { bind: bind, applyCrop: applyCrop, placeCropDiv: placeCropDiv };
+    return { bind: bind, applyCrop: applyCrop, placeCropDiv: placeCropDiv, setRatio: setRatio };
 })();

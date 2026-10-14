@@ -27,6 +27,15 @@ window.TribalImgEditUI = (function () {
         { id: 'out',  ico: 'bi-save',         t: 'Guardar' }
     ];
 
+    var CROP_RATIOS = [
+        { l: 'Libre', v: 0 },   { l: '1:1',  v: 1 },
+        { l: '4:3',  v: 4 / 3 }, { l: '3:4',  v: 3 / 4 },
+        { l: '3:2',  v: 3 / 2 }, { l: '2:3',  v: 2 / 3 },
+        { l: '16:9', v: 16 / 9 }, { l: '9:16', v: 9 / 16 },
+        { l: '5:4',  v: 5 / 4 }, { l: '4:5',  v: 4 / 5 },
+        { l: '21:9', v: 21 / 9 }
+    ];
+
     var IMG_SLIDERS = [
         { k: 'br', l: 'Brillo', min: 30, max: 200 },
         { k: 'co', l: 'Contraste', min: 30, max: 200 },
@@ -79,8 +88,15 @@ window.TribalImgEditUI = (function () {
                     sliderRow({ k: 'zoom', l: 'Zoom %', min: 50, max: 300 }, E.st.zoom);
             } else if (tab === 'crop') {
                 panel.innerHTML =
-                    '<p class="ie-hint">Arrastra el recuadro sobre la imagen; ' +
-                        'las esquinas cambian el tamaño.</p>' +
+                    '<p class="ie-hint">Elige un aspecto o arrastra las ' +
+                        'esquinas del recuadro a tu gusto.</p>' +
+                    '<div class="ie-row ie-ratios">' +
+                        CROP_RATIOS.map(function (r) {
+                            var on = (E.cropRatio || 0) === r.v ? ' on' : '';
+                            return '<button class="ie-ratio' + on +
+                                '" data-act="cropRatio" data-r="' + r.v +
+                                '">' + r.l + '</button>';
+                        }).join('') + '</div>' +
                     '<div class="ie-row">' +
                         '<button class="tribal-btn tribal-btn-xs" data-act="cropApply">' +
                             '<i class="bi bi-check2"></i> Aplicar recorte</button>' +
@@ -157,7 +173,17 @@ window.TribalImgEditUI = (function () {
                 else if (a === 'rotr') s.rot = (s.rot + 90) % 360;
                 else if (a === 'cropApply') { if (window.TribalImgEditTouch.applyCrop) {
                         window.TribalImgEditTouch.applyCrop(E); } return; }
-                else if (a === 'cropClear') { s.crop = null; E.render(); return; }
+                else if (a === 'cropClear') {
+                    s.crop = null; E.cropBox = null; E.cropRatio = null;
+                    window.TribalImgEditTouch.placeCropDiv(E);
+                    E.render(); return; }
+                else if (a === 'cropRatio') {
+                    var pv = parseFloat(act.dataset.r) || 0;
+                    if (window.TribalImgEditTouch.setRatio) {
+                        window.TribalImgEditTouch.setRatio(E, pv); }
+                    panel.querySelectorAll('.ie-ratio').forEach(function (rb) {
+                        rb.classList.toggle('on', rb === act); });
+                    return; }
                 else if (a === 'addText') {
                     var str = panel.querySelector('#ie-txt-in').value.trim();
                     if (!str) return;

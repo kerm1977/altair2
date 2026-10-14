@@ -2381,6 +2381,19 @@
     padding: 5px 9px; cursor: pointer;
 }
 .ie-emoji:active { transform: scale(.9); border-color: var(--tb-gold); }
+.ie-ratios { gap: 5px; }
+.ie-ratio {
+    font-size: .68rem; font-weight: 600; color: var(--tb-muted);
+    background: rgba(216,178,122,.08);
+    border: 1px solid rgba(216,178,122,.35); border-radius: 999px;
+    padding: 5px 10px; cursor: pointer;
+}
+.ie-ratio.on {
+    color: #160e07; border-color: var(--tb-gold);
+    background: linear-gradient(160deg, var(--tb-gold), var(--tb-orange));
+    box-shadow: 0 0 10px rgba(240,180,41,.45);
+}
+.ie-ratio:active { transform: scale(.94); }
 .ie-stklist { display: flex; flex-wrap: wrap; gap: 6px; max-height: 90px; overflow-y: auto; }
 .ie-sel input[type="range"] { flex: 1; accent-color: var(--tb-gold); }
 

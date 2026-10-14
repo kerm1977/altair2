@@ -3,9 +3,15 @@ package com.miapp.local;
 import android.Manifest;
 import android.bluetooth.*;
 import android.content.*;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiNetworkSpecifier;
+import android.net.wifi.WifiNetworkSuggestion;
 import android.os.Build;
 import com.getcapacitor.*;
 import com.getcapacitor.annotation.CapacitorPlugin;
@@ -664,6 +670,86 @@ public class TribalBtPlugin extends Plugin {
                 call.resolve();
             } catch (Exception e) { call.reject(e.getMessage()); }
         }}).start();
+    }
+
+    // Conectar a una red Wi-Fi con contraseña:
+    //  - Android 10+: WifiNetworkSuggestion (la red queda RECORDADA por el
+    //    sistema y se reconecta sola al estar en rango) + WifiNetworkSpecifier
+    //    (hoja del sistema para unirse ya mismo).
+    //  - Android 9-: WifiConfiguration clásico (addNetwork + enableNetwork).
+    @PluginMethod
+    public void wifiConnect(PluginCall call) {
+        String ssid = call.getString("ssid", "");
+        String pass = call.getString("pass", "");
+        String bssid = call.getString("bssid", "");
+        if (ssid.isEmpty()) { call.reject("sin ssid"); return; }
+        try {
+            WifiManager wm = (WifiManager) getContext().getApplicationContext()
+                .getSystemService(Context.WIFI_SERVICE);
+            if (wm == null) { call.reject("sin wifi"); return; }
+            if (!wm.isWifiEnabled()) { call.reject("wifi_apagado"); return; }
+            JSObject res = new JSObject();
+            if (Build.VERSION.SDK_INT >= 29) {
+                WifiNetworkSuggestion.Builder sb =
+                    new WifiNetworkSuggestion.Builder().setSsid(ssid);
+                if (bssid != null && !bssid.isEmpty())
+                    sb.setBssid(android.net.MacAddress.fromString(bssid));
+                if (pass != null && !pass.isEmpty()) sb.setWpa2Passphrase(pass);
+                List<WifiNetworkSuggestion> sug = new ArrayList<>();
+                sug.add(sb.build());
+                int st = wm.addNetworkSuggestions(sug);
+                res.put("remember", st == WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS
+                    || st == WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE
+                    ? "ok" : "code_" + st);
+                try {
+                    WifiNetworkSpecifier.Builder nb =
+                        new WifiNetworkSpecifier.Builder().setSsid(ssid);
+                    if (bssid != null && !bssid.isEmpty())
+                        nb.setBssid(android.net.MacAddress.fromString(bssid));
+                    if (pass != null && !pass.isEmpty()) nb.setWpa2Passphrase(pass);
+                    NetworkRequest nr = new NetworkRequest.Builder()
+                        .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                        .setNetworkSpecifier(nb.build()).build();
+                    ConnectivityManager cm = (ConnectivityManager)
+                        getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+                    if (cm != null) cm.requestNetwork(nr, new ConnectivityManager.NetworkCallback() {});
+                    res.put("connect", "solicitado");
+                } catch (Throwable t2) { res.put("connect", "error:" + t2.getMessage()); }
+                call.resolve(res);
+            } else {
+                WifiConfiguration wc = new WifiConfiguration();
+                wc.SSID = "\"" + ssid + "\"";
+                if (bssid != null && !bssid.isEmpty()) wc.BSSID = bssid;
+                if (pass != null && !pass.isEmpty()) wc.preSharedKey = "\"" + pass + "\"";
+                else wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
+                int id = wm.addNetwork(wc);
+                boolean ok = id >= 0 && wm.enableNetwork(id, true) && wm.reconnect();
+                res.put("connect", ok ? "ok" : "fallo");
+                res.put("remember", ok ? "ok" : "fallo");
+                call.resolve(res);
+            }
+        } catch (Throwable t) { call.reject("wifi: " + t.getMessage()); }
+    }
+
+    // Olvidar una red sugerida por la app
+    @PluginMethod
+    public void wifiForget(PluginCall call) {
+        String ssid = call.getString("ssid", "");
+        if (ssid.isEmpty()) { call.reject("sin ssid"); return; }
+        try {
+            WifiManager wm = (WifiManager) getContext().getApplicationContext()
+                .getSystemService(Context.WIFI_SERVICE);
+            if (wm == null) { call.reject("sin wifi"); return; }
+            if (Build.VERSION.SDK_INT >= 29) {
+                List<WifiNetworkSuggestion> cur = wm.getNetworkSuggestions();
+                List<WifiNetworkSuggestion> del = new ArrayList<>();
+                for (WifiNetworkSuggestion s : cur) {
+                    if (ssid.equals(s.getSsid())) del.add(s);
+                }
+                if (!del.isEmpty()) wm.removeNetworkSuggestions(del);
+            }
+            call.resolve();
+        } catch (Throwable t) { call.reject("wifi: " + t.getMessage()); }
     }
 
     @PluginMethod
