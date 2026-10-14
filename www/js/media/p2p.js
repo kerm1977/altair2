@@ -601,8 +601,10 @@ window.TribalP2P = (function () {
                           .replace(/[\/\\:*?"<>|]/g, '_');
             var FS = window.Capacitor.Plugins.Filesystem;
             log('Siembra nativa: preparando «' + j.name + '»…');
-            FS.writeFile({ path: 'tribu_torrents/' + fname, data: blob,
-                           directory: 'DATA', recursive: true })
+            window.SonoStoreIO.fileToBase64(blob).then(function (b64) {
+                return FS.writeFile({ path: 'tribu_torrents/' + fname, data: b64,
+                                      directory: 'DATA', recursive: true });
+            })
             .then(function () {
                 return FS.getUri({ path: 'tribu_torrents/' + fname,
                                    directory: 'DATA' });

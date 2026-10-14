@@ -27,17 +27,58 @@ window.SonoStoreIO = (function () {
         } catch (e) { return false; }
     }
 
+    var EXT_MIME = {
+        mp3: 'audio/mpeg', mpga: 'audio/mpeg', mp2: 'audio/mpeg', mpa: 'audio/mpeg',
+        m4a: 'audio/mp4', m4b: 'audio/mp4', m4p: 'audio/mp4', m4r: 'audio/mp4',
+        aac: 'audio/aac', wav: 'audio/wav', wave: 'audio/wav',
+        ogg: 'audio/ogg', oga: 'audio/ogg', spx: 'audio/ogg',
+        opus: 'audio/opus', flac: 'audio/flac', weba: 'audio/webm',
+        wma: 'audio/x-ms-wma', amr: 'audio/amr', '3ga': 'audio/3gpp',
+        aiff: 'audio/aiff', aif: 'audio/aiff', aifc: 'audio/aiff',
+        mka: 'audio/x-matroska', caf: 'audio/x-caf', alac: 'audio/mp4',
+        ape: 'audio/x-ape', wv: 'audio/x-wavpack',
+        mid: 'audio/midi', midi: 'audio/midi', kar: 'audio/midi',
+        mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm',
+        mkv: 'video/x-matroska', mov: 'video/quicktime', avi: 'video/x-msvideo',
+        '3gp': 'video/3gpp',
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
+        svg: 'image/svg+xml', heic: 'image/heic', avif: 'image/avif',
+        pdf: 'application/pdf', epub: 'application/epub+zip', txt: 'text/plain'
+    };
+
+    var AUDIO_EXTS = [
+        'mp3', 'mpga', 'mp2', 'mpa', 'm4a', 'm4b', 'm4p', 'm4r',
+        'aac', 'wav', 'wave', 'ogg', 'oga', 'opus', 'spx', 'flac',
+        'weba', 'wma', 'amr', '3ga', 'aiff', 'aif', 'aifc', 'mka',
+        'caf', 'alac', 'ape', 'wv', 'mid', 'midi', 'kar', 'pcm', 'au', 'ra'
+    ];
+
+    function mimeFromName(name, fallback) {
+        var f = String(fallback || '').trim().toLowerCase();
+        if (f && f !== 'application/octet-stream' && f !== 'binary/octet-stream') {
+            if (f === 'application/ogg' || f === 'application/x-ogg') return 'audio/ogg';
+            if (f === 'audio/mp3' || f === 'audio/mpeg3' || f === 'audio/x-mp3') return 'audio/mpeg';
+            if (f === 'audio/x-m4a') return 'audio/mp4';
+            if (f === 'audio/x-wav') return 'audio/wav';
+            if (f === 'audio/x-flac') return 'audio/flac';
+            return f;
+        }
+        var ext = String(name || '').split('.').pop().toLowerCase();
+        return EXT_MIME[ext] || f || '';
+    }
+
     function kindFromMime(mime, name) {
-        mime = mime || '';
+        var ext = String(name || '').split('.').pop().toLowerCase();
+        if (AUDIO_EXTS.indexOf(ext) >= 0) return 'audio';
+        mime = mimeFromName(name, mime);
         if (mime === 'application/pdf' || mime === 'application/epub+zip' ||
             mime === 'text/plain') return 'doc';
         if (mime.indexOf('audio/') === 0) return 'audio';
         if (mime.indexOf('video/') === 0) return 'video';
         if (mime.indexOf('image/') === 0) return 'image';
-        var ext = (name || '').split('.').pop().toLowerCase();
-        if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'opus'].indexOf(ext) >= 0) return 'audio';
-        if (['mp4', 'webm', 'mkv', 'mov', 'avi', '3gp'].indexOf(ext) >= 0) return 'video';
-        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic'].indexOf(ext) >= 0) return 'image';
+        if (['mp4', 'webm', 'mkv', 'mov', 'avi', '3gp', 'm4v'].indexOf(ext) >= 0) return 'video';
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'avif'].indexOf(ext) >= 0) return 'image';
         if (['pdf', 'epub', 'txt', 'mobi'].indexOf(ext) >= 0) return 'doc';
         return 'other';
     }
@@ -114,22 +155,11 @@ window.SonoStoreIO = (function () {
         return (FS.Directory && FS.Directory.Data) || 'DATA';
     }
 
-    // writeFile universal: primero intenta el Blob DIRECTO (Filesystem v6 lo
-    // transmite al lado nativo por stream — sin convertir a base64; una foto
-    // de galería de 10 MB en base64 reventaba el bridge JS↔Java). Si la
-    // versión del plugin no acepta Blob, cae al base64 clásico.
+    // writeFile seguro en el bridge nativo de Capacitor (que exige base64 String)
     function writeAny(FS, path, blob, dir) {
-        var p;
-        try {
-            p = FS.writeFile({
-                path: path, data: blob, directory: dir, recursive: true
-            });
-        } catch (e) { p = null; }
-        return Promise.resolve(p).catch(function () {
-            return fileToBase64(blob).then(function (base64) {
-                return FS.writeFile({
-                    path: path, data: base64, directory: dir, recursive: true
-                });
+        return fileToBase64(blob).then(function (base64) {
+            return FS.writeFile({
+                path: path, data: base64, directory: dir, recursive: true
             });
         });
     }
@@ -203,6 +233,8 @@ window.SonoStoreIO = (function () {
     return {
         isNative: isNative,
         kindFromMime: kindFromMime,
+        mimeFromName: mimeFromName,
+        fileToBase64: fileToBase64,
         DIR: DIR,
         DB_NAME: DB_NAME,
         STORE: STORE,

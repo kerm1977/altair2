@@ -28,12 +28,14 @@ window.Sono.register('inbox', function (S) {
         return (FS.Directory && FS.Directory.Data) || 'DATA';
     }
 
-    function b64ToBlob(b64) {
-        var bin = atob(b64);
+    function b64ToBlob(b64, mime) {
+        var raw = String(b64 || '');
+        if (raw.indexOf(',') >= 0) raw = raw.split(',')[1];
+        var bin = atob(raw.replace(/\s+/g, ''));
         var len = bin.length;
         var bytes = new Uint8Array(len);
         for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-        return new Blob(bytes);
+        return new Blob([bytes], { type: mime || '' });
     }
 
     function drain() {
@@ -49,12 +51,14 @@ window.Sono.register('inbox', function (S) {
                 var chain = Promise.resolve();
                 names.forEach(function (name) {
                     chain = chain.then(function () {
+                        var mime = window.SonoStoreIO && window.SonoStoreIO.mimeFromName
+                            ? window.SonoStoreIO.mimeFromName(name, '') : '';
                         return FS.readFile({
                                 path: DIR + '/' + name,
                                 directory: fsDirData(FS)
                             })
                             .then(function (r) {
-                                var file = new File([b64ToBlob(r.data)], name);
+                                var file = new File([b64ToBlob(r.data, mime)], name, { type: mime });
                                 return MediaStore.add(file);
                             })
                             .then(function () {

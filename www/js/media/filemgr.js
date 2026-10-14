@@ -75,7 +75,9 @@ window.TribalFiles = (function () {
     }
     function native() { return !!fs(); }
     function b64ToBlob(b64, mime) {
-        var bin = atob(b64);
+        var raw = String(b64 || '');
+        if (raw.indexOf(',') >= 0) raw = raw.split(',')[1];
+        var bin = atob(raw.replace(/\s+/g, ''));
         var bytes = new Uint8Array(bin.length);
         for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
         return new Blob([bytes], { type: mime || '' });
@@ -90,7 +92,7 @@ window.TribalFiles = (function () {
     }
     function kindOf(name) {
         var e = String(name).split('.').pop().toLowerCase();
-        if (/^(mp3|m4a|aac|ogg|opus|wav|flac|wma)$/.test(e)) return 'audio';
+        if (/^(mp3|mpga|mp2|mpa|m4a|m4b|m4r|aac|ogg|oga|opus|spx|wav|wave|flac|weba|wma|amr|3ga|aiff?|aifc|mka|caf|alac|ape|wv|midi?)$/.test(e)) return 'audio';
         if (/^(mp4|mkv|webm|mov|avi|m4v|3gp)$/.test(e)) return 'video';
         if (/^(jpe?g|png|webp|gif|bmp|heic|avif|svg)$/.test(e)) return 'image';
         if (/^(pdf|epub|txt|mobi|azw3?|fb2|md)$/.test(e)) return 'doc';
@@ -178,6 +180,8 @@ window.TribalFiles = (function () {
                 '<button class="tribal-btn tribal-btn-xs" id="fm-dir"' +
                     ' title="Ascendente / descendente">' +
                     '<i class="bi bi-sort-alpha-down"></i></button>' +
+                '<button class="tribal-btn tribal-btn-xs" id="fm-syspick"' +
+                    ' title="Selector del sistema Android"><i class="bi bi-phone"></i></button>' +
                 '<button class="tribal-btn tribal-btn-xs" id="fm-mkdir"' +
                     ' title="Nueva carpeta"><i class="bi bi-folder-plus"></i></button>' +
                 '<button class="tribal-btn tribal-btn-xs" id="fm-view"' +
@@ -475,33 +479,52 @@ window.TribalFiles = (function () {
         }
         return importOne(e);
     }
+    function readEntryFile(dir, relPath, fname) {
+        var IO = window.SonoStoreIO;
+        var mime = (IO && IO.mimeFromName) ? IO.mimeFromName(fname, '') : '';
+        return fs().getUri({ path: relPath, directory: dir })
+            .then(function (r) {
+                var u = window.Capacitor.convertFileSrc(r.uri);
+                return fetch(u).then(function (res) {
+                    if (!res.ok) throw new Error('http ' + res.status);
+                    return res.blob();
+                });
+            }).then(function (blob) {
+                return new File([blob], fname, { type: mime || blob.type || '' });
+            }).catch(function () {
+                return fs().readFile({ path: relPath, directory: dir }).then(function (r) {
+                    return new File([b64ToBlob(r.data, mime)], fname, { type: mime });
+                });
+            });
+    }
     function importOne(e) {
         var p = join(cur.path, e.name);
-        return fs().readFile({ path: p, directory: cur.dir })
-            .then(function (r) {
-                var f = new File([b64ToBlob(r.data)], e.name);
+        return readEntryFile(cur.dir, p, e.name)
+            .then(function (f) {
                 return window.TribalDup.guard(f, S).then(function (f2) {
                     return f2 ? window.MediaStore.add(f2) : null;
                 });
             }).then(function (m) {
-                if (!m) return;   // usuario canceló el duplicado
+                if (!m) return null;   // usuario canceló el duplicado
                 toast('«' + e.name + '» importado a la tribu');
                 if (S && S.reload) S.reload();
+                return m;
             }).catch(function (err) {
                 toast('No se pudo importar «' + e.name + '»: ' +
                     String(err && err.message || err));
+                return null;
             });
     }
     function importPaths(paths, done) {
         var metas = [], fail = 0;
         var seq = Promise.resolve();
         paths.forEach(function (p, i) {
+            var fname = p.split('/').pop();
             seq = seq.then(function () {
                 ov.querySelector('#fm-status').textContent =
                     'Importando ' + (i + 1) + '/' + paths.length + '…';
-                return fs().readFile({ path: p, directory: cur.dir });
-            }).then(function (r) {
-                var f = new File([b64ToBlob(r.data)], p.split('/').pop());
+                return readEntryFile(cur.dir, p, fname);
+            }).then(function (f) {
                 return window.TribalDup.guard(f, S).then(function (f2) {
                     return f2 ? window.MediaStore.add(f2) : null;
                 });
@@ -814,6 +837,13 @@ window.TribalFiles = (function () {
             saveSort(); renderList();
         });
         ov.querySelector('#fm-mkdir').addEventListener('click', newFolder);
+        var sysBtn = ov.querySelector('#fm-syspick');
+        if (sysBtn) sysBtn.addEventListener('click', function () {
+            var fn = pick && pick.resolve;
+            close();
+            if (fn) fn([]);
+            if (S && S.input) S.input.click();
+        });
         // hoja de acciones: tocar fuera cierra, data-do ejecuta
         ov.querySelector('#fm-sheet').addEventListener('click', function (e) {
             if (e.target === ov.querySelector('#fm-sheet')) {

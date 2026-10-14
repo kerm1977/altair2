@@ -119,18 +119,34 @@ window.Sono.register('player', function (S) {
     };
 
     S.playAudio = function (m) {
+        if (!m) return;
         S.activeItemId = m.id;
+        // desbloquear AudioContext dentro del gesto del usuario antes del callback async
+        if (window.TribalEQ && window.TribalEQ.unlock) window.TribalEQ.unlock();
         // prioridad: una sola fuente sonando — el video cede a la música
         if (!videoOv.hidden) S.closeVideo(); else videoEl.pause();
         S.queue = S.items.filter(function (x) { return x.kind === 'audio'; });
         S.queueIdx = S.queue.indexOf(m);
-        S.urlFor(m, function (u) {
+        var retried = false;
+        function startWithUrl(u) {
             if (!u) return S.showToast('No se pudo abrir el audio');
+            audio.pause();
             audio.src = u;
             audio.dataset.current = m.id;
-            audio.playbackRate = S.prefs.speed;
-            window.TribalEQ.ensure(audio);
-            audio.play().catch(function () {});
+            audio.playbackRate = S.prefs.speed || 1;
+            if (window.TribalEQ) window.TribalEQ.ensure(audio);
+            try { audio.load(); } catch (e0) {}
+            var playProm = audio.play();
+            if (playProm && playProm.catch) {
+                playProm.catch(function () {
+                    if (!retried && S.urlCache && S.urlCache[m.id]) {
+                        retried = true;
+                        try { URL.revokeObjectURL(S.urlCache[m.id]); } catch (e1) {}
+                        delete S.urlCache[m.id];
+                        S.urlFor(m, startWithUrl);
+                    }
+                });
+            }
             S.pTitle.textContent = (m.info && m.info.titulo) || m.name;
             S.updateCover(m);
             S.player.classList.remove('d-none');
@@ -141,7 +157,8 @@ window.Sono.register('player', function (S) {
                 });
             }
             S.render();
-        });
+        }
+        S.urlFor(m, startWithUrl);
     };
 
     S.stepAudio = function (dir) {

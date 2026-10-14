@@ -96,8 +96,27 @@ window.TribalEQ = (function () {
     // Asegura que el elemento pasa por la cadena solo si hay EQ activo
     // (con 'Normal' no se crea el grafo: el audio fluye directo).
     function ensure(el) {
+        if (ctx && ctx.state === 'suspended') {
+            try { ctx.resume(); } catch (e) {}
+        }
         if (presetId !== 'normal') apply(el, presetId);
     }
+
+    function unlock() {
+        if (!supported) return;
+        var c = context();
+        if (c && c.state === 'suspended') {
+            try { c.resume(); } catch (e) {}
+        }
+    }
+
+    ['pointerdown', 'touchstart', 'click', 'keydown'].forEach(function (ev) {
+        document.addEventListener(ev, function () {
+            if (ctx && ctx.state === 'suspended') {
+                try { ctx.resume(); } catch (e) {}
+            }
+        }, { passive: true });
+    });
 
     return {
         PRESETS: PRESETS,
@@ -110,6 +129,7 @@ window.TribalEQ = (function () {
             return preset(presetId);
         },
         ensure: ensure,
+        unlock: unlock,
         apply: apply,
         analyserFor: analyserFor
     };

@@ -109,19 +109,26 @@ window.MediaStore = (function () {
 
         add: function (file, customName, onProgress) {
             var id = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+            var fname = customName || file.name || 'archivo';
+            var mime = IO.mimeFromName ? IO.mimeFromName(fname, file.type) : (file.type || '');
             var meta = {
                 id: id,
-                name: customName || file.name || 'archivo',
-                mime: file.type || '',
-                kind: kindFromMime(file.type, file.name),
+                name: fname,
+                mime: mime,
+                kind: kindFromMime(mime, fname),
                 size: file.size || 0,
                 addedAt: Date.now(),
                 path: null
             };
 
+            var blobToStore = file;
+            if (!isNative() && mime && (!file.type || file.type === 'application/octet-stream')) {
+                try { blobToStore = new Blob([file], { type: mime }); } catch (e) {}
+            }
+
             var persist = isNative()
                 ? IO.nativeWrite(id, file, onProgress).then(function (path) { meta.path = path; })
-                : IO.idbPut(id, file);
+                : IO.idbPut(id, blobToStore).then(function () { if (onProgress) onProgress(1); });
 
             return persist.then(function () {
                 var index = getIndex();
@@ -309,7 +316,14 @@ window.MediaStore = (function () {
                 return IO.nativeURL(meta.path);
             }
             return IO.idbGet(meta.id).then(function (blob) {
-                return blob ? URL.createObjectURL(blob) : null;
+                if (!blob) return null;
+                var mime = IO.mimeFromName
+                    ? IO.mimeFromName(meta.name, meta.mime || blob.type)
+                    : (meta.mime || blob.type || '');
+                if (mime && (!blob.type || blob.type === 'application/octet-stream')) {
+                    try { blob = new Blob([blob], { type: mime }); } catch (e) {}
+                }
+                return URL.createObjectURL(blob);
             });
         },
 
