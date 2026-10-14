@@ -14,13 +14,112 @@
 .np-head {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    flex-wrap: nowrap;
+}
+
+.np-head-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.np-head-center strong {
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .np-head-acts {
-    margin-left: auto;
     display: flex;
     align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.np-head-acts button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+/* Buscador en vivo de notas y Paginador */
+.np-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px solid rgba(240, 180, 41, 0.28);
+}
+
+.np-search-bar i {
+    color: var(--tb-gold, #f0b429);
+    font-size: 1rem;
+}
+
+.np-search-air {
+    flex: 1;
+    min-width: 0;
+    outline: none;
+    color: var(--tb-cream, #f3e6cf);
+    font-size: 0.92rem;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.np-search-air:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(243, 230, 207, 0.38);
+    pointer-events: none;
+}
+
+.np-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 10px 0 4px;
+}
+
+.np-pager[hidden] {
+    display: none !important;
+}
+
+.np-pager span {
+    font-size: 0.82rem;
+    color: var(--tb-gold, #f0b429);
+    font-weight: 600;
+}
+
+.np-disk-btn {
+    background: rgba(240, 180, 41, 0.2) !important;
+    border-color: var(--tb-gold, #f0b429) !important;
+    color: var(--tb-gold, #f0b429) !important;
+}
+
+.np-del-xbtn {
+    background: rgba(255, 107, 91, 0.16) !important;
+    border-color: rgba(255, 107, 91, 0.4) !important;
+    color: #ff7b6b !important;
+}
+
+.np-footer-ts {
+    margin-top: 28px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(240, 180, 41, 0.24);
+}
+
+.np-spell-add {
+    display: flex;
+    flex-direction: column;
     gap: 8px;
 }
 
@@ -374,13 +473,30 @@
 .np-media-badge {
     position: absolute;
     top: 10px;
+    right: 46px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(22, 14, 7, 0.85);
+    border: 1px solid var(--tb-gold, #f0b429);
+    color: var(--tb-gold, #f0b429);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 4;
+}
+
+.np-media-del-x {
+    position: absolute;
+    top: 10px;
     right: 10px;
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: rgba(22, 14, 7, 0.82);
-    border: 1px solid var(--tb-gold, #f0b429);
-    color: var(--tb-gold, #f0b429);
+    background: rgba(34, 10, 10, 0.88);
+    border: 1px solid #ff7b6b;
+    color: #ff7b6b;
     display: inline-flex;
     align-items: center;
     justify-content: center;

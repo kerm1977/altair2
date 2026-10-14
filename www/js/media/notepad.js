@@ -32,6 +32,11 @@ window.TribalNotepad = (function () {
     var undoStack = [];
     var redoStack = [];
     var autoSaveTimer = null;
+    var searchQuery = '';
+    var currentPage = 0;
+    var PER_PAGE = 10;
+    var CRASH_KEY = 'tribu_np_crash_draft_v1';
+    var OPEN_ID_KEY = 'tribu_np_open_id_v1';
 
     var LINE_HEIGHTS = ['-2', '-1.5', '-1.25', '1', '1.25', '1.5', '2'];
     var LH_CSS = {
@@ -180,31 +185,45 @@ window.TribalNotepad = (function () {
             '<div class="tribal-p2p-head np-head">' +
                 '<button class="tribal-ctrl lk-back" id="np-back" title="Volver">' +
                     '<i class="bi bi-arrow-left"></i><span id="np-back-lbl">Volver</span></button>' +
-                '<i class="bi bi-journal-richtext"></i>' +
-                '<strong id="np-head-title">Bloc de notas</strong>' +
+                '<div class="np-head-center">' +
+                    '<i class="bi bi-journal-richtext"></i>' +
+                    '<strong id="np-head-title">Bloc de notas</strong>' +
+                '</div>' +
                 '<div class="np-head-acts">' +
                     '<button class="tribal-btn tribal-btn-xs primary" id="np-new-btn">' +
                         '<i class="bi bi-plus-lg"></i> Nueva nota</button>' +
                     '<button class="tribal-btn tribal-btn-xs" id="np-read-btn" hidden title="Ver nota en texto completo">' +
-                        '<i class="bi bi-arrows-fullscreen"></i> Texto completo</button>' +
-                    '<button class="tribal-btn tribal-btn-xs primary" id="np-save-btn" hidden>' +
-                        '<i class="bi bi-check2-circle"></i> Guardar</button>' +
+                        '<i class="bi bi-arrows-fullscreen"></i><span>Texto completo</span></button>' +
                 '</div>' +
             '</div>' +
 
-            '<!-- VISTA 1: LISTA DE DOCUMENTOS -->' +
+            '<!-- VISTA 1: LISTA DE DOCUMENTOS CON BUSCADOR EN VIVO Y PAGINACIÓN DE 10 -->' +
             '<div class="lk-body np-list-view" id="np-list-view">' +
+                '<div class="np-search-bar">' +
+                    '<i class="bi bi-search"></i>' +
+                    '<div id="np-note-search" class="np-search-air" contenteditable="true" ' +
+                        'data-placeholder="Buscar en vivo por nombre, palabras, contenido, canciones, enlaces o fecha…"></div>' +
+                    '<button type="button" class="tribal-ctrl np-search-clear" id="np-search-clear" title="Limpiar búsqueda" hidden>' +
+                        '<i class="bi bi-x-lg"></i></button>' +
+                '</div>' +
                 '<p class="np-hint">Toca una nota para leer/editar en vivo · ' +
                     'Mantén presionado (long-press) para Editar, Eliminar o Compartir (WhatsApp, TXT, PDF, Bluetooth)</p>' +
                 '<div class="np-docs-grid" id="np-docs-grid"></div>' +
+                '<div class="np-pager" id="np-pager" hidden>' +
+                    '<button type="button" class="tribal-btn tribal-btn-xs" id="np-prev-page"><i class="bi bi-chevron-left"></i> Anterior</button>' +
+                    '<span id="np-page-info">Página 1 / 1</span>' +
+                    '<button type="button" class="tribal-btn tribal-btn-xs" id="np-next-page">Siguiente <i class="bi bi-chevron-right"></i></button>' +
+                '</div>' +
             '</div>' +
 
             '<!-- VISTA 2: EDITOR WYSIWYG EN VIVO AL AIRE (ARCHIVO COMPLETO SIN CARD) -->' +
             '<section class="np-edit-view" id="np-edit-view" hidden>' +
                 '<nav class="np-toolbar" id="np-toolbar">' +
                     '<div class="np-tb-group">' +
+                        '<button type="button" class="np-tbtn np-disk-btn" data-act="save-disk" title="Guardar nota"><i class="bi bi-floppy-fill"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="undo" title="Deshacer"><i class="bi bi-arrow-counterclockwise"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="redo" title="Rehacer"><i class="bi bi-arrow-clockwise"></i></button>' +
+                        '<button type="button" class="np-tbtn np-del-xbtn" data-act="del-sel" title="Eliminar elemento o texto seleccionado (✕)"><i class="bi bi-x-lg"></i></button>' +
                     '</div>' +
                     '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn" data-cmd="bold" title="Negrita"><i class="bi bi-type-bold"></i></button>' +
@@ -254,7 +273,7 @@ window.TribalNotepad = (function () {
                         '<button type="button" class="np-tbtn" data-cmd="insertUnorderedList" title="Viñetas"><i class="bi bi-list-ul"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="insertOrderedList" title="Lista ordenada"><i class="bi bi-list-ol"></i></button>' +
                         '<button type="button" class="np-tbtn" data-act="ls" title="Letter-spacing"><i class="bi bi-distribute-horizontal"></i> <small id="np-ls-lbl">0px</small></button>' +
-                        '<button type="button" class="np-tbtn" data-act="autocorrect" title="Autocorregir ortografía"><i class="bi bi-spellcheck"></i> Ortografía</button>' +
+                        '<button type="button" class="np-tbtn" data-act="autocorrect" title="Ortografía y diccionario personal"><i class="bi bi-spellcheck"></i> Ortografía</button>' +
                         '<button type="button" class="np-tbtn" data-act="synonyms" title="Sinónimos de la palabra seleccionada"><i class="bi bi-book"></i> Sinónimos</button>' +
                     '</div>' +
                     '<div class="np-tb-group">' +
@@ -272,18 +291,52 @@ window.TribalNotepad = (function () {
                     '</div>' +
                 '</nav>' +
 
-                '<!-- ARCHIVO COMPLETO AL AIRE SIN CARD DE FONDO -->' +
+                '<!-- ARCHIVO COMPLETO AL AIRE SIN CARD DE FONDO (FECHAS AL PIE) -->' +
                 '<main class="np-doc-scroll" id="np-doc-scroll">' +
                     '<h1 id="np-title" class="np-air-title" contenteditable="true" spellcheck="true" lang="es" ' +
                         'data-placeholder="Escribe el título aquí al aire…"></h1>' +
-                    '<header class="np-timestamps">' +
-                        '<span><i class="bi bi-clock"></i> Creado: <b id="np-ts-created">—</b></span>' +
-                        '<span><i class="bi bi-clock-history"></i> Actualizado: <b id="np-ts-updated">—</b></span>' +
-                    '</header>' +
                     '<article id="np-canvas" class="np-air-canvas" contenteditable="true" spellcheck="true" lang="es" ' +
-                        'data-placeholder="Escribe tu nota aquí al aire… Mantén presionada cualquier imagen, audio o video para abrir su menú contextual."></article>' +
+                        'data-placeholder="Escribe tu nota aquí al aire… Mantén presionado cualquier elemento o texto seleccionado para opciones o eliminar."></article>' +
+                    '<footer class="np-timestamps np-footer-ts">' +
+                        '<span><i class="bi bi-clock"></i> Creado: <b id="np-ts-created">—</b></span>' +
+                        '<span><i class="bi bi-clock-history"></i> Modificado: <b id="np-ts-updated">—</b></span>' +
+                    '</footer>' +
                 '</main>' +
             '</section>' +
+
+            '<!-- MODAL DE ORTOGRAFÍA Y DICCIONARIO PERSONAL -->' +
+            '<div class="np-modal-bd" id="np-spell-modal" hidden>' +
+                '<div class="np-modal-card">' +
+                    '<strong><i class="bi bi-spellcheck"></i> Ortografía y Diccionario Personal</strong>' +
+                    '<p class="np-hint" id="np-spell-msg">Corrige toda la nota o guarda palabras y correcciones propias para que se apliquen siempre.</p>' +
+                    '<button type="button" class="tribal-btn primary" id="np-spell-runall">' +
+                        '<i class="bi bi-magic"></i> Corregir toda la nota ahora</button>' +
+                    '<div class="np-spell-add">' +
+                        '<div id="np-sp-wrong" class="np-air-urlbox" contenteditable="true" ' +
+                            'data-placeholder="Palabra a corregir o guardar (ej. tmb / miPalabra)…"></div>' +
+                        '<div id="np-sp-right" class="np-air-urlbox" contenteditable="true" ' +
+                            'data-placeholder="Corrección exacta (ej. también / MiPalabra)…"></div>' +
+                        '<button type="button" class="tribal-btn primary" id="np-sp-save">' +
+                            '<i class="bi bi-plus-circle"></i> Guardar en ortografía</button>' +
+                    '</div>' +
+                    '<div class="np-song-list" id="np-sp-list"></div>' +
+                    '<div class="np-modal-acts">' +
+                        '<button type="button" class="tribal-btn" id="np-spell-close">Cerrar</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+
+            '<!-- MODAL DE CONFIRMACIÓN DE ELIMINACIÓN EN 2 PASOS -->' +
+            '<div class="np-modal-bd" id="np-del2-modal" hidden>' +
+                '<div class="np-modal-card">' +
+                    '<strong id="np-del2-title"><i class="bi bi-exclamation-triangle-fill"></i> Eliminar selección (Paso 1/2)</strong>' +
+                    '<p class="np-hint" id="np-del2-msg"></p>' +
+                    '<div class="np-modal-acts">' +
+                        '<button type="button" class="tribal-btn" id="np-del2-cancel">Cancelar</button>' +
+                        '<button type="button" class="tribal-btn danger" id="np-del2-ok">Continuar</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
 
             '<!-- MODAL DE SINÓNIMOS -->' +
             '<div class="np-modal-bd" id="np-syn-modal" hidden>' +
@@ -432,7 +485,7 @@ window.TribalNotepad = (function () {
         scheduleLiveSave();
     }
 
-    // Crea un contenedor multimedia (.np-img-wrap) con soporte de long-press y arrastre libre
+    // Crea un contenedor multimedia (.np-img-wrap) con soporte de long-press, botón ✕ y arrastre libre
     function createMediaWrap(innerHtml, kind) {
         var wrap = document.createElement('figure');
         wrap.className = 'np-img-wrap';
@@ -445,7 +498,8 @@ window.TribalNotepad = (function () {
         wrap.setAttribute('data-align', 'center');
         wrap.setAttribute('data-free', '0');
         wrap.innerHTML = '<div class="np-media-inner">' + innerHtml + '</div>' +
-            '<span class="np-media-badge" title="Mantén presionado para opciones"><i class="bi bi-sliders"></i></span>';
+            '<span class="np-media-badge" title="Opciones del elemento"><i class="bi bi-sliders"></i></span>' +
+            '<button type="button" class="np-media-del-x" title="Eliminar este elemento (✕)"><i class="bi bi-x-lg"></i></button>';
         applyWrapTransform(wrap);
         bindWrapEvents(wrap);
         return wrap;
@@ -522,14 +576,114 @@ window.TribalNotepad = (function () {
                 openMediaMenu(wrap);
             });
         }
+        var delX = wrap.querySelector('.np-media-del-x');
+        if (delX) {
+            delX.addEventListener('click', function (e) {
+                e.stopPropagation();
+                confirmDelete2Steps('este elemento multimedia (' + (wrap.getAttribute('data-kind') || 'media') + ')', function () {
+                    if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+                    if (activeWrap === wrap) activeWrap = null;
+                    pushHistory();
+                    scheduleLiveSave();
+                });
+            });
+        }
     }
 
     function rebindMediaWraps() {
         if (!ov) return;
         ov.querySelectorAll('#np-canvas .np-img-wrap').forEach(function (w) {
+            if (!w.querySelector('.np-media-del-x')) {
+                var bx = document.createElement('button');
+                bx.type = 'button';
+                bx.className = 'np-media-del-x';
+                bx.title = 'Eliminar este elemento (✕)';
+                bx.innerHTML = '<i class="bi bi-x-lg"></i>';
+                w.appendChild(bx);
+            }
             applyWrapTransform(w);
             bindWrapEvents(w);
         });
+    }
+
+    // Modal de confirmación en 2 pasos para eliminar cualquier detalle seleccionado
+    function confirmDelete2Steps(desc, onConfirm) {
+        if (!ov) return;
+        var modal = ov.querySelector('#np-del2-modal');
+        var title = ov.querySelector('#np-del2-title');
+        var msg = ov.querySelector('#np-del2-msg');
+        var okBtn = ov.querySelector('#np-del2-ok');
+        var cancelBtn = ov.querySelector('#np-del2-cancel');
+        var step = 1;
+
+        function renderStep() {
+            if (step === 1) {
+                title.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Confirmar eliminación (Paso 1/2)';
+                msg.textContent = '¿Quieres eliminar ' + (desc || 'el detalle seleccionado') + ' de la nota?';
+                okBtn.textContent = 'Continuar →';
+            } else {
+                title.innerHTML = '<i class="bi bi-trash3-fill"></i> Confirmación final (Paso 2/2)';
+                msg.textContent = 'Último paso: se eliminará definitivamente ' + (desc || 'el detalle seleccionado') + '. ¿Confirmar?';
+                okBtn.textContent = 'Sí, eliminar ahora';
+            }
+        }
+        renderStep();
+        modal.hidden = false;
+
+        okBtn.onclick = function () {
+            if (step === 1) {
+                step = 2;
+                renderStep();
+            } else {
+                modal.hidden = true;
+                onConfirm();
+            }
+        };
+        cancelBtn.onclick = function () {
+            modal.hidden = true;
+        };
+    }
+
+    function deleteSelectedDetail() {
+        if (!ov) return;
+        var canvas = ov.querySelector('#np-canvas');
+        if (activeWrap && activeWrap.classList.contains('np-sel') && canvas.contains(activeWrap)) {
+            var targetW = activeWrap;
+            confirmDelete2Steps('el elemento multimedia seleccionado', function () {
+                if (targetW.parentNode) targetW.parentNode.removeChild(targetW);
+                activeWrap = null;
+                pushHistory();
+                scheduleLiveSave();
+            });
+            return;
+        }
+        restoreSelection();
+        var sel = window.getSelection && window.getSelection();
+        var r = (sel && sel.rangeCount && canvas.contains(sel.getRangeAt(0).commonAncestorContainer))
+            ? sel.getRangeAt(0) : savedRange;
+        if (r && !r.collapsed) {
+            var rClone = r.cloneRange();
+            var snippet = rClone.toString().trim().slice(0, 36) || 'la selección actual';
+            confirmDelete2Steps('«' + snippet + '»', function () {
+                rClone.deleteContents();
+                pushHistory();
+                scheduleLiveSave();
+            });
+            return;
+        }
+        if (r && r.startContainer) {
+            var nd = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentNode;
+            if (nd && nd !== canvas && canvas.contains(nd)) {
+                var descNode = (nd.innerText || nd.textContent || nd.tagName || 'este bloque').trim().slice(0, 32);
+                confirmDelete2Steps('el elemento «' + descNode + '»', function () {
+                    if (nd.parentNode) nd.parentNode.removeChild(nd);
+                    pushHistory();
+                    scheduleLiveSave();
+                });
+                return;
+            }
+        }
+        if (deps && deps.toast) deps.toast('Selecciona primero el texto, foto, video o audio que quieras eliminar');
     }
 
     function openMediaMenu(wrap) {
@@ -631,9 +785,12 @@ window.TribalNotepad = (function () {
         }
         if (act === 'del') {
             menu.hidden = true;
-            if (w.parentNode) w.parentNode.removeChild(w);
-            activeWrap = null;
-            scheduleLiveSave();
+            confirmDelete2Steps('este elemento multimedia', function () {
+                if (w.parentNode) w.parentNode.removeChild(w);
+                activeWrap = null;
+                pushHistory();
+                scheduleLiveSave();
+            });
         }
     }
 
@@ -741,11 +898,12 @@ window.TribalNotepad = (function () {
         scheduleLiveSave();
     }
 
-    // Lee los datos en vivo del lienzo y actualiza timestamps
+    // Lee los datos en vivo del lienzo y actualiza timestamps + respaldo anti-crash
     function syncCurrentNoteFromDOM() {
         if (!curNote || !ov) return;
         var titleEl = ov.querySelector('#np-title');
         var canvasEl = ov.querySelector('#np-canvas');
+        if (!titleEl || !canvasEl) return;
         curNote.title = (titleEl.innerText || titleEl.textContent || '').trim() || 'Nota sin título';
         curNote.html = canvasEl.innerHTML;
         curNote.text = (canvasEl.innerText || canvasEl.textContent || '').trim();
@@ -753,6 +911,11 @@ window.TribalNotepad = (function () {
         if (!curNote.createdAt) curNote.createdAt = curNote.updatedAt;
         var upEl = ov.querySelector('#np-ts-updated');
         if (upEl) upEl.textContent = IO.fmtDateTime(curNote.updatedAt);
+        // Respaldo síncrono inmediato en localStorage ante cierres o crashes
+        try {
+            localStorage.setItem(CRASH_KEY, JSON.stringify(curNote));
+            localStorage.setItem(OPEN_ID_KEY, curNote.id);
+        } catch (e) {}
     }
 
     function scheduleLiveSave() {
@@ -760,8 +923,10 @@ window.TribalNotepad = (function () {
         syncCurrentNoteFromDOM();
         clearTimeout(autoSaveTimer);
         autoSaveTimer = setTimeout(function () {
-            IO.save(curNote);
-        }, 350);
+            IO.save(curNote).then(function () {
+                return IO.syncToMediaStore(curNote, deps);
+            });
+        }, 250);
     }
 
     function saveCurrentNoteAndSync(showMsg) {
@@ -771,24 +936,83 @@ window.TribalNotepad = (function () {
             return IO.syncToMediaStore(curNote, deps);
         }).then(function () {
             if (showMsg && deps && deps.toast) {
-                deps.toast('«' + curNote.title + '» guardada en Libros y notas');
+                deps.toast('«' + curNote.title + '» guardada');
             }
         });
     }
 
-    // Pinta la lista de notas guardadas
+    // Recuperar borrador si la app se cerró o crasheó mientras se editaba
+    function recoverCrashDraft() {
+        try {
+            var raw = localStorage.getItem(CRASH_KEY);
+            if (!raw) return Promise.resolve();
+            var draft = JSON.parse(raw);
+            if (!draft || !draft.id) return Promise.resolve();
+            return IO.save(draft).then(function () {
+                return IO.syncToMediaStore(draft, deps);
+            });
+        } catch (e) {
+            return Promise.resolve();
+        }
+    }
+
+    ['visibilitychange', 'pagehide', 'beforeunload'].forEach(function (ev) {
+        window.addEventListener(ev, function () {
+            if (curNote && ov && !ov.querySelector('#np-edit-view').hidden) {
+                syncCurrentNoteFromDOM();
+                IO.save(curNote);
+            }
+        });
+    });
+
+    // Pinta la lista de notas guardadas con buscador en vivo y paginación cada 10 notas
     function renderNotesList() {
         if (!ov) return;
         var grid = ov.querySelector('#np-docs-grid');
+        var pager = ov.querySelector('#np-pager');
+        var pageInfo = ov.querySelector('#np-page-info');
+        var prevBtn = ov.querySelector('#np-prev-page');
+        var nextBtn = ov.querySelector('#np-next-page');
+        var clearBtn = ov.querySelector('#np-search-clear');
+
         IO.list().then(function (arr) {
             notes = arr || [];
-            if (!notes.length) {
-                grid.innerHTML = '<div class="tribal-empty-mini">' +
-                    '<p>Aún no hay notas. Toca «+ Nueva nota» para crear la primera.</p></div>';
+            var q = String(searchQuery || '').trim().toLowerCase();
+            if (clearBtn) clearBtn.hidden = !q;
+
+            var filtered = !q ? notes : notes.filter(function (n) {
+                var haystack = [
+                    n.title || '',
+                    n.text || '',
+                    n.html || '',
+                    IO.fmtDateTime(n.createdAt),
+                    IO.fmtDateTime(n.updatedAt)
+                ].join(' ').toLowerCase();
+                return haystack.indexOf(q) >= 0;
+            });
+
+            if (!filtered.length) {
+                pager.hidden = true;
+                grid.innerHTML = '<div class="tribal-empty-mini"><p>' +
+                    (q ? 'Ninguna nota coincide con «' + esc(searchQuery) + '».'
+                       : 'Aún no hay notas. Toca «+ Nueva nota» para crear la primera.') +
+                    '</p></div>';
                 return;
             }
-            grid.innerHTML = notes.map(function (n) {
-                var prev = String(n.text || '').replace(/\s+/g, ' ').slice(0, 120) || 'Sin texto adicional…';
+
+            var totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+            if (currentPage >= totalPages) currentPage = totalPages - 1;
+            if (currentPage < 0) currentPage = 0;
+
+            var slice = filtered.slice(currentPage * PER_PAGE, (currentPage + 1) * PER_PAGE);
+            pager.hidden = filtered.length <= PER_PAGE;
+            pageInfo.textContent = 'Página ' + (currentPage + 1) + ' / ' + totalPages +
+                ' · ' + filtered.length + ' nota(s)';
+            prevBtn.disabled = currentPage <= 0;
+            nextBtn.disabled = currentPage >= totalPages - 1;
+
+            grid.innerHTML = slice.map(function (n) {
+                var prev = String(n.text || '').replace(/\s+/g, ' ').slice(0, 140) || 'Sin texto adicional…';
                 return '<div class="np-doc-card" data-id="' + esc(n.id) + '">' +
                     '<div class="np-doc-ico"><i class="bi bi-file-earmark-richtext"></i></div>' +
                     '<div class="np-doc-body">' +
@@ -796,7 +1020,7 @@ window.TribalNotepad = (function () {
                         '<p class="np-doc-prev">' + esc(prev) + '</p>' +
                         '<div class="np-doc-dates">' +
                             '<span>Creado: ' + esc(IO.fmtDateTime(n.createdAt)) + '</span>' +
-                            '<span>Actualizado: ' + esc(IO.fmtDateTime(n.updatedAt)) + '</span>' +
+                            '<span>Modificado: ' + esc(IO.fmtDateTime(n.updatedAt)) + '</span>' +
                         '</div>' +
                     '</div>' +
                     '<button type="button" class="tribal-ctrl np-doc-more" data-more="' + esc(n.id) + '" title="Opciones">' +
@@ -809,10 +1033,10 @@ window.TribalNotepad = (function () {
 
     function showListView() {
         if (!ov) return;
+        try { localStorage.removeItem(OPEN_ID_KEY); } catch (e) {}
         ov.querySelector('#np-list-view').hidden = false;
         ov.querySelector('#np-edit-view').hidden = true;
         ov.querySelector('#np-new-btn').hidden = false;
-        ov.querySelector('#np-save-btn').hidden = true;
         ov.querySelector('#np-read-btn').hidden = true;
         ov.querySelector('#np-head-title').textContent = 'Bloc de notas';
         ov.querySelector('#np-back-lbl').textContent = 'Volver';
@@ -834,13 +1058,16 @@ window.TribalNotepad = (function () {
             lineHeight: '1.5',
             letterSpacing: '0px'
         };
+        try {
+            localStorage.setItem(CRASH_KEY, JSON.stringify(curNote));
+            localStorage.setItem(OPEN_ID_KEY, curNote.id);
+        } catch (e) {}
         ov.querySelector('#np-list-view').hidden = true;
         ov.querySelector('#np-edit-view').hidden = false;
         ov.querySelector('#np-toolbar').hidden = false;
         ov.querySelector('#np-new-btn').hidden = true;
-        ov.querySelector('#np-save-btn').hidden = false;
         ov.querySelector('#np-read-btn').hidden = false;
-        ov.querySelector('#np-read-btn').innerHTML = '<i class="bi bi-arrows-fullscreen"></i> Texto completo';
+        ov.querySelector('#np-read-btn').innerHTML = '<i class="bi bi-arrows-fullscreen"></i><span>Texto completo</span>';
         ov.querySelector('#np-head-title').textContent = 'Editor en vivo';
         ov.querySelector('#np-back-lbl').textContent = 'Notas';
 
@@ -922,7 +1149,7 @@ window.TribalNotepad = (function () {
             scheduleLiveSave();
         });
 
-        // Botón Volver y Guardar
+        // Botón Volver y Texto completo
         ov.querySelector('#np-back').addEventListener('click', function () {
             if (!ov.querySelector('#np-edit-view').hidden && curNote) {
                 saveCurrentNoteAndSync(true).then(showListView);
@@ -930,21 +1157,44 @@ window.TribalNotepad = (function () {
             }
             close();
         });
-        ov.querySelector('#np-save-btn').addEventListener('click', function () {
-            saveCurrentNoteAndSync(true).then(showListView);
-        });
         ov.querySelector('#np-read-btn').addEventListener('click', function () {
             var tb = ov.querySelector('#np-toolbar');
             tb.hidden = !tb.hidden;
             this.innerHTML = tb.hidden
-                ? '<i class="bi bi-sliders"></i> Mostrar herramientas'
-                : '<i class="bi bi-arrows-fullscreen"></i> Texto completo';
+                ? '<i class="bi bi-sliders"></i><span>Herramientas</span>'
+                : '<i class="bi bi-arrows-fullscreen"></i><span>Texto completo</span>';
         });
         ov.querySelector('#np-new-btn').addEventListener('click', function () {
             openNoteEditor(null);
         });
 
-        // Deseleccionar elemento multimedia al tocar texto del lienzo
+        // Buscador en vivo de notas y paginación cada 10 notas
+        var searchAir = ov.querySelector('#np-note-search');
+        var clearBtn = ov.querySelector('#np-search-clear');
+        searchAir.addEventListener('input', function () {
+            searchQuery = (this.innerText || this.textContent || '').trim();
+            currentPage = 0;
+            renderNotesList();
+        });
+        searchAir.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') e.preventDefault();
+        });
+        clearBtn.addEventListener('click', function () {
+            searchAir.textContent = '';
+            searchQuery = '';
+            currentPage = 0;
+            renderNotesList();
+        });
+        ov.querySelector('#np-prev-page').addEventListener('click', function () {
+            if (currentPage > 0) { currentPage--; renderNotesList(); }
+        });
+        ov.querySelector('#np-next-page').addEventListener('click', function () {
+            currentPage++;
+            renderNotesList();
+        });
+
+        // Deseleccionar elemento multimedia al tocar texto + long-press sobre texto seleccionado → eliminar en 2 pasos
+        var selLpT = null, selX0 = 0, selY0 = 0;
         canvas.addEventListener('pointerdown', function (e) {
             if (!e.target.closest('.np-img-wrap')) {
                 ov.querySelectorAll('.np-img-wrap.np-sel').forEach(function (w) {
@@ -952,6 +1202,28 @@ window.TribalNotepad = (function () {
                 });
                 activeWrap = null;
             }
+            selX0 = e.clientX; selY0 = e.clientY;
+            clearTimeout(selLpT);
+            selLpT = setTimeout(function () {
+                var sel = window.getSelection && window.getSelection();
+                if (sel && sel.rangeCount && !sel.isCollapsed &&
+                    canvas.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+                    saveSelection();
+                    deleteSelectedDetail();
+                }
+            }, 520);
+        });
+        canvas.addEventListener('pointermove', function (e) {
+            if (selLpT && (Math.abs(e.clientX - selX0) > 10 || Math.abs(e.clientY - selY0) > 10)) {
+                clearTimeout(selLpT);
+                selLpT = null;
+            }
+        });
+        ['pointerup', 'pointercancel'].forEach(function (ev) {
+            canvas.addEventListener(ev, function () {
+                clearTimeout(selLpT);
+                selLpT = null;
+            });
         });
 
         // Dropdowns de Títulos, Alineación, Mayús/Minús e Interlineado
@@ -1130,6 +1402,14 @@ window.TribalNotepad = (function () {
                 });
                 return;
             }
+            if (act === 'save-disk') {
+                saveCurrentNoteAndSync(true);
+                return;
+            }
+            if (act === 'del-sel') {
+                deleteSelectedDetail();
+                return;
+            }
             if (act === 'song-tribu') {
                 saveSelection();
                 openSongPicker();
@@ -1137,23 +1417,9 @@ window.TribalNotepad = (function () {
             }
             if (act === 'autocorrect') {
                 if (!window.TribalNotepadWords) return;
-                canvas.focus();
-                restoreSelection();
-                var sel0 = window.getSelection && window.getSelection();
-                if (sel0 && sel0.rangeCount && !sel0.isCollapsed) {
-                    var fixedSel = window.TribalNotepadWords.autocorrectText(sel0.toString());
-                    document.execCommand('insertText', false, fixedSel);
-                } else {
-                    var walk = document.createTreeWalker(canvas, NodeFilter.SHOW_TEXT, null, false);
-                    var tn;
-                    while ((tn = walk.nextNode())) {
-                        tn.nodeValue = window.TribalNotepadWords.autocorrectText(tn.nodeValue);
-                    }
-                    titleEl.textContent = window.TribalNotepadWords.autocorrectText(titleEl.textContent);
-                }
-                pushHistory();
-                scheduleLiveSave();
-                if (deps && deps.toast) deps.toast('Ortografía corregida');
+                saveSelection();
+                var nFixed = runAutocorrectNow();
+                openSpellModal(nFixed);
                 return;
             }
             if (act === 'synonyms') {
@@ -1201,6 +1467,100 @@ window.TribalNotepad = (function () {
                     }
                 }
                 openSynModal(wordToLookup);
+            }
+        });
+
+        function runAutocorrectNow() {
+            var W = window.TribalNotepadWords;
+            if (!W) return 0;
+            var total = 0;
+            var walk = document.createTreeWalker(canvas, NodeFilter.SHOW_TEXT, null, false);
+            var tn;
+            while ((tn = walk.nextNode())) {
+                var r = W.autocorrectText(tn.nodeValue);
+                if (r.count > 0) {
+                    tn.nodeValue = r.text;
+                    total += r.count;
+                }
+            }
+            var rt = W.autocorrectText(titleEl.textContent);
+            if (rt.count > 0) {
+                titleEl.textContent = rt.text;
+                total += rt.count;
+            }
+            pushHistory();
+            scheduleLiveSave();
+            return total;
+        }
+
+        function renderSpellRules() {
+            var box = ov.querySelector('#np-sp-list');
+            var rules = (window.TribalNotepadWords && window.TribalNotepadWords.getRules()) || {};
+            var keys = Object.keys(rules);
+            if (!keys.length) {
+                box.innerHTML = '<p class="np-hint">Aún no has guardado palabras propias. El diccionario base de español ya está activo.</p>';
+                return;
+            }
+            box.innerHTML = keys.map(function (k) {
+                return '<div class="np-song-row" style="justify-content:space-between">' +
+                    '<span><b>' + esc(k) + '</b> → ' + esc(rules[k]) + '</span>' +
+                    '<button type="button" class="tribal-btn tribal-btn-xs danger" data-rm-rule="' + esc(k) + '">' +
+                        '<i class="bi bi-trash3"></i></button>' +
+                '</div>';
+            }).join('');
+        }
+
+        function openSpellModal(nFixed) {
+            var modal = ov.querySelector('#np-spell-modal');
+            var msg = ov.querySelector('#np-spell-msg');
+            var wBox = ov.querySelector('#np-sp-wrong');
+            var rBox = ov.querySelector('#np-sp-right');
+            var selStr = (savedRange && !savedRange.collapsed) ? savedRange.toString().trim().split(/\s+/)[0] : '';
+            wBox.textContent = selStr || '';
+            rBox.textContent = selStr || '';
+            msg.textContent = nFixed > 0
+                ? ('Se corrigieron ' + nFixed + ' palabra(s) automáticamente. También puedes guardar palabras propias abajo:')
+                : 'Revisión completada. Puedes guardar palabras o correcciones personalizadas abajo:';
+            renderSpellRules();
+            modal.hidden = false;
+        }
+
+        ov.querySelector('#np-spell-runall').addEventListener('click', function () {
+            var n = runAutocorrectNow();
+            ov.querySelector('#np-spell-msg').textContent = n > 0
+                ? ('¡Listo! Se corrigieron ' + n + ' palabra(s) en la nota.')
+                : 'No se encontraron más errores ortográficos en la nota.';
+        });
+
+        ov.querySelector('#np-sp-save').addEventListener('click', function () {
+            var wBox = ov.querySelector('#np-sp-wrong');
+            var rBox = ov.querySelector('#np-sp-right');
+            var wrong = (wBox.innerText || wBox.textContent || '').trim();
+            var right = (rBox.innerText || rBox.textContent || '').trim() || wrong;
+            if (!wrong) {
+                if (deps && deps.toast) deps.toast('Escribe la palabra a guardar');
+                return;
+            }
+            window.TribalNotepadWords.addRule(wrong, right);
+            wBox.textContent = '';
+            rBox.textContent = '';
+            renderSpellRules();
+            var n = runAutocorrectNow();
+            if (deps && deps.toast) {
+                deps.toast('Palabra «' + right + '» guardada en ortografía' + (n ? ' (' + n + ' corregidas)' : ''));
+            }
+        });
+
+        ov.querySelector('#np-sp-list').addEventListener('click', function (e) {
+            var b = e.target.closest('[data-rm-rule]');
+            if (!b) return;
+            window.TribalNotepadWords.removeRule(b.getAttribute('data-rm-rule'));
+            renderSpellRules();
+        });
+
+        ov.querySelector('#np-spell-modal').addEventListener('click', function (e) {
+            if (e.target.id === 'np-spell-modal' || e.target.id === 'np-spell-close') {
+                ov.querySelector('#np-spell-modal').hidden = true;
             }
         });
 
@@ -1464,14 +1824,20 @@ window.TribalNotepad = (function () {
         ov.innerHTML = buildHtml();
         (deps.mount || document.body).appendChild(ov);
         wireEvents();
-        if (initialNoteId) {
-            IO.getById(initialNoteId).then(function (n) {
-                if (n) openNoteEditor(n);
-                else showListView();
-            });
-        } else {
-            showListView();
-        }
+        recoverCrashDraft().then(function () {
+            var targetId = initialNoteId;
+            if (!targetId) {
+                try { targetId = localStorage.getItem(OPEN_ID_KEY) || ''; } catch (e) {}
+            }
+            if (targetId) {
+                IO.getById(targetId).then(function (n) {
+                    if (n) openNoteEditor(n);
+                    else showListView();
+                });
+            } else {
+                showListView();
+            }
+        });
     }
 
     function openContextMenuForNoteId(noteId, d) {
@@ -1484,6 +1850,13 @@ window.TribalNotepad = (function () {
     }
 
     function close() {
+        if (curNote && ov && !ov.querySelector('#np-edit-view').hidden) {
+            syncCurrentNoteFromDOM();
+            IO.save(curNote).then(function () {
+                return IO.syncToMediaStore(curNote, deps);
+            });
+        }
+        try { localStorage.removeItem(OPEN_ID_KEY); } catch (e) {}
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = null;
         curNote = null;

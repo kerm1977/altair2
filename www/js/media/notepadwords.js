@@ -1,12 +1,13 @@
 // ============================================================================
 // ARCHIVO: media/notepadwords.js (<= 200 líneas)
-// RESPONSABILIDAD: Autocorrector ortográfico en vivo y Diccionario de Sinónimos
-//   en español con reconocimiento de plurales, género y raíces verbales.
+// RESPONSABILIDAD: Autocorrector ortográfico (con diccionario personalizable
+//   persistente en localStorage) y Diccionario de Sinónimos en español.
 // ============================================================================
 window.TribalNotepadWords = (function () {
     'use strict';
 
-    var CORRECTIONS = {
+    var LS_DICT = 'tribu_np_custom_dict_v1';
+    var BASE_CORR = {
         tambien: 'también', cancion: 'canción', musica: 'música', facil: 'fácil',
         dificil: 'difícil', arbol: 'árbol', corazon: 'corazón', accion: 'acción',
         informacion: 'información', comunicacion: 'comunicación', edicion: 'edición',
@@ -35,7 +36,7 @@ window.TribalNotepadWords = (function () {
         salon: 'salón', balcon: 'balcón', jardin: 'jardín', almacen: 'almacén',
         interes: 'interés', estres: 'estrés', aereo: 'aéreo', linea: 'línea',
         heroe: 'héroe', oceano: 'océano', lagrima: 'lágrima', brujula: 'brújula',
-        pelicula: 'película', capitulo: 'capítulo', titulo: 'título',
+        pelicula: 'película', capitulo: 'capítulo', titulo: 'titulo',
         articulo: 'artículo', vehiculo: 'vehículo', obstaculo: 'obstáculo',
         espectaculo: 'espectáculo', increible: 'increíble', egoista: 'egoísta',
         paraiso: 'paraíso', sonreir: 'sonreír', reir: 'reír', oir: 'oír',
@@ -46,8 +47,28 @@ window.TribalNotepadWords = (function () {
         artistico: 'artístico', cientifico: 'científico', matematico: 'matemático',
         automatico: 'automático', simpatico: 'simpático', problematico: 'problemático',
         haver: 'haber', haiga: 'haya', hiba: 'iba', llendo: 'yendo',
-        valla: 'vaya', hacerce: 'hacerse', dijistes: 'dijiste', hicistes: 'hiciste'
+        valla: 'vaya', hacerce: 'hacerse', dijistes: 'dijiste', hicistes: 'hiciste',
+        xq: 'porque', pq: 'porque', tb: 'también', tmb: 'también', q: 'que'
     };
+    BASE_CORR.titulo = 'título';
+
+    function getRules() {
+        try { return JSON.parse(localStorage.getItem(LS_DICT) || '{}'); }
+        catch (e) { return {}; }
+    }
+    function addRule(wrong, right) {
+        var k = String(wrong || '').trim().toLowerCase();
+        var v = String(right || '').trim();
+        if (!k) return;
+        var d = getRules();
+        d[k] = v || k;
+        try { localStorage.setItem(LS_DICT, JSON.stringify(d)); } catch (e) {}
+    }
+    function removeRule(wrong) {
+        var d = getRules();
+        delete d[String(wrong || '').trim().toLowerCase()];
+        try { localStorage.setItem(LS_DICT, JSON.stringify(d)); } catch (e) {}
+    }
 
     var SYN_GROUPS = [
         ['bueno', 'excelente', 'óptimo', 'favorable', 'positivo', 'bondadoso', 'noble', 'genial', 'estupendo'],
@@ -83,13 +104,10 @@ window.TribalNotepadWords = (function () {
         ['nota', 'apunte', 'anotación', 'escrito', 'mensaje', 'registro', 'recordatorio', 'texto', 'carta'],
         ['idea', 'concepto', 'pensamiento', 'noción', 'ocurrencia', 'propuesta', 'plan', 'proyecto'],
         ['tiempo', 'época', 'periodo', 'etapa', 'momento', 'instante', 'era', 'plazo', 'hora'],
-        ['día', 'jornada', 'fecha', 'mañana', 'tarde', 'hoy', 'cotidiano'],
-        ['noche', 'oscuridad', 'velada', 'madrugada', 'anochecer', 'sombra'],
         ['agua', 'líquido', 'manantial', 'caudal', 'corriente', 'lluvia', 'rocío', 'mar', 'río'],
         ['tierra', 'suelo', 'terreno', 'mundo', 'planeta', 'territorio', 'patria', 'región', 'campo'],
         ['fuerza', 'energía', 'potencia', 'vigor', 'ímpetu', 'poder', 'fortaleza', 'ánimo'],
         ['paz', 'calma', 'serenidad', 'armonía', 'tranquilidad', 'sosiego', 'quietud', 'silencio'],
-        ['guerra', 'conflicto', 'batalla', 'combate', 'lucha', 'pelea', 'contienda', 'disputa'],
         ['miedo', 'temor', 'pavor', 'espanto', 'angustia', 'recelo', 'inquietud', 'susto'],
         ['valor', 'coraje', 'valentía', 'audacia', 'bravura', 'intrepidez', 'temple', 'mérito', 'precio'],
         ['dinero', 'capital', 'efectivo', 'moneda', 'riqueza', 'fortuna', 'fondos', 'plata', 'recursos'],
@@ -103,39 +121,10 @@ window.TribalNotepadWords = (function () {
         ['importante', 'esencial', 'fundamental', 'relevante', 'clave', 'vital', 'crucial', 'principal', 'notable'],
         ['fácil', 'sencillo', 'simple', 'elemental', 'accesible', 'claro', 'cómodo', 'práctico'],
         ['difícil', 'complejo', 'complicado', 'arduo', 'duro', 'laborioso', 'costoso', 'severo'],
-        ['claro', 'evidente', 'obvio', 'nítido', 'transparente', 'luminoso', 'comprensible', 'preciso'],
-        ['oscuro', 'sombrío', 'tenebroso', 'opaco', 'confuso', 'oculto', 'negro'],
         ['nuevo', 'reciente', 'moderno', 'fresco', 'actual', 'novedoso', 'inédito', 'joven'],
         ['viejo', 'antiguo', 'anciano', 'veterano', 'remoto', 'arcaico', 'usado', 'pasado'],
-        ['cierto', 'verdadero', 'real', 'efectivo', 'seguro', 'auténtico', 'exacto', 'correcto'],
-        ['falso', 'erróneo', 'incierto', 'engañoso', 'fingido', 'mentira', 'incorrecto'],
         ['escribir', 'redactar', 'anotar', 'apuntar', 'componer', 'plasmar', 'grabar'],
         ['leer', 'repasar', 'interpretar', 'descifrar', 'estudiar', 'ojear', 'revisar'],
-        ['comer', 'alimentarse', 'ingerir', 'nutrirse', 'almorzar', 'cenar', 'probar'],
-        ['beber', 'tomar', 'ingerir', 'sorber', 'brindar', 'hidratarse'],
-        ['dormir', 'descansar', 'reposar', 'soñar', 'dormitar', 'acostarse'],
-        ['vivir', 'existir', 'habitar', 'residir', 'permanecer', 'subsistir', 'vida'],
-        ['sentir', 'experimentar', 'percibir', 'notar', 'emocionarse', 'presentir'],
-        ['saber', 'conocer', 'entender', 'comprender', 'dominar', 'sabiduría', 'ciencia'],
-        ['poder', 'lograr', 'conseguir', 'alcanzar', 'capacidad', 'facultad', 'dominio'],
-        ['dar', 'entregar', 'ofrecer', 'brindar', 'otorgar', 'conceder', 'regalar', 'ceder'],
-        ['recibir', 'aceptar', 'tomar', 'acoger', 'percibir', 'admitir', 'cobrar'],
-        ['llevar', 'transportar', 'trasladar', 'conducir', 'portar', 'guiar', 'cargar'],
-        ['traer', 'aportar', 'acarrear', 'acercar', 'presentar', 'producir'],
-        ['salir', 'partir', 'marchar', 'escapar', 'brotar', 'emerger', 'retirarse'],
-        ['entrar', 'ingresar', 'acceder', 'penetrar', 'incorporarse', 'pasar'],
-        ['subir', 'ascender', 'elevar', 'escalar', 'aumentar', 'crecer', 'trepar'],
-        ['bajar', 'descender', 'disminuir', 'reducir', 'caer', 'declinar'],
-        ['abrir', 'destapar', 'desplegar', 'iniciar', 'inaugurar', 'desbloquear'],
-        ['cerrar', 'tapar', 'clausurar', 'bloquear', 'concluir', 'sellar'],
-        ['ganar', 'triunfar', 'vencer', 'obtener', 'lograr', 'conquistar', 'superar'],
-        ['perder', 'extraviar', 'fracasar', 'carecer', 'desaprovechar', 'caer'],
-        ['problema', 'dificultad', 'inconveniente', 'obstáculo', 'conflicto', 'dilema', 'asunto'],
-        ['solución', 'respuesta', 'salida', 'remedio', 'arreglo', 'clave', 'desenlace'],
-        ['persona', 'individuo', 'ser', 'sujeto', 'hombre', 'mujer', 'gente', 'ciudadano'],
-        ['niño', 'infante', 'chico', 'pequeño', 'muchacho', 'joven', 'criatura'],
-        ['auto', 'coche', 'vehículo', 'carro', 'automóvil', 'transporte'],
-        ['teléfono', 'celular', 'móvil', 'aparato', 'dispositivo', 'equipo'],
         ['imagen', 'foto', 'fotografía', 'figura', 'ilustración', 'retrato', 'cuadro'],
         ['video', 'película', 'clip', 'grabación', 'filmación', 'cinta', 'escena']
     ];
@@ -146,10 +135,22 @@ window.TribalNotepadWords = (function () {
         var c0 = orig.charAt(0);
         return (c0 === c0.toUpperCase() && c0 !== c0.toLowerCase()) ? rep.charAt(0).toUpperCase() + rep.slice(1) : rep;
     }
-    function autocorrectWord(w) { var hit = CORRECTIONS[String(w || '').toLowerCase()]; return hit ? matchCase(w, hit) : w; }
-    function autocorrectText(t) { return String(t || '').replace(/[A-Za-zÁÉÍÓÚáéíóúñÑüÜ]+/g, autocorrectWord); }
+    function autocorrectWord(w) {
+        var clean = String(w || '').toLowerCase();
+        var custom = getRules();
+        var hit = custom.hasOwnProperty(clean) ? custom[clean] : BASE_CORR[clean];
+        return hit ? matchCase(w, hit) : w;
+    }
+    function autocorrectText(t) {
+        var count = 0;
+        var res = String(t || '').replace(/[A-Za-zÁÉÍÓÚáéíóúñÑüÜ]+/g, function (w) {
+            var fixed = autocorrectWord(w);
+            if (fixed !== w) count++;
+            return fixed;
+        });
+        return { text: res, count: count };
+    }
     function norm(s) { return String(s || '').toLowerCase().replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/ó/g, 'o').replace(/ú/g, 'u').trim(); }
-
     function stemsOf(w) {
         var n = norm(w), arr = [n];
         if (n.length > 3) {
@@ -163,7 +164,6 @@ window.TribalNotepadWords = (function () {
         }
         return arr;
     }
-
     function synonymsFor(word) {
         var clean = String(word || '').replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑüÜ]/g, '').trim(), w = clean.toLowerCase();
         var stems = stemsOf(w), out = [], seen = {};
@@ -182,5 +182,12 @@ window.TribalNotepadWords = (function () {
         return Promise.resolve(out.slice(0, 18));
     }
 
-    return { autocorrectWord: autocorrectWord, autocorrectText: autocorrectText, synonymsFor: synonymsFor };
+    return {
+        autocorrectWord: autocorrectWord,
+        autocorrectText: autocorrectText,
+        synonymsFor: synonymsFor,
+        getRules: getRules,
+        addRule: addRule,
+        removeRule: removeRule
+    };
 })();
