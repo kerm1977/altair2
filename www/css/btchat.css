@@ -8,9 +8,11 @@
    del flujo del overlay ni de flex-basis — imposible que algo flote a medias */
 .tribal-btchat {
     position: fixed; inset: 0;
-    display: grid;
-    grid-template-rows: auto 1fr auto auto auto;
-    /* filas: 1 head · 2 lienzo(devs|msgs) · 3 emojis · 4 reply · 5 inputbar */
+    height: 100dvh; max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    overflow: hidden;
     /* "wallpaper" WA: noche tribal + lunar de puntos terracota tenues */
     background:
         radial-gradient(circle at 12px 12px, rgba(210, 105, 30, .07) 1.6px, transparent 2.2px),
@@ -21,21 +23,17 @@
 /* guardia universal: dentro del chat [hidden] SIEMPRE gana a cualquier display —
    ningún panel puede volver a quedar trabado visible (bug histórico emojis) */
 .tribal-btchat [hidden] { display: none !important; }
-/* hijos del grid: fijan su fila y PERMITEN encoger — min-height:0 para que el
-   contenido alto scrollee sin empujar la barra; min-width:0 para que NADA
-   ensanche la página hacia los lados (el desborde que escondía el enviar) */
-.tribal-btchat { overflow-x: hidden; }
 .tribal-btchat > * { min-width: 0; }
-.btchat-head   { grid-row: 1; }
-.btchat-devs, .btchat-msgs { grid-row: 2; min-height: 0; }
-.btchat-emojis { grid-row: 3; }
-.btchat-reply  { grid-row: 4; }
-.btchat-inputbar { grid-row: 5; }
+.btchat-head   { flex-shrink: 0; }
+.btchat-devs, .btchat-msgs { flex: 1; min-height: 0; }
+.btchat-emojis { flex-shrink: 0; }
+.btchat-reply  { flex-shrink: 0; }
+.btchat-inputbar { flex-shrink: 0; }
 
 /* ===== cabecera estilo WA: avatar + nombre + estado ===== */
 .btchat-head {
     display: flex; align-items: center; gap: 8px;
-    padding: calc(env(safe-area-inset-top, 0px) + 8px) 8px 8px;
+    padding: calc(var(--safe-top, 0px) + 10px) 10px 10px;
     background: linear-gradient(180deg, #241305, #1d0f04);
     border-bottom: 1px solid rgba(210, 105, 30, .4);
     box-shadow: 0 2px 10px rgba(0, 0, 0, .45);
@@ -247,7 +245,7 @@
 @keyframes btc-badge-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 .btchat-inputbar {
     display: flex; align-items: center; gap: 4px;
-    padding: 7px 8px calc(7px + max(env(safe-area-inset-bottom, 0px), 18px));
+    padding: 8px 10px calc(10px + var(--safe-bottom, 0px));
     background: linear-gradient(0deg, #241305, #1d0f04); }
 .btchat-inputbar .tribal-input {
     flex: 1; min-width: 0; font-size: 1.02rem; padding: 12px 16px;

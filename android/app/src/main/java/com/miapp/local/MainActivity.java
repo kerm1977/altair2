@@ -9,7 +9,13 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.view.View;
+import android.view.Window;
 import android.webkit.MimeTypeMap;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -29,8 +35,34 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(TribalNativePlugin.class);
         registerPlugin(TribalBtPlugin.class);
         super.onCreate(savedInstanceState);
+        setupSystemBarsSafeArea();
         handleIncoming(getIntent());
         requestAllPermissions();
+    }
+
+    // Garantiza que el WebView respete la barra superior de estado y la barra
+    // inferior de navegación de Samsung/Android sin superponerse jamás.
+    private void setupSystemBarsSafeArea() {
+        try {
+            Window w = getWindow();
+            if (w == null) return;
+            WindowCompat.setDecorFitsSystemWindows(w, true);
+            w.setStatusBarColor(0xFF160E07);
+            w.setNavigationBarColor(0xFF160E07);
+            final View content = w.findViewById(android.R.id.content);
+            if (content != null) {
+                content.setBackgroundColor(0xFF160E07);
+                ViewCompat.setOnApplyWindowInsetsListener(content, (v, windowInsets) -> {
+                    Insets bars = windowInsets.getInsets(
+                        WindowInsetsCompat.Type.systemBars()
+                        | WindowInsetsCompat.Type.displayCutout()
+                        | WindowInsetsCompat.Type.ime()
+                    );
+                    v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                    return WindowInsetsCompat.CONSUMED;
+                });
+            }
+        } catch (Throwable ignored) {}
     }
 
     // Pide TODOS los permisos runtime de una vez al arrancar. Android solo
