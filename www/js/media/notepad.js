@@ -288,7 +288,9 @@ window.TribalNotepad = (function () {
             '<!-- MODAL DE SINÓNIMOS -->' +
             '<div class="np-modal-bd" id="np-syn-modal" hidden>' +
                 '<div class="np-modal-card">' +
-                    '<strong><i class="bi bi-book"></i> Sinónimos de «<span id="np-syn-word"></span>»</strong>' +
+                    '<strong><i class="bi bi-book"></i> Diccionario de Sinónimos</strong>' +
+                    '<div id="np-syn-search" class="np-air-urlbox" contenteditable="true" ' +
+                        'data-placeholder="Escribe o selecciona una palabra (ej. bonito, rápido, hablar, casa…)"></div>' +
                     '<div class="np-ctx-grid" id="np-syn-list"></div>' +
                     '<div class="np-modal-acts">' +
                         '<button type="button" class="tribal-btn" id="np-syn-close">Cerrar</button>' +
@@ -1157,29 +1159,81 @@ window.TribalNotepad = (function () {
             if (act === 'synonyms') {
                 if (!window.TribalNotepadWords) return;
                 saveSelection();
-                var selW = (window.getSelection && window.getSelection().toString() || '').trim();
-                var runSyn = function (word) {
-                    word = String(word || '').trim().split(/\s+/)[0];
-                    if (!word) return;
-                    var synModal = ov.querySelector('#np-syn-modal');
-                    var synList = ov.querySelector('#np-syn-list');
-                    ov.querySelector('#np-syn-word').textContent = word;
-                    synList.innerHTML = '<p class="np-hint">Buscando sinónimos…</p>';
-                    synModal.hidden = false;
-                    window.TribalNotepadWords.synonymsFor(word).then(function (arr) {
-                        if (!arr || !arr.length) {
-                            synList.innerHTML = '<p class="np-hint">Sin sinónimos para «' + esc(word) + '».</p>';
-                            return;
+                var wordToLookup = '';
+                var sel = window.getSelection && window.getSelection();
+                var r = (sel && sel.rangeCount && canvas.contains(sel.getRangeAt(0).commonAncestorContainer))
+                    ? sel.getRangeAt(0) : savedRange;
+
+                if (r && !r.collapsed) {
+                    wordToLookup = r.toString().trim().split(/\s+/)[0];
+                    savedRange = r.cloneRange();
+                } else if (r && r.startContainer && r.startContainer.nodeType === 3) {
+                    var txt = r.startContainer.nodeValue || '';
+                    var off = r.startOffset;
+                    var left = txt.slice(0, off).match(/[A-Za-zÁÉÍÓÚáéíóúñÑüÜ]+$/);
+                    var right = txt.slice(off).match(/^[A-Za-zÁÉÍÓÚáéíóúñÑüÜ]+/);
+                    var sIdx = left ? off - left[0].length : off;
+                    var eIdx = right ? off + right[0].length : off;
+                    if (eIdx > sIdx) {
+                        var wr = document.createRange();
+                        wr.setStart(r.startContainer, sIdx);
+                        wr.setEnd(r.startContainer, eIdx);
+                        savedRange = wr;
+                        wordToLookup = txt.slice(sIdx, eIdx);
+                    }
+                }
+                if (!wordToLookup) {
+                    var walkW = document.createTreeWalker(canvas, NodeFilter.SHOW_TEXT, null, false);
+                    var lastN = null, curN;
+                    while ((curN = walkW.nextNode())) {
+                        if (/[A-Za-zÁÉÍÓÚáéíóúñÑüÜ]{2,}/.test(curN.nodeValue)) lastN = curN;
+                    }
+                    if (lastN) {
+                        var mm = /([A-Za-zÁÉÍÓÚáéíóúñÑüÜ]{2,})\s*$/.exec(lastN.nodeValue);
+                        if (mm) {
+                            var wr2 = document.createRange();
+                            var st2 = lastN.nodeValue.lastIndexOf(mm[1]);
+                            wr2.setStart(lastN, st2);
+                            wr2.setEnd(lastN, st2 + mm[1].length);
+                            savedRange = wr2;
+                            wordToLookup = mm[1];
                         }
-                        synList.innerHTML = arr.map(function (s) {
-                            return '<button type="button" data-syn="' + esc(s) + '">' +
-                                '<i class="bi bi-arrow-left-right"></i> ' + esc(s) + '</button>';
-                        }).join('');
-                    });
-                };
-                if (selW) runSyn(selW);
-                else askAirUrl('Escribe la palabra para buscar sinónimos', '', runSyn);
+                    }
+                }
+                openSynModal(wordToLookup);
             }
+        });
+
+        function renderSynResults(word) {
+            var synList = ov.querySelector('#np-syn-list');
+            var clean = String(word || '').trim().split(/\s+/)[0];
+            if (!clean) {
+                synList.innerHTML = '<p class="np-hint">Escribe arriba una palabra para ver sus sinónimos y tocar para insertarlo.</p>';
+                return;
+            }
+            window.TribalNotepadWords.synonymsFor(clean).then(function (arr) {
+                if (!arr || !arr.length) {
+                    synList.innerHTML = '<p class="np-hint">Sin sinónimos registrados para «' + esc(clean) + '». Prueba con otra palabra (ej. bueno, grande, rápido, bonito, hablar, crear, casa, música…).</p>';
+                    return;
+                }
+                synList.innerHTML = arr.map(function (s) {
+                    return '<button type="button" data-syn="' + esc(s) + '">' +
+                        '<i class="bi bi-arrow-left-right"></i> ' + esc(s) + '</button>';
+                }).join('');
+            });
+        }
+
+        function openSynModal(word) {
+            var synModal = ov.querySelector('#np-syn-modal');
+            var searchBox = ov.querySelector('#np-syn-search');
+            searchBox.textContent = word || '';
+            synModal.hidden = false;
+            renderSynResults(word || '');
+            if (!word) setTimeout(function () { searchBox.focus(); }, 30);
+        }
+
+        ov.querySelector('#np-syn-search').addEventListener('input', function () {
+            renderSynResults(this.innerText || this.textContent || '');
         });
 
         ov.querySelector('#np-syn-modal').addEventListener('click', function (e) {
@@ -1192,8 +1246,24 @@ window.TribalNotepad = (function () {
             var rep = b.getAttribute('data-syn');
             ov.querySelector('#np-syn-modal').hidden = true;
             canvas.focus();
-            restoreSelection();
-            document.execCommand('insertText', false, rep);
+            if (savedRange) {
+                var sel = window.getSelection && window.getSelection();
+                if (sel) {
+                    sel.removeAllRanges();
+                    sel.addRange(savedRange);
+                }
+                savedRange.deleteContents();
+                var tn = document.createTextNode(rep);
+                savedRange.insertNode(tn);
+                savedRange.setStartAfter(tn);
+                savedRange.collapse(true);
+                if (sel) {
+                    sel.removeAllRanges();
+                    sel.addRange(savedRange);
+                }
+            } else {
+                document.execCommand('insertText', false, rep);
+            }
             pushHistory();
             scheduleLiveSave();
         });
