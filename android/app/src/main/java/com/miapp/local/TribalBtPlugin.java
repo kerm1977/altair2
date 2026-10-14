@@ -57,6 +57,8 @@ public class TribalBtPlugin extends Plugin {
     private BluetoothAdapter adapter;
     private boolean discovering;
     private boolean rxRegistered;
+    private boolean wifiRxRegistered;
+    private long lastEnableAsk;
     private final Map<String, Peer> peers = new HashMap<>();
     private final Deque<Integer> seen = new ArrayDeque<>();   // dedup de relay
 
@@ -160,6 +162,16 @@ public class TribalBtPlugin extends Plugin {
                         d.put("kind", kindOf(dev)); emit(d);
                     }
                 } catch (SecurityException ignored) {} }
+            else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(a)) {
+                BluetoothDevice dev = i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if (dev == null) return;
+                try {
+                    Peer p = peers.remove(dev.getAddress());
+                    if (p != null) try { p.s.close(); } catch (Throwable ignored) {}
+                    d.put("type", "peer"); d.put("state", "closed");
+                    d.put("addr", dev.getAddress()); d.put("name", dev.getName());
+                    emit(d);
+                } catch (SecurityException ignored) {} }
             else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(a)) {
                 discovering = false; d.put("type", "scanDone"); emit(d); }
             else if (BluetoothAdapter.ACTION_SCAN_MODE_CHANGED.equals(a)) {
@@ -225,7 +237,8 @@ public class TribalBtPlugin extends Plugin {
         }
     }
     @PermissionCallback
-    private void permsDone(PluginCall call) { call.resolve(); }
+    private void permsDone(PluginCall call) {
+        call.resolve(new JSObject().put("permsOk", allPermsOk())); }
     private boolean allPermsOk() {
         List<String> need = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= 31) {
@@ -277,8 +290,16 @@ public class TribalBtPlugin extends Plugin {
         try {
             ensureRxRegistered();
             if (!ad.isEnabled()) {
-                getContext().startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                // radio apagado: pedir encendido una vez (no dos diálogos) y
+                // NO lanzar startDiscovery ahora — devolvería false y el
+                // escaneo moriría sin scanDone. El JS reintenta a los ~2.5 s.
+                if (System.currentTimeMillis() - lastEnableAsk > 8000) {
+                    lastEnableAsk = System.currentTimeMillis();
+                    getContext().startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                }
+                call.resolve(new JSObject().put("enabled", false));
+                return;
             }
             if (ad.isDiscovering()) ad.cancelDiscovery();
             // Emitir también los emparejados inmediatamente para que la lista nunca quede vacía
@@ -310,6 +331,7 @@ public class TribalBtPlugin extends Plugin {
         try {
             if (ad == null) { call.reject("sin Bluetooth"); return; }
             if (ad.isEnabled()) { call.resolve(); return; }
+            lastEnableAsk = System.currentTimeMillis();
             getContext().startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             call.resolve();
@@ -569,6 +591,73 @@ public class TribalBtPlugin extends Plugin {
         }}).start();
     }
 
+    // lee los resultados de escaneo Wi-Fi actuales (última pasada del sistema)
+    private JSONArray readNets() {
+        JSONArray nets = new JSONArray();
+        try {
+            WifiManager wm = (WifiManager) getContext().getApplicationContext()
+                .getSystemService(Context.WIFI_SERVICE);
+            if (wm == null || !wm.isWifiEnabled()) return nets;
+            String curSsid = "";
+            try {
+                WifiInfo wi = wm.getConnectionInfo();
+                if (wi != null && wi.getSSID() != null) {
+                    curSsid = wi.getSSID().replace("\"", "");
+                    if ("<unknown ssid>".equalsIgnoreCase(curSsid)) curSsid = "";
+                }
+            } catch (Throwable ignored) {}
+            List<ScanResult> list = wm.getScanResults();
+            Map<String, JSONObject> best = new LinkedHashMap<>();
+            if (list != null) {
+                for (ScanResult sr : list) {
+                    String ssid = sr.SSID != null ? sr.SSID.trim() : "";
+                    if (ssid.isEmpty()) continue;
+                    int lvl = WifiManager.calculateSignalLevel(sr.level, 100);
+                    if (!best.containsKey(ssid) || lvl > best.get(ssid).optInt("level", 0)) {
+                        JSONObject o = new JSONObject();
+                        o.put("ssid", ssid);
+                        o.put("bssid", sr.BSSID != null ? sr.BSSID : "");
+                        o.put("level", lvl);
+                        String caps = sr.capabilities != null ? sr.capabilities : "";
+                        o.put("secure", caps.contains("WPA") || caps.contains("WEP") ||
+                            caps.contains("SAE") || caps.contains("OWE") || caps.contains("EAP"));
+                        String low = ssid.toLowerCase();
+                        o.put("hotspot", low.contains("android") || low.contains("iphone") ||
+                            low.contains("galaxy") || low.contains("redmi") || low.contains("hotspot") ||
+                            low.contains("poco") || low.contains("moto") || low.contains("tribu"));
+                        o.put("connected", ssid.equals(curSsid));
+                        best.put(ssid, o);
+                    }
+                }
+            }
+            for (JSONObject o : best.values()) nets.put(o);
+        } catch (Throwable ignored) {}
+        return nets;
+    }
+
+    // cuando el sistema termina un escaneo Wi-Fi → evento con redes frescas
+    private final BroadcastReceiver wifiRx = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            if (!WifiManager.SCAN_RESULTS_AVAILABLE_ACTION.equals(i.getAction())) return;
+            JSObject ev = new JSObject();
+            ev.put("type", "wifiNets");
+            ev.put("networks", readNets());
+            emit(ev);
+        }
+    };
+    private void ensureWifiRx() {
+        if (wifiRxRegistered) return;
+        try {
+            IntentFilter f = new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
+            if (Build.VERSION.SDK_INT >= 33) {
+                getContext().registerReceiver(wifiRx, f, Context.RECEIVER_EXPORTED);
+            } else {
+                getContext().registerReceiver(wifiRx, f);
+            }
+            wifiRxRegistered = true;
+        } catch (Throwable ignored) {}
+    }
+
     @PluginMethod
     public void wifiScan(PluginCall call) {
         JSObject res = new JSObject();
@@ -599,33 +688,11 @@ public class TribalBtPlugin extends Plugin {
                         if ("<unknown ssid>".equalsIgnoreCase(curSsid)) curSsid = "";
                     }
                 } catch (Throwable ignored) {}
+                // dispara un escaneo real; las redes frescas llegan por el
+                // broadcast SCAN_RESULTS_AVAILABLE → evento 'wifiNets' al JS
+                ensureWifiRx();
                 try { wm.startScan(); } catch (Throwable ignored) {}
-                try {
-                    List<ScanResult> list = wm.getScanResults();
-                    Map<String, JSONObject> best = new LinkedHashMap<>();
-                    if (list != null) {
-                        for (ScanResult sr : list) {
-                            String ssid = sr.SSID != null ? sr.SSID.trim() : "";
-                            if (ssid.isEmpty()) continue;
-                            int lvl = WifiManager.calculateSignalLevel(sr.level, 100);
-                            if (!best.containsKey(ssid) || lvl > best.get(ssid).optInt("level", 0)) {
-                                JSONObject o = new JSONObject();
-                                o.put("ssid", ssid);
-                                o.put("bssid", sr.BSSID != null ? sr.BSSID : "");
-                                o.put("level", lvl);
-                                String caps = sr.capabilities != null ? sr.capabilities : "";
-                                o.put("secure", caps.contains("WPA") || caps.contains("WEP") || caps.contains("SAE"));
-                                String low = ssid.toLowerCase();
-                                o.put("hotspot", low.contains("android") || low.contains("iphone") ||
-                                    low.contains("galaxy") || low.contains("redmi") || low.contains("hotspot") ||
-                                    low.contains("poco") || low.contains("moto") || low.contains("tribu"));
-                                o.put("connected", ssid.equals(curSsid));
-                                best.put(ssid, o);
-                            }
-                        }
-                    }
-                    for (JSONObject o : best.values()) nets.put(o);
-                } catch (Throwable ignored) {}
+                nets = readNets();
             }
             res.put("currentSsid", curSsid);
             res.put("networks", nets);

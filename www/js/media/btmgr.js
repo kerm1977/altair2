@@ -21,19 +21,18 @@ window.TribalBtMgr = (function () {
     function loadSaved() { return N && N.favs ? N.favs() : {}; }
     function wFavs() { var f = loadSaved(), o = {}; Object.keys(f).forEach(function (a) { if (f[a] && f[a].kind === 'wifi' && f[a].fav !== false) o[a] = f[a]; }); return o; }
     function wFav(ssid) { return wFavs()[ssid] || null; }
-    function saveDevice(addr, name, kind, favFlag) { if (!addr || !N) return;
-        var kd = guessKind(name, kind); N.setFav(addr, name, kd, favFlag);
+    function saveDevice(addr, name, kind, favFlag) { if (!addr || !N) return; var kd = guessKind(name, kind); N.setFav(addr, name, kd, favFlag);
         devs[addr] = { name: name || addr, addr: addr, kind: kd, saved: true, fav: N.isFav(addr) }; }
     function forgetDevice(addr) { var f = loadSaved(); delete f[addr]; delete devs[addr]; delete connected[addr];
-        try { localStorage.setItem(FAV_KEY, JSON.stringify(f)); } catch (e) {}
-        render(); toast('Dispositivo eliminado'); }
+        try { localStorage.setItem(FAV_KEY, JSON.stringify(f)); } catch (e) {} render(); toast('Dispositivo eliminado'); }
     function onNetEvent(d) { if (!d || !d.type || !ov) return;
         if (d.type === 'device' && d.addr) { var kd = guessKind(d.name, d.kind);
             devs[d.addr] = { addr: d.addr, name: d.name || d.addr, kind: kd, near: true, bonded: !!d.bonded, fav: N.isFav(d.addr) };
-            if (d.connected) connected[d.addr] = { name: d.name || d.addr, kind: kd };
-            render(); } else if (d.type === 'wifiDevice' && d.ip) { wifiDevs[d.ip] = { ip: d.ip, name: d.name || ('Equipo Wi-Fi ' + d.ip) }; render(); }
+            if (d.connected) connected[d.addr] = { name: d.name || d.addr, kind: kd }; render(); }
+        else if (d.type === 'wifiDevice' && d.ip) { wifiDevs[d.ip] = { ip: d.ip, name: d.name || ('Equipo Wi-Fi ' + d.ip) }; render(); }
         else if (d.type === 'scanDone') { scanning = false; render();
             status('Escaneo terminado: ' + Object.keys(devs).length + ' BT · ' + (wifiNets.length + Object.keys(wifiDevs).length) + ' Wi-Fi'); }
+        else if (d.type === 'wifiNets') { wifiNets = d.networks || []; render(); }
         else if (d.type === 'scanMode') {
             if (d.mode === 23 || d.mode === 3) { visibleUntil = Date.now() + 300000; status('👁 Visible para otros dispositivos (5 min)'); }
             else if (d.mode === 21 || d.mode === 20) { visibleUntil = 0; status('Visibilidad apagada'); }
@@ -41,16 +40,16 @@ window.TribalBtMgr = (function () {
         } else if (d.type === 'peer') { var a = d.addr || d.name || 'peer';
             if (d.state === 'open') { var kp = guessKind(d.name, d.kind); connected[a] = { name: d.name || a, kind: kp };
                 saveDevice(a, d.name || a, kp, true); toast('Conectado con ' + (d.name || a)); }
-            else if (d.state === 'closed' || d.state === 'error') delete connected[a];
-            render(); }
-    }
+            else if (d.state === 'closed' || d.state === 'error') delete connected[a]; render(); } }
 
-    // Flujo idéntico al chat: ensurePerms → listen → devices → enable? → scan → wifiScan
+    // Flujo idéntico al chat: ensurePerms → listen → devices → enable? → scan.
+    // El Wi-Fi corre EN PARALELO — si el BT falla el Wi-Fi igual funciona.
     function doScan(fromUser) { if (!N) return;
-        scanning = true; devs = {}; wifiDevs = {};
+        scanning = true; devs = {}; wifiDevs = {}; connected = {};
         var saved = loadSaved(); Object.keys(saved).forEach(function (a) { var s = saved[a]; if (s.kind === 'wifi') return;
             devs[a] = { addr: a, name: s.name || a, kind: guessKind(s.name, s.kind), saved: true, fav: s.fav !== false }; });
         status('📡 Escaneo profundo: permisos → emparejados → cercanos → Wi-Fi…'); render();
+        setTimeout(function () { if (scanning) { scanning = false; render(); } }, 14000);
         N.ensurePerms().then(function () { N.listen().catch(function () {}); return N.devices(); })
             .then(function (r) {
                 ((r && r.bonded) || []).forEach(function (x) { if (!x || !x.addr) return;
@@ -59,14 +58,16 @@ window.TribalBtMgr = (function () {
                     if (x.connected) connected[x.addr] = { name: x.name || x.addr, kind: kd }; });
                 render();
                 if (r && r.permsOk === false) { scanning = false; status('⚠ Permisos Bluetooth/Ubicación denegados — actívalos en Ajustes'); return; }
-                if (r && r.enabled === false) { N.enable().catch(function () {}); status('Encendiendo Bluetooth…'); }
+                if (r && r.enabled === false) { status('Encendiendo Bluetooth…'); // como el chat: esperar 2.5 s
+                    N.enable().catch(function () {});                              // o startDiscovery muere
+                    setTimeout(function () { N.scan().catch(function () { scanning = false; render(); }); }, 2500); return; }
                 status('📡 Buscando dispositivos cercanos…');
                 return N.scan(!!fromUser);
-            }).then(function () { return N.wifiScan(); })
-            .then(function (w) {
-                wifiInfo = w || {}; wifiNets = (w && w.networks) || []; render();
-                if (w && w.locationOn === false) toast('Activa la Ubicación del teléfono para ver redes Wi-Fi cercanas');
-            }).catch(function () { scanning = false; render(); }); }
+            }).catch(function () { scanning = false; render(); });
+        N.wifiScan().then(function (w) {
+            wifiInfo = w || {}; wifiNets = (w && w.networks) || []; render();
+            if (w && w.locationOn === false) toast('Activa la Ubicación del teléfono para ver redes Wi-Fi cercanas');
+        }).catch(function () {}); }
     function doWifi() { if (!N) return;
         status('📶 Leyendo Wi-Fi / Hotspots cercanos…');
         N.ensurePerms().then(function () { return N.wifiScan(); }).then(function (w) {
@@ -74,9 +75,8 @@ window.TribalBtMgr = (function () {
             var msg = (wifiInfo.hotspotOn ? '📡 Tu Hotspot está ACTIVO · ' : '') + wifiNets.length + ' redes Wi-Fi/Hotspots detectadas' +
                 (wifiInfo.currentSsid ? ' · Conectado a: ' + wifiInfo.currentSsid : '');
             status(msg); toast(msg);
-            if (w && w.locationOn === false) toast('Ubicación apagada: Android exige ubicación ON para listar redes Wi-Fi');
-            else if (!wifiNets.length && N.openWifiSettings) N.openWifiSettings();
-        }).catch(function () { status('No se pudo leer el Wi-Fi'); }); }
+            if (w && w.locationOn === false) toast('Ubicación apagada: Android exige ubicación ON para listar redes Wi-Fi'); })
+        .catch(function () { status('No se pudo leer el Wi-Fi'); }); }
     function wifiJoin(ssid, secure) { var fv = wFav(ssid);
         if (fv) return joinWifi(ssid, fv.pass || '');
         askPass(ssid, secure, function (p) { joinWifi(ssid, p); }); }

@@ -63,6 +63,7 @@ window.TribalRemote = (function () {
         if (d.type === 'msg') { try { var m = JSON.parse(d.msg); if (m && m.k === 'rc') execLocal(m.cmd, m); } catch (e) {} }
         else if (d.type === 'device' && d.addr) { btDevs[d.addr] = { addr: d.addr, name: d.name || d.addr, kind: d.kind || 'bt' }; if (d.connected) btPeers[d.addr] = d.name || d.addr; renderDevs(); }
         else if (d.type === 'wifiDevice' && d.ip) { wifiDevs[d.ip] = { ip: d.ip, name: d.name || d.ip }; if (!targetIp) targetIp = d.ip; renderDevs(); }
+        else if (d.type === 'wifiNets') { wifiNets = d.networks || []; renderDevs(); }
         else if (d.type === 'peer') { var a = d.addr || d.name || 'peer'; if (d.state === 'open') { btPeers[a] = d.name || a; btDevs[a] = { addr: a, name: d.name || a }; } else delete btPeers[a]; renderDevs(); }
         else if (d.type === 'scanDone') renderDevs();
     }
@@ -78,12 +79,12 @@ window.TribalRemote = (function () {
             ((r && r.bonded) || []).forEach(function (x) { if (x && x.addr) { btDevs[x.addr] = x; if (x.connected) btPeers[x.addr] = x.name || x.addr; } });
             renderDevs();
             if (r && r.permsOk === false) toast('Permisos Bluetooth denegados — actívalos en Ajustes');
-            if (r && r.enabled === false && N.isNative && N.isNative()) N.enable().then(function () { N.listen().catch(function () {}); }).catch(function () {});
+            if (r && r.enabled === false && N.isNative && N.isNative()) {   // como el chat:
+                N.enable().then(function () { N.listen().catch(function () {}); }).catch(function () {});
+                setTimeout(function () { N.scan().catch(function () {}); }, 2500); return; }
             return N.scan(!!fromUser);
         }).catch(function () { renderDevs(); });
-        N.wifiScan().then(function (w) { wifiInfo = w || {}; wifiNets = (w && w.networks) || []; renderDevs(); }).catch(function () {});
-    }
-
+        N.wifiScan().then(function (w) { wifiInfo = w || {}; wifiNets = (w && w.networks) || []; renderDevs(); }).catch(function () {}); }
     function renderDevs() {
         if (!ov) return;
         var pCount = Object.keys(btPeers).length, wCount = Object.keys(wifiDevs).length;
@@ -192,9 +193,7 @@ window.TribalRemote = (function () {
             sendPkt({ cmd: 'move', dx: Math.round(dx), dy: Math.round(dy) });
         });
         function up() { if (!down) return; down = false; dot.classList.remove('on'); if (!moved && Date.now() - t0 < 280) sendPkt({ cmd: 'lclick' }); }
-        surf.addEventListener('pointerup', up); surf.addEventListener('pointercancel', up);
-    }
-
+        surf.addEventListener('pointerup', up); surf.addEventListener('pointercancel', up); }
     function close() { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
     return { open: open, close: close, initListener: initListener, execLocal: execLocal };
 })();
