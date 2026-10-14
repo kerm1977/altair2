@@ -179,10 +179,25 @@ window.Sono.register('render', function (S) {
         var listView = !!S.listMode;
         S.grid.classList.toggle('list-mode', listView);
 
-        // paginación: 30 archivos por página (solo vista de tarjetas)
+        // stream de pintado: separador + items de cada sección; una sección
+        // colapsada solo aporta su título (toque en el título la colapsa)
+        var collapsed = S.secCollapsed || {};
+        var stream = [];
+        if (secOrder) {
+            var seenG = {};
+            list.forEach(function (m) {
+                var g = grpOf(m);
+                if (!seenG[g]) { seenG[g] = 1; stream.push({ sep: g }); }
+                if (!collapsed[g]) stream.push({ item: m });
+            });
+        } else {
+            list.forEach(function (m) { stream.push({ item: m }); });
+        }
+
+        // paginación: 30 entradas por página (solo vista de tarjetas)
         var PAGE = 30;
         S.page = S.page || 0;
-        var totalPages = listView ? 1 : Math.max(1, Math.ceil(list.length / PAGE));
+        var totalPages = listView ? 1 : Math.max(1, Math.ceil(stream.length / PAGE));
         S.totalPages = totalPages;
         if (S.page >= totalPages) S.page = totalPages - 1;
         var pager = $('media-pager');
@@ -191,23 +206,24 @@ window.Sono.register('render', function (S) {
             'Pág ' + (S.page + 1) + '/' + totalPages + ' · ' + list.length + ' archivo(s)';
         $('pager-prev').disabled = S.page === 0;
         $('pager-next').disabled = S.page >= totalPages - 1;
-        var pageList = listView ? list
-            : list.slice(S.page * PAGE, S.page * PAGE + PAGE);
+        var pageList = listView ? stream
+            : stream.slice(S.page * PAGE, S.page * PAGE + PAGE);
 
-        var lastKind = null;
-        pageList.forEach(function (m, i) {
-            // separador centrado con hr al cambiar de sección
-            if (secOrder) {
-                var gk = grpOf(m);
-                if (gk !== lastKind) {
-                    lastKind = gk;
-                    var sep = document.createElement('div');
-                    sep.className = 'tribal-kind-sep';
-                    sep.innerHTML = '<i></i><span>' +
-                        (SEC ? SEC.label(gk) : 'Archivos') + '</span><i></i>';
-                    S.grid.appendChild(sep);
-                }
+        pageList.forEach(function (entry, i) {
+            // separador centrado con hr — tocar colapsa/expande la sección
+            if (entry.sep) {
+                var gk = entry.sep;
+                var sep = document.createElement('div');
+                sep.className = 'tribal-kind-sep' +
+                    (collapsed[gk] ? ' collapsed' : '');
+                sep.dataset.grp = gk;
+                sep.innerHTML = '<i></i><span><b class="sep-chev bi bi-chevron-' +
+                    (collapsed[gk] ? 'right' : 'down') + '"></b>' +
+                    (SEC ? SEC.label(gk) : 'Archivos') + '</span><i></i>';
+                S.grid.appendChild(sep);
+                return;
             }
+            var m = entry.item;
 
             // ---------- fila compacta (vista de lista) ----------
             if (listView) {
@@ -422,6 +438,20 @@ window.Sono.register('render', function (S) {
         try { localStorage.setItem('tribu_listmode', S.listMode ? '1' : '0'); }
         catch (e2) {}
         syncListBtn();
+        S.render();
+    });
+
+    // tocar el título de una sección colapsa/expande todo su grupo
+    S.grid.addEventListener('click', function (e) {
+        var sep = e.target.closest('.tribal-kind-sep');
+        if (!sep || !sep.dataset.grp) return;
+        S.secCollapsed = S.secCollapsed || {};
+        if (S.secCollapsed[sep.dataset.grp]) delete S.secCollapsed[sep.dataset.grp];
+        else S.secCollapsed[sep.dataset.grp] = 1;
+        try {
+            localStorage.setItem('tribu_sec_collapsed',
+                JSON.stringify(S.secCollapsed));
+        } catch (e2) {}
         S.render();
     });
 
