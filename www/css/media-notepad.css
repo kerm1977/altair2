@@ -23,9 +23,28 @@
 .np-head-center {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     min-width: 0;
     flex: 1;
+}
+
+.np-head-center i {
+    font-size: 1.2rem;
+    color: var(--tb-gold, #f0b429);
+}
+
+.np-icon-only {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid rgba(240, 180, 41, 0.35);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--tb-gold, #f0b429);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
 }
 
 .np-head-center strong {

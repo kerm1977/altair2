@@ -1,11 +1,6 @@
-// ============================================================================
-// ARCHIVO: media/notepadwords.js (<= 200 líneas)
-// RESPONSABILIDAD: Autocorrector ortográfico (con diccionario personalizable
-//   persistente en localStorage) y Diccionario de Sinónimos en español.
-// ============================================================================
+// === media/notepadwords.js (<= 200 líneas): Motor de Ortografía y Sinónimos ===
 window.TribalNotepadWords = (function () {
     'use strict';
-
     var LS_DICT = 'tribu_np_custom_dict_v1';
     var BASE_CORR = {
         tambien: 'también', cancion: 'canción', musica: 'música', facil: 'fácil',
@@ -36,7 +31,7 @@ window.TribalNotepadWords = (function () {
         salon: 'salón', balcon: 'balcón', jardin: 'jardín', almacen: 'almacén',
         interes: 'interés', estres: 'estrés', aereo: 'aéreo', linea: 'línea',
         heroe: 'héroe', oceano: 'océano', lagrima: 'lágrima', brujula: 'brújula',
-        pelicula: 'película', capitulo: 'capítulo', titulo: 'titulo',
+        pelicula: 'película', capitulo: 'capítulo', titulo: 'título',
         articulo: 'artículo', vehiculo: 'vehículo', obstaculo: 'obstáculo',
         espectaculo: 'espectáculo', increible: 'increíble', egoista: 'egoísta',
         paraiso: 'paraíso', sonreir: 'sonreír', reir: 'reír', oir: 'oír',
@@ -46,29 +41,9 @@ window.TribalNotepadWords = (function () {
         historico: 'histórico', economico: 'económico', politico: 'político',
         artistico: 'artístico', cientifico: 'científico', matematico: 'matemático',
         automatico: 'automático', simpatico: 'simpático', problematico: 'problemático',
-        haver: 'haber', haiga: 'haya', hiba: 'iba', llendo: 'yendo',
-        valla: 'vaya', hacerce: 'hacerse', dijistes: 'dijiste', hicistes: 'hiciste',
-        xq: 'porque', pq: 'porque', tb: 'también', tmb: 'también', q: 'que'
+        haver: 'haber', haiga: 'haya', hiba: 'iba', llendo: 'yendo', valla: 'vaya', hacerce: 'hacerse', dijistes: 'dijiste', hicistes: 'hiciste',
+        xq: 'porque', pq: 'porque', tb: 'también', tmb: 'también', q: 'que', habria: 'habría', podria: 'podría', tendria: 'tendría', seria: 'sería', diria: 'diría', haria: 'haría', deberia: 'debería', gustaria: 'gustaría'
     };
-    BASE_CORR.titulo = 'título';
-
-    function getRules() {
-        try { return JSON.parse(localStorage.getItem(LS_DICT) || '{}'); }
-        catch (e) { return {}; }
-    }
-    function addRule(wrong, right) {
-        var k = String(wrong || '').trim().toLowerCase();
-        var v = String(right || '').trim();
-        if (!k) return;
-        var d = getRules();
-        d[k] = v || k;
-        try { localStorage.setItem(LS_DICT, JSON.stringify(d)); } catch (e) {}
-    }
-    function removeRule(wrong) {
-        var d = getRules();
-        delete d[String(wrong || '').trim().toLowerCase()];
-        try { localStorage.setItem(LS_DICT, JSON.stringify(d)); } catch (e) {}
-    }
 
     var SYN_GROUPS = [
         ['bueno', 'excelente', 'óptimo', 'favorable', 'positivo', 'bondadoso', 'noble', 'genial', 'estupendo'],
@@ -129,29 +104,46 @@ window.TribalNotepadWords = (function () {
         ['video', 'película', 'clip', 'grabación', 'filmación', 'cinta', 'escena']
     ];
 
+    function getRules() { try { return JSON.parse(localStorage.getItem(LS_DICT) || '{}'); } catch (e) { return {}; } }
+    function addRule(wrong, right) {
+        var k = String(wrong || '').trim().toLowerCase(), v = String(right || '').trim();
+        if (!k) return;
+        var d = getRules(); d[k] = v || k;
+        try { localStorage.setItem(LS_DICT, JSON.stringify(d)); } catch (e) {}
+    }
+    function removeRule(wrong) {
+        var d = getRules(); delete d[String(wrong || '').trim().toLowerCase()];
+        try { localStorage.setItem(LS_DICT, JSON.stringify(d)); } catch (e) {}
+    }
     function matchCase(orig, rep) {
         if (!orig) return rep;
         if (orig === orig.toUpperCase() && orig.length > 1) return rep.toUpperCase();
         var c0 = orig.charAt(0);
         return (c0 === c0.toUpperCase() && c0 !== c0.toLowerCase()) ? rep.charAt(0).toUpperCase() + rep.slice(1) : rep;
     }
+    function norm(s) { return String(s || '').toLowerCase().replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/ó/g, 'o').replace(/ú/g, 'u').trim(); }
+
     function autocorrectWord(w) {
         var clean = String(w || '').toLowerCase();
-        var custom = getRules();
-        var ext = window.TribalNotepadDict && window.TribalNotepadDict.CORR;
+        var custom = getRules(), ext = window.TribalNotepadDict && window.TribalNotepadDict.CORR;
+        // Regla universal española: nv -> mb, np -> mp, nb -> mb (ej. tanbien -> también, inportante -> importante)
+        var mpFix = clean.replace(/n([bp])/g, 'm$1').replace(/nv/g, 'mb');
         var hit = custom.hasOwnProperty(clean) ? custom[clean]
-            : (BASE_CORR[clean] || (ext && ext[clean]));
+            : (BASE_CORR[clean] || (ext && ext[clean]) || BASE_CORR[mpFix] || (ext && ext[mpFix]));
+        if (!hit && mpFix !== clean) hit = mpFix;
         if (!hit && clean.length > 4) {
-            if (/([aeiouáéíóúctnsx])cion$/.test(clean)) hit = clean.slice(0, -4) + 'ción';
-            else if (/([aeiouáéíóúns])sion$/.test(clean)) hit = clean.slice(0, -4) + 'sión';
-            else if (/logia$/.test(clean)) hit = clean.slice(0, -5) + 'logía';
-            else if (/grafia$/.test(clean)) hit = clean.slice(0, -6) + 'grafía';
-            else if (/metria$/.test(clean)) hit = clean.slice(0, -6) + 'metría';
-            else if (/isimo$/.test(clean)) hit = clean.slice(0, -5) + 'ísimo';
-            else if (/isima$/.test(clean)) hit = clean.slice(0, -5) + 'ísima';
+            if (/([aeiouáéíóúctnsx])cion$/.test(mpFix)) hit = mpFix.slice(0, -4) + 'ción';
+            else if (/([aeiouáéíóúns])sion$/.test(mpFix)) hit = mpFix.slice(0, -4) + 'sión';
+            else if (/logia$/.test(mpFix)) hit = mpFix.slice(0, -5) + 'logía';
+            else if (/grafia$/.test(mpFix)) hit = mpFix.slice(0, -6) + 'grafía';
+            else if (/metria$/.test(mpFix)) hit = mpFix.slice(0, -6) + 'metría';
+            else if (/isimo$/.test(mpFix)) hit = mpFix.slice(0, -5) + 'ísimo';
+            else if (/isima$/.test(mpFix)) hit = mpFix.slice(0, -5) + 'ísima';
+            else if (/abamos$/.test(mpFix)) hit = mpFix.slice(0, -6) + 'ábamos';
         }
         return hit ? matchCase(w, hit) : w;
     }
+
     function autocorrectText(t) {
         var count = 0;
         var res = String(t || '').replace(/[A-Za-zÁÉÍÓÚáéíóúñÑüÜ]+/g, function (w) {
@@ -161,7 +153,14 @@ window.TribalNotepadWords = (function () {
         });
         return { text: res, count: count };
     }
-    function norm(s) { return String(s || '').toLowerCase().replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/ó/g, 'o').replace(/ú/g, 'u').trim(); }
+
+    function inflectSyn(syn, fem, plur) {
+        var s = syn;
+        if (fem && /o$/.test(s)) s = s.slice(0, -1) + 'a';
+        if (plur && !/s$/.test(s)) s = /[aeiouáéíóú]$/.test(s) ? s + 's' : s + 'es';
+        return s;
+    }
+
     function stemsOf(w) {
         var n = norm(w), arr = [n];
         if (n.length > 3) {
@@ -170,25 +169,25 @@ window.TribalNotepadWords = (function () {
             if (/a$/.test(n)) arr.push(n.slice(0, -1) + 'o');
             if (/ando$/.test(n)) arr.push(n.slice(0, -4) + 'ar');
             if (/iendo$/.test(n)) arr.push(n.slice(0, -5) + 'er', n.slice(0, -5) + 'ir');
-            if (/aba$/.test(n)) arr.push(n.slice(0, -3) + 'ar');
-            arr.push(n.slice(0, Math.max(4, n.length - 2)));
+            if (/(aba|aron|aste|amos)$/.test(n)) arr.push(n.replace(/(aba|aron|aste|amos)$/, 'ar'));
+            if (/(ia|ieron|iste|imos)$/.test(n)) arr.push(n.replace(/(ia|ieron|iste|imos)$/, 'er'), n.replace(/(ia|ieron|iste|imos)$/, 'ir'));
         }
         return arr;
     }
+
     function synonymsFor(word) {
         var clean = String(word || '').replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑüÜ]/g, '').trim(), w = clean.toLowerCase();
+        if (!w) return Promise.resolve([]);
+        var plur = /s$/.test(w) && w.length > 3;
+        var fem = /as?$/.test(w) && w.length > 3;
         var stems = stemsOf(w), out = [], seen = {};
         seen[w] = 1; seen[norm(w)] = 1;
-        if (!w) return Promise.resolve([]);
         var allGroups = SYN_GROUPS.concat((window.TribalNotepadDict && window.TribalNotepadDict.SYNS) || []);
         allGroups.forEach(function (grp) {
-            var match = grp.some(function (g) {
-                var gn = norm(g);
-                return g === w || stems.indexOf(gn) >= 0 || (gn.length >= 4 && w.length >= 4 && gn.slice(0, 5) === stems[0].slice(0, 5));
-            });
-            if (match) grp.forEach(function (g) {
-                var gn = norm(g);
-                if (!seen[g] && !seen[gn]) { seen[g] = 1; seen[gn] = 1; out.push(matchCase(clean, g)); }
+            var exact = grp.some(function (g) { var gn = norm(g); return g === w || stems.indexOf(gn) >= 0; });
+            if (exact) grp.forEach(function (g) {
+                var inf = inflectSyn(g, fem, plur), gn = norm(inf);
+                if (!seen[inf] && !seen[gn]) { seen[inf] = 1; seen[gn] = 1; out.push(matchCase(clean, inf)); }
             });
         });
         return Promise.resolve(out.slice(0, 24));

@@ -186,14 +186,14 @@ window.TribalNotepad = (function () {
                 '<button class="tribal-ctrl lk-back" id="np-back" title="Volver">' +
                     '<i class="bi bi-arrow-left"></i><span id="np-back-lbl">Volver</span></button>' +
                 '<div class="np-head-center">' +
-                    '<i class="bi bi-journal-richtext"></i>' +
+                    '<i class="bi bi-journal-richtext" id="np-head-ico" title="Bloc de notas"></i>' +
                     '<strong id="np-head-title">Bloc de notas</strong>' +
                 '</div>' +
                 '<div class="np-head-acts">' +
-                    '<button class="tribal-btn tribal-btn-xs primary" id="np-new-btn">' +
-                        '<i class="bi bi-plus-lg"></i> Nueva nota</button>' +
-                    '<button class="tribal-btn tribal-btn-xs" id="np-read-btn" hidden title="Ver nota en texto completo">' +
-                        '<i class="bi bi-arrows-fullscreen"></i><span>Texto completo</span></button>' +
+                    '<button class="tribal-btn tribal-btn-xs primary" id="np-new-btn" title="Nueva nota">' +
+                        '<i class="bi bi-plus-lg"></i><span>Nueva nota</span></button>' +
+                    '<button class="tribal-ctrl np-icon-only" id="np-read-btn" hidden title="Texto completo / Herramientas">' +
+                        '<i class="bi bi-arrows-fullscreen"></i></button>' +
                 '</div>' +
             '</div>' +
 
@@ -1044,6 +1044,8 @@ window.TribalNotepad = (function () {
         ov.querySelector('#np-new-btn').hidden = false;
         ov.querySelector('#np-read-btn').hidden = true;
         ov.querySelector('#np-head-title').textContent = 'Bloc de notas';
+        ov.querySelector('#np-head-title').hidden = false;
+        ov.querySelector('#np-head-ico').className = 'bi bi-journal-richtext';
         ov.querySelector('#np-back-lbl').textContent = 'Volver';
         curNote = null;
         renderNotesList();
@@ -1072,9 +1074,11 @@ window.TribalNotepad = (function () {
         ov.querySelector('#np-toolbar').hidden = false;
         ov.querySelector('#np-new-btn').hidden = true;
         ov.querySelector('#np-read-btn').hidden = false;
-        ov.querySelector('#np-read-btn').innerHTML = '<i class="bi bi-arrows-fullscreen"></i><span>Texto completo</span>';
-        ov.querySelector('#np-head-title').textContent = 'Editor en vivo';
-        ov.querySelector('#np-back-lbl').textContent = 'Notas';
+        ov.querySelector('#np-read-btn').innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
+        ov.querySelector('#np-head-title').textContent = '';
+        ov.querySelector('#np-head-title').hidden = true;
+        ov.querySelector('#np-head-ico').className = 'bi bi-pencil-square';
+        ov.querySelector('#np-back-lbl').textContent = '';
 
         var titleEl = ov.querySelector('#np-title');
         var canvasEl = ov.querySelector('#np-canvas');
@@ -1178,8 +1182,8 @@ window.TribalNotepad = (function () {
             var tb = ov.querySelector('#np-toolbar');
             tb.hidden = !tb.hidden;
             this.innerHTML = tb.hidden
-                ? '<i class="bi bi-sliders"></i><span>Herramientas</span>'
-                : '<i class="bi bi-arrows-fullscreen"></i><span>Texto completo</span>';
+                ? '<i class="bi bi-sliders"></i>'
+                : '<i class="bi bi-arrows-fullscreen"></i>';
         });
         onEl('#np-new-btn', 'click', function () {
             openNoteEditor(null);
