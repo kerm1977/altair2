@@ -52,11 +52,14 @@ window.TribalVNotePlay = (function () {
         if (cur && cur.row === row) { kill(); return; }
         var btn = row.querySelector('[data-play]');
         kill();
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        var ctx = new Ctx();
+        if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e0) {} }
         deps.urlFor(m, function (u) {
-            if (!u) return deps.toast('No se pudo leer el audio');
+            if (!u) { try { ctx.close(); } catch (e1) {} return deps.toast('No se pudo leer el audio'); }
             var el = new Audio(u);
-            var Ctx = window.AudioContext || window.webkitAudioContext;
-            var ctx = new Ctx(), src = ctx.createMediaElementSource(el),
+            if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e2) {} }
+            var src = ctx.createMediaElementSource(el),
                 an = ctx.createAnalyser();
             // cadena: src → EQ (filtro de la nota) → volumen → analyser
             var eqId = (m.info && m.info.veq) || 'normal',

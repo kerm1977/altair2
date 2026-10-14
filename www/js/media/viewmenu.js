@@ -175,21 +175,26 @@ window.Sono.register('viewmenu', function (S) {
     var STAT_ICO = { audio: 'bi-music-note-beamed',
                      grab: 'bi-mic-fill', video: 'bi-camera-video-fill',
                      image: 'bi-image-fill', doc: 'bi-book-half',
-                     other: 'bi-file-earmark' };
+                     p2p: 'bi-magnet-fill', other: 'bi-file-earmark' };
 
     // aterrizar en un tab de la barra: click + centrarlo horizontalmente
     function goTab(id, extra) {
         statsOv.hidden = true;
+        if (extra && S.secCollapsed && S.secCollapsed[extra]) {
+            delete S.secCollapsed[extra];
+        }
         var t = $(id);
         if (!t) return;
         t.click();
         try {
             t.scrollIntoView({ block: 'nearest', inline: 'center' });
         } catch (e) { t.scrollIntoView(false); }
-        if (extra === 'grab') {
-            var s = S.grid.querySelector(
-                '.tribal-kind-sep[data-grp="grab"]');
-            if (s) s.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        if (extra) {
+            requestAnimationFrame(function () {
+                var s = S.grid.querySelector(
+                    '.tribal-kind-sep[data-grp="' + extra + '"]');
+                if (s) s.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            });
         }
     }
     // filtros sin tab propio (documentos, otros): misma lógica que vm-doc
@@ -287,11 +292,13 @@ window.Sono.register('viewmenu', function (S) {
     // --- lista de archivos del panel: agrupada por tipo, buscador en
     // vivo y paginación de 20 — nunca se amontona ---
     var statsAll = [], fq = '', fpage = 0, FPER = 20;
-    var SGRP_ORD = ['audio', 'grab', 'video', 'image', 'doc', 'other'];
+    var SGRP_ORD = ['audio', 'grab', 'video', 'image', 'doc', 'p2p', 'other'];
     var SGRP_LBL = { audio: 'Música', grab: 'Mis grabaciones',
                      video: 'Videos', image: 'Imágenes',
-                     doc: 'Documentos', other: 'Otros' };
+                     doc: 'Documentos', p2p: 'Descargados por torrents',
+                     other: 'Otros' };
     function fileGrp(f) {
+        if (f.p2p) return 'p2p';
         return f.kind === 'audio' &&
                (f.vn || /^mi grabaci/i.test(f.name || ''))
             ? 'grab' : (f.kind || 'other');

@@ -97,10 +97,11 @@ window.Sono.register('multisel', function (S) {
 
     function deleteAll(ids) {
         // soltar lo que esté sonando / abierto si va en la lista
-        if (ids.indexOf(S.audio.dataset.current) >= 0)
+        if (ids.indexOf(S.audio.dataset.current) >= 0) {
             $('player-close').click();
+            if (window.TribalVinyl) window.TribalVinyl.close();
+        }
         if (S.imageItem && ids.indexOf(S.imageItem.id) >= 0) S.closeImage();
-        if (window.TribalVinyl) window.TribalVinyl.close();
         var seq = Promise.resolve(), n = 0;
         ids.forEach(function (id) {
             if (S.urlCache[id]) {

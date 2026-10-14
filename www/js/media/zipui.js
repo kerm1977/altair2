@@ -7,22 +7,23 @@ window.TribalZipUI = (function () {
     'use strict';
     var ov, deps, sel = {};
     var FILTERS = [['all', 'Todo'], ['audio', 'Audio'], ['video', 'Video'],
-                   ['image', 'Imágenes'], ['doc', 'Libros/Docs'], ['file', 'Otros']];
+                   ['image', 'Imágenes'], ['doc', 'Libros/Docs'], ['other', 'Otros']];
     function esc(s) {
         var E = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
         return String(s || '').replace(/[&<>"]/g, function (c) { return E[c]; });
     }
     function kindOf(m) {
-        if (m.kind) return m.kind;
+        if (m.kind) return m.kind === 'file' ? 'other' : m.kind;
         var n = (m.name || '').toLowerCase();
-        if (/\.(mp3|wav|ogg|m4a|flac|opus|webm)$/.test(n)) return 'audio';
-        if (/\.(mp4|mkv|avi|mov|3gp)$/.test(n)) return 'video';
-        if (/\.(png|jpe?g|gif|webp|bmp|svg|avif)$/.test(n)) return 'image';
-        if (/\.(pdf|epub|txt|docx?|md)$/.test(n)) return 'doc';
-        return 'file';
+        if (/\.(mp3|wav|ogg|oga|m4a|aac|flac|opus|weba|wma|amr|aiff?)$/.test(n)) return 'audio';
+        if (/\.(mp4|mkv|webm|avi|mov|3gp|m4v)$/.test(n)) return 'video';
+        if (/\.(png|jpe?g|gif|webp|bmp|svg|heic|avif)$/.test(n)) return 'image';
+        if (/\.(pdf|epub|txt|mobi|docx?|md)$/.test(n)) return 'doc';
+        return 'other';
     }
     var ICONS = { audio: 'bi-music-note-beamed', video: 'bi-film',
-                  image: 'bi-image', doc: 'bi-book-half', file: 'bi-file-earmark' };
+                  image: 'bi-image', doc: 'bi-book-half',
+                  other: 'bi-file-earmark', file: 'bi-file-earmark' };
     function list(f) {
         var box = ov.querySelector('#zp-list');
         var items = (deps.items || []).filter(function (m) {

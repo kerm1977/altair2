@@ -85,7 +85,10 @@ window.TribalVRow = (function () {
             .then(function (r) {
                 var base = m.name.replace(/\.[^.]+$/, '') + ' (fx)' + r.ext;
                 var f = new File([r.blob], base, { type: r.blob.type });
-                return deps.store.add(f).then(function () {
+                return deps.store.add(f).then(function (added) {
+                    if (added && deps.store.updateInfo)
+                        return deps.store.updateInfo(added.id, { vn: 1 });
+                }).then(function () {
                     var a = document.createElement('a');
                     a.href = URL.createObjectURL(r.blob); a.download = base;
                     document.body.appendChild(a); a.click(); a.remove();

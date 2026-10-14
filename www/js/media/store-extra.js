@@ -22,6 +22,7 @@
                     name: m.name,
                     kind: m.kind,
                     vn: !!(m.info && m.info.vn),
+                    p2p: !!(m.info && m.info.p2p),
                     path: m.path || m.builtin ||
                           'Base interna de la app',
                     size: m.size

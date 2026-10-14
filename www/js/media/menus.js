@@ -310,9 +310,18 @@ window.Sono.register('menus', function (S) {
     $('rename-ok').addEventListener('click', function () {
         var name = S.renInput.value.trim();
         if (!name || !S.pendingId) return;
-        window.MediaStore.rename(S.pendingId, name).then(function () {
+        var id = S.pendingId;
+        window.MediaStore.rename(id, name).then(function (updated) {
             S.renOv.hidden = true;
             S.pendingId = null;
+            if (audio.dataset.current === id) {
+                S.pTitle.textContent = (updated && updated.info && updated.info.titulo) || name;
+                if (window.TribalVinyl && window.TribalVinyl.isOpen() && updated) {
+                    window.MediaStore.getArtURL(updated).then(function (art) {
+                        window.TribalVinyl.setMeta(updated, art);
+                    });
+                }
+            }
             S.showToast('Renombrado en la tribu');
             S.reload();
         });
@@ -328,9 +337,11 @@ window.Sono.register('menus', function (S) {
         var id = S.pendingId;
         S.delOv.hidden = true;
         S.pendingId = null;
-        // si está sonando, lo paramos
-        if (audio.dataset.current === id) $('player-close').click();
-        window.TribalVinyl.close();
+        // si está sonando, lo paramos y cerramos el vinilo
+        if (audio.dataset.current === id) {
+            $('player-close').click();
+            window.TribalVinyl.close();
+        }
         // si es la foto abierta en el visor, lo cerramos
         if (S.imageItem && S.imageItem.id === id) S.closeImage();
         if (S.urlCache[id]) { try { URL.revokeObjectURL(S.urlCache[id]); } catch (e) {} delete S.urlCache[id]; }

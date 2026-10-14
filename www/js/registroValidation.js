@@ -1,4 +1,3 @@
-    <script>
         // Función autoejecutable: No espera a DOMContentLoaded para funcionar bien en cargas dinámicas.
         (function inicializarFormulario() {
             // Validamos que el DOM del formulario exista antes de aplicar listeners
@@ -234,4 +233,3 @@
                 btnSpinner.classList.add('d-none');
             }
         }
-    </script>
