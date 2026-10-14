@@ -2,12 +2,19 @@ package com.miapp.local;
 
 import com.frostwire.jlibtorrent.AnnounceEntry;
 import com.frostwire.jlibtorrent.FileStorage;
+import com.frostwire.jlibtorrent.Priority;
 import com.frostwire.jlibtorrent.SessionManager;
 import com.frostwire.jlibtorrent.SettingsPack;
 import com.frostwire.jlibtorrent.Sha1Hash;
 import com.frostwire.jlibtorrent.TorrentHandle;
 import com.frostwire.jlibtorrent.TorrentInfo;
 import com.frostwire.jlibtorrent.TorrentStatus;
+import com.frostwire.jlibtorrent.Vectors;
+import com.frostwire.jlibtorrent.swig.create_torrent;
+import com.frostwire.jlibtorrent.swig.entry;
+import com.frostwire.jlibtorrent.swig.error_code;
+import com.frostwire.jlibtorrent.swig.file_storage;
+import com.frostwire.jlibtorrent.swig.libtorrent;
 import com.frostwire.jlibtorrent.swig.settings_pack;
 
 import com.getcapacitor.JSArray;
@@ -99,7 +106,7 @@ public class TribalTorrentPlugin extends Plugin {
                         try {
                             String u = trs.getString(i);
                             if (u != null && !u.isEmpty() &&
-                                !u.startsWith("wss://"))
+                                !u.startsWith("ws"))
                                 th.addTracker(new AnnounceEntry(u));
                         } catch (Throwable ignored) {}
                     }
@@ -148,6 +155,8 @@ public class TribalTorrentPlugin extends Plugin {
                     FileStorage fs = ti.files();
                     long[] prog = null;
                     try { prog = th.fileProgress(); } catch (Throwable ignored) {}
+                    Priority[] prios = null;
+                    try { prios = th.filePriorities(); } catch (Throwable ignored) {}
                     JSArray files = new JSArray();
                     for (int i = 0; i < fs.numFiles(); i++) {
                         JSObject f = new JSObject();
@@ -159,6 +168,8 @@ public class TribalTorrentPlugin extends Plugin {
                         f.put("size", size);
                         f.put("downloaded", got);
                         f.put("progress", size > 0 ? (double) got / size : 1.0);
+                        f.put("prio", (prios != null && i < prios.length)
+                                ? prios[i].swig() : 4);
                         files.put(f);
                     }
                     o.put("files", files);
@@ -237,6 +248,70 @@ public class TribalTorrentPlugin extends Plugin {
             call.resolve(r);
         } catch (Throwable e) {
             call.reject("fileUri: " + e.getMessage());
+        }
+    }
+
+    // prioridad por archivo: 0 = no bajar (pausa de archivo), 1 = baja,
+    // 4 = media, 7 = alta — libtorrent reparte el ancho según esto
+    @PluginMethod
+    public void setFilePriority(PluginCall call) {
+        TorrentHandle th = find(call.getString("id"));
+        Integer idx = call.getInt("index");
+        Integer prio = call.getInt("prio", 4);
+        if (th == null || idx == null) {
+            call.reject("torrent o archivo no disponible"); return;
+        }
+        try {
+            th.filePriority(idx,
+                Priority.fromSwig(Math.max(0, Math.min(7, prio))));
+            call.resolve();
+        } catch (Throwable e) {
+            call.reject("setFilePriority: " + e.getMessage());
+        }
+    }
+
+    // siembra REAL: crea el .torrent en memoria desde un archivo que ya está
+    // en files/tribu_torrents/, embebe los trackers (udp/http/https — en la
+    // APK sí sirven todos) y lo mete a la sesión; libtorrent verifica el hash
+    // y pasa a "seeding" → anuncia al swarm y sube datos a los peers.
+    @PluginMethod
+    public void seedFile(PluginCall call) {
+        String path = call.getString("path", "");
+        File f = new File(path);
+        if (!f.isFile()) { call.reject("archivo no existe"); return; }
+        try {
+            file_storage fs = new file_storage();
+            libtorrent.add_files(fs, f.getAbsolutePath());
+            create_torrent ct = new create_torrent(fs);
+            ct.set_creator("TRIBALs");
+            JSArray trs = call.getArray("trackers");
+            if (trs != null) {
+                for (int i = 0; i < trs.length(); i++) {
+                    try {
+                        String u = trs.getString(i);
+                        if (u != null && !u.isEmpty() && !u.startsWith("ws"))
+                            ct.add_tracker(u, 0);
+                    } catch (Throwable ignored) {}
+                }
+            }
+            error_code ec = new error_code();
+            libtorrent.set_piece_hashes(ct, f.getParent(), ec);
+            if (ec.value() != 0) {
+                call.reject("hash: " + ec.message()); return;
+            }
+            entry e = ct.generate();
+            byte[] bin = Vectors.byte_vector2bytes(e.bencode());
+            TorrentInfo ti = new TorrentInfo(bin);
+            session().download(ti, dir);
+            String magnet = ti.makeMagnetUri();
+            String h = ti.infoHash().toHex();
+            ids.add(h);
+            JSObject r = new JSObject();
+            r.put("id", h);
+            r.put("magnet", magnet);
+            call.resolve(r);
+        } catch (Throwable t) {
+            call.reject("seedFile: " + t.getMessage());
         }
     }
 

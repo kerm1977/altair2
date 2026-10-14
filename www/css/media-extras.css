@@ -2509,8 +2509,22 @@
 }
 .tribal-p2p-fsize { color: var(--tb-teal); font-size: 0.62rem; }
 .tribal-p2p-bar.sm { grid-column: 1 / -1; height: 5px; margin: 0; }
-.tribal-p2p-fpct { font-size: 0.62rem; color: var(--tb-gold); }
-.tribal-p2p-frow .tr-play { grid-row: 1; grid-column: 2; }
+.tribal-p2p-fpct { font-size: 0.62rem; color: var(--tb-gold); text-align: right; }
+/* controles por archivo: prioridad + pausa/play + reproducir */
+.tribal-p2p-fctl { display: flex; align-items: center; gap: 5px; }
+.tribal-p2p-fctl .tribal-ctrl { width: 26px; height: 26px; flex: none; }
+.tp-fprio {
+    width: auto !important; min-width: 42px; height: 22px !important;
+    padding: 0 7px; border-radius: 11px;
+    font: 700 0.56rem/1 sans-serif; letter-spacing: .07em;
+    color: var(--tb-teal);
+    border: 1px solid var(--tb-border);
+    background: rgba(0,0,0,.3);
+}
+.tp-fprio.tp-hi { color: #ffd166; border-color: rgba(255,209,102,.55); }
+.tp-fprio.tp-lo { color: var(--tb-muted); }
+.tp-fprio.tp-off { color: #e07a5f; border-color: rgba(224,122,95,.5); }
+.tribal-p2p-frow.tp-foff .tribal-p2p-fname { opacity: .45; }
 .tr-eng { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--tb-cream); }
 .tr-eng input { accent-color: var(--tb-gold); }
 .tr-eng em { font-style: normal; font-size: 0.6rem; color: var(--tb-teal); }

@@ -39,9 +39,10 @@ window.TribalP2PNative = (function () {
     // p2pjobs.import usa getBlob()
     function fileProxy(nid, f) {
         var p = {
-            name: f.name, path: f.path, length: f.size,
+            name: f.name, path: f.path, length: f.size, i: f.i,
             progress: f.progress, downloaded: f.downloaded,
             done: f.progress >= 1,
+            prio: f.prio == null ? 4 : f.prio,
             select: function () {}, deselect: function () {},
             getBlobURL: function (cb) {
                 TT.fileUri({ id: nid, index: f.i }).then(function (r) {
@@ -113,6 +114,12 @@ window.TribalP2PNative = (function () {
         resume: function (id) { return TT.resume({ id: id }); },
         remove: function (id) { return TT.remove({ id: id }); },
         reannounce: function (id) { return TT.reannounce({ id: id }); },
+        setFilePriority: function (id, i, prio) {
+            return TT.setFilePriority({ id: id, index: i, prio: prio });
+        },
+        seedFile: function (path, trackers) {
+            return TT.seedFile({ path: path, trackers: trackers || [] });
+        },
         onPoll: function (f) { subs.push(f); },
         torrentProxy: torrentProxy,
         sync: sync,

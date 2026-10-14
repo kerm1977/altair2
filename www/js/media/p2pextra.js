@@ -146,6 +146,9 @@ window.TribalP2PExtra = (function () {
                 '<button class="tribal-ctrl" id="tp-close"><i class="bi bi-x-lg"></i></button></div>' +
             '<div class="tribal-p2p-magnet">' +
                 '<input id="tp-magnet" type="text" placeholder="Pega un magnet y baja al instante…">' +
+                '<button class="tribal-btn tribal-btn-icon" id="tp-test" ' +
+                    'title="Torrent de prueba · Sintel (dominio público)">' +
+                    '<i class="bi bi-bug"></i></button>' +
                 '<button class="tribal-btn tribal-btn-icon" id="tp-add" title="Descargar">' +
                     '<i class="bi bi-magnet"></i></button></div>' +
             acc('bi-search', 'Buscador',

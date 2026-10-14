@@ -94,7 +94,10 @@ window.TribalP2PUI = (function () {
         deps.urlFor(m, function (u) {
             fetch(u).then(function (r) { return r.blob(); }).then(function (b) {
                 var j = TribalP2P.seed(m, b);
-                if (j) { deps.toast('Sembrando «' + m.name + '»'); copyMagnet(j); }
+                if (j) {
+                    deps.toast('Sembrando «' + m.name + '»');
+                    if (j.magnet) copyMagnet(j);   // nativo copia al generarlo
+                }
             });
         });
     }
@@ -143,6 +146,16 @@ window.TribalP2PUI = (function () {
             deps.toast(ok ? 'Anunciando de nuevo en los trackers…'
                           : 'Sin canal vivo — reconectando…');
         }
+        else if (tp === 'fpause') {
+            // 0 = archivo detenido; al reanudar vuelve a prioridad media
+            TribalP2P.setFilePrio(j.id, +b.dataset.fi,
+                +b.dataset.cur === 0 ? 4 : 0);
+        }
+        else if (tp === 'fprio') {
+            var cur = +b.dataset.cur;
+            TribalP2P.setFilePrio(j.id, +b.dataset.fi,
+                cur === 0 || cur <= 2 ? 4 : cur < 7 ? 7 : 1);
+        }
         else if (tp === 'magnet') copyMagnet(j);
         else if (tp === 'share') shareMagnet(j);
         else if (tp === 'del') deps.confirm('Eliminar torrent',
@@ -178,6 +191,14 @@ window.TribalP2PUI = (function () {
         ov.querySelector('#tp-add').addEventListener('click', function () {
             var inp = ov.querySelector('#tp-magnet');
             if (TribalP2P.add(inp.value)) inp.value = '';
+        });
+        // torrent de prueba: «Sintel» (Blender Foundation, dominio público,
+        // enjambre sanísimo — sirve para verificar descarga real)
+        ov.querySelector('#tp-test').addEventListener('click', function () {
+            var TEST = 'magnet:?xt=urn:btih:' +
+                '08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel';
+            if (TribalP2P.add(TEST))
+                deps.toast('Probando con «Sintel» (dominio público)');
         });
         ov.querySelector('#tp-go').addEventListener('click', function () {
             var q = ov.querySelector('#tp-q').value.trim();

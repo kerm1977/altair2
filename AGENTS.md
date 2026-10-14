@@ -103,3 +103,14 @@ izquierda.
   Se llama en el `input` directo, en el gesto vertical del lado
   derecho y al abrir el fullscreen. NO cambiar colores, thumb, ni el
   mecanismo de repintado salvo orden explícita del usuario.
+- **Motor P2P** — APK = libtorrent nativo (`TribalTorrentPlugin`,
+  TCP/UDP/DHT/PEX); web = WebTorrent solo wss://. Trackers nativos:
+  `nativeTrackers()` en `p2p.js` (lista viva `trackers_all.txt` de
+  ngosang cacheada 12 h en `tribu_p2p_trk_all` — udp/http/https, NUNCA
+  ws). Prioridad por archivo: `setFilePrio` → plugin
+  `setFilePriority` (0=off, 1 baja, 4 media, 7 alta). Siembra nativa:
+  `seed()` copia el blob a `files/tribu_torrents/` y llama
+  `seedFile()` del plugin (crea .torrent con trackers embebidos →
+  hash-check → seeding); jobs con `seeded:true` quedan como
+  "Sembrando" y NO se reimportan. Motores nuevos → `p2pqbit.js`
+  (subir VER para re-sembrar). Botón 🧪 = torrent de prueba Sintel.

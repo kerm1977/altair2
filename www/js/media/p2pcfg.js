@@ -514,8 +514,10 @@
     // progreso por archivo dentro del torrent
     P.fileStats = function (j) {
         if (!j.torrent || !j.torrent.files) return [];
-        return j.torrent.files.map(function (f) {
+        return j.torrent.files.map(function (f, i) {
             return { name: f.name, path: f.path || f.name, length: f.length,
+                     i: f.i == null ? i : f.i,
+                     prio: f.prio == null ? 4 : f.prio,
                      progress: f.progress || 0, downloaded: f.downloaded || 0,
                      done: !!f.done };
         });

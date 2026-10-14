@@ -83,6 +83,52 @@ window.TribalP2P = (function () {
         });
     }
 
+    // ---- trackers del swarm REAL para el motor nativo ----------------------
+    // En la APK libtorrent sí anuncia por udp/http/https (solo los ws:// se
+    // descartan — no los entiende). ngosang/trackerslist publica la lista
+    // completa de trackers vivos cada hora → la cacheamos 12 h. Así cada
+    // torrent anuncia en TODOS los trackers, no solo en los wss.
+    var ALL_TRK_URL = 'https://raw.githubusercontent.com/ngosang/' +
+        'trackerslist/master/trackers_all.txt';
+    var ALL_TRK_LS = 'tribu_p2p_trk_all';
+    var allTrackers = [];
+    try {
+        var _ac = JSON.parse(localStorage.getItem(ALL_TRK_LS) || '{}');
+        if (_ac.list && _ac.list.length) allTrackers = _ac.list;
+    } catch (e) {}
+    function refreshAllTrackers(force) {
+        var c = {};
+        try { c = JSON.parse(localStorage.getItem(ALL_TRK_LS) || '{}'); }
+        catch (e) {}
+        if (!force && c.ts && Date.now() - c.ts < 43200000) return;   // 12 h
+        if (!window.fetch) return;
+        fetch(ALL_TRK_URL).then(function (r) {
+            if (!r.ok) throw 0;
+            return r.text();
+        }).then(function (t) {
+            var list = t.split(/\s+/).filter(function (u) {
+                return /^(udp|https?):\/\//.test(u);
+            }).slice(0, 100);
+            if (!list.length) return;
+            allTrackers = list;
+            try {
+                localStorage.setItem(ALL_TRK_LS,
+                    JSON.stringify({ ts: Date.now(), list: list }));
+            } catch (e) {}
+            log('Trackers swarm (udp/http) actualizados: ' + list.length);
+        }).catch(function () {});
+    }
+    // lista para inyectar al motor nativo: TODOS los udp/http/https vivos +
+    // los propios del usuario (deduplicados, sin ws)
+    function nativeTrackers() {
+        var seen = {};
+        return allTrackers.concat(extraTrackers).filter(function (u) {
+            if (!/^(udp|https?):\/\//.test(u) || seen[u]) return false;
+            seen[u] = 1;
+            return true;
+        });
+    }
+
     // WebTorrent en navegador/WebView solo habla trackers wss://: los
     // udp:// y http:// que siembran los buscadores nunca conectan.
     // ACOTADA: cada URL = una conexión WS por torrent — 30 trackers por
@@ -122,13 +168,14 @@ window.TribalP2P = (function () {
     }
     function nativeStart(j) {
         log('Nativo: añadiendo ' + String(j.magnet).slice(0, 55) + '…');
-        var trs = userTrackers.concat(liveTrackers);
+        if (!allTrackers.length) refreshAllTrackers();
+        var trs = nativeTrackers();
         window.TribalP2PNative.add(j.magnet, trs).then(function (r) {
             j.native = true;
             j.nid = r.id;
             j.torrent = window.TribalP2PNative.torrentProxy(j);
             log('Nativo: en sesión como ' + String(r.id).slice(0, 12) +
-                '… con ' + trs.length + ' trackers + DHT');
+                '… con ' + trs.length + ' trackers swarm + DHT');
             if (j.status === 'paused') window.TribalP2PNative.pause(j.nid);
             else { j.status = 'metadata'; j.metaSince = Date.now(); }
             save(); emit('change'); pump();
@@ -163,6 +210,15 @@ window.TribalP2P = (function () {
                         j.torrent.files.length + ' archivos');
                 }
                 if (window.TribalP2PNative.sync(j)) {   // completó ahora
+                    if (j.seeded) {
+                        // siembra nativa: ya estaba completo — queda
+                        // "Sembrando", sin reimportar a la tribu
+                        j.status = 'seed';
+                        log('«' + (j.name || 'Torrent') +
+                            '» verificado → sembrando al swarm');
+                        save(); emit('change');
+                        return;
+                    }
                     j.status = 'done';
                     log('«' + (j.name || 'Torrent') + '» COMPLETO ✓');
                     save();
@@ -229,6 +285,7 @@ window.TribalP2P = (function () {
                 trackers: extraTrackers,
                 jobs: jobs.map(function (j) {
                     return { id: j.id, magnet: j.magnet, name: j.name,
+                             seeded: !!j.seeded,
                              status: j.status === 'seed' ? 'seed' :
                                      (j.status === 'paused' ? 'paused' : 'queued'),
                              addedAt: j.addedAt };
@@ -466,7 +523,52 @@ window.TribalP2P = (function () {
         return j;
     }
 
+    // siembra NATIVA (APK): copia el blob a files/tribu_torrents/ y crea el
+    // .torrent real con libtorrent → siembra por TCP/UDP/DHT embebidos.
+    // Devuelve el job ya (la tarjeta aparece de inmediato); el magnet se
+    // rellena cuando el plugin termina de generar el torrent.
     function seed(meta, blobOrFile) {
+        if (nativeOK()) {
+            var j = { id: 'p2p-' + Date.now().toString(36) +
+                            Math.random().toString(36).slice(2, 6),
+                      magnet: '', name: meta.name, torrent: null,
+                      status: 'seed', seeded: true,
+                      addedAt: Date.now(), files: [] };
+            jobs.push(j);
+            save(); emit('change');
+            var blob = blobOrFile instanceof Blob ? blobOrFile
+                       : new Blob([blobOrFile]);
+            var fname = String(meta.name || 'seed.bin')
+                          .replace(/[\/\\:*?"<>|]/g, '_');
+            var FS = window.Capacitor.Plugins.Filesystem;
+            log('Siembra nativa: preparando «' + j.name + '»…');
+            FS.writeFile({ path: 'tribu_torrents/' + fname, data: blob,
+                           directory: 'DATA', recursive: true })
+            .then(function () {
+                return FS.getUri({ path: 'tribu_torrents/' + fname,
+                                   directory: 'DATA' });
+            }).then(function (u) {
+                var abs = String(u.uri || '').replace(/^file:\/\//, '');
+                return window.TribalP2PNative.seedFile(abs, nativeTrackers());
+            }).then(function (r) {
+                j.magnet = r.magnet; j.native = true; j.nid = r.id;
+                j.torrent = window.TribalP2PNative.torrentProxy(j);
+                wireNativePoll();
+                log('Siembra «' + j.name + '»: btih ' +
+                    String(r.id).slice(0, 12) + '… anunciando en ' +
+                    nativeTrackers().length + ' trackers + DHT');
+                if (navigator.clipboard && j.magnet)
+                    navigator.clipboard.writeText(j.magnet)
+                        .catch(function () {});
+                save(); emit('change');
+            }).catch(function (e) {
+                j.status = 'error';
+                j.error = String(e && e.message || e);
+                log('Siembra nativa ERROR: ' + j.error);
+                save(); emit('change');
+            });
+            return j;
+        }
         var c = ensureClient();
         if (!c) return null;
         var file = blobOrFile instanceof File ? blobOrFile :
@@ -478,7 +580,7 @@ window.TribalP2P = (function () {
         var j = { id: 'p2p-' + Date.now().toString(36) +
                         Math.random().toString(36).slice(2, 6),
                   magnet: t.magnetURI, name: meta.name, torrent: t,
-                  status: 'seed', addedAt: Date.now(), files: [] };
+                  status: 'seed', seeded: true, addedAt: Date.now(), files: [] };
         jobs.push(j);
         t.on('wire', function () { emit('change'); });
         t.on('upload', function () { emit('change'); });
@@ -603,6 +705,29 @@ window.TribalP2P = (function () {
             return nudged;
         },
 
+        // prioridad por archivo: 0 = no bajar (pausa del archivo),
+        // 1 = baja, 4 = media, 7 = alta. Nativo → libtorrent real;
+        // web → select/deselect del archivo en WebTorrent.
+        setFilePrio: function (id, fi, prio) {
+            var j = find(id); if (!j) return;
+            prio = Math.max(0, Math.min(7, prio | 0));
+            var f = j.torrent && j.torrent.files && j.torrent.files[fi];
+            if (j.native && j.nid) {
+                window.TribalP2PNative.setFilePriority(j.nid, fi, prio)
+                    .catch(function () {});
+                if (f) f.prio = prio;
+                log('«' + (j.name || 'torrent') + '» archivo ' + fi +
+                    ' → prioridad ' + prio);
+            } else if (f) {
+                f.prio = prio;
+                try {
+                    if (prio === 0) f.deselect();
+                    else f.select();
+                } catch (e) {}
+            }
+            emit('change');
+        },
+
         trackers: trackers,
         addTracker: addTracker,
 
@@ -637,11 +762,13 @@ window.TribalP2P = (function () {
             // muertos (p2pqbit.js) — corre una vez por versión
             if (window.TribalP2PQBIT) window.TribalP2PQBIT.seed();
             refreshTrackers();
+            refreshAllTrackers();
             if (nativeOK()) wireNativePoll();
             (d.jobs || []).forEach(function (r) {
                 if (jobs.some(function (j) { return j.id === r.id; })) return;
                 var j = { id: r.id, magnet: r.magnet, name: r.name,
                           torrent: null, status: r.status || 'queued',
+                          seeded: !!r.seeded,
                           addedAt: r.addedAt || Date.now(), files: [] };
                 jobs.push(j);
                 if (nativeOK()) {

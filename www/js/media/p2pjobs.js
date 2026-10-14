@@ -17,15 +17,33 @@ window.TribalP2PJobs = (function () {
         if (!fs.length) return '<p class="tribal-p2p-err">Esperando metadata…</p>';
         return fs.map(function (f) {
             var pct = Math.round((f.progress || 0) * 100);
-            return '<div class="tribal-p2p-frow">' +
+            var pr = f.prio == null ? 4 : f.prio;
+            var ptxt = pr === 0 ? 'OFF' : pr >= 7 ? 'ALTA'
+                     : pr <= 2 ? 'BAJA' : 'MEDIA';
+            return '<div class="tribal-p2p-frow' + (pr === 0 ? ' tp-foff' : '') + '">' +
                 '<span class="tribal-p2p-fname">' + X.esc(f.name) + '</span>' +
+                '<span class="tribal-p2p-fctl">' +
+                    '<button class="tribal-ctrl tp-fprio' +
+                        (pr === 0 ? ' tp-off' : pr >= 7 ? ' tp-hi'
+                            : pr <= 2 ? ' tp-lo' : '') +
+                        '" data-tp="fprio" data-id="' + j.id + '" data-fi="' +
+                        f.i + '" data-cur="' + pr +
+                        '" title="Prioridad · clic para cambiar">' + ptxt +
+                        '</button>' +
+                    '<button class="tribal-ctrl" data-tp="fpause" data-id="' +
+                        j.id + '" data-fi="' + f.i + '" data-cur="' + pr +
+                        '" title="' + (pr === 0 ? 'Reanudar archivo'
+                                                : 'Pausar archivo') + '">' +
+                        '<i class="bi bi-' + (pr === 0 ? 'play' : 'pause') +
+                        '-fill"></i></button>' +
+                    (X.isMediaName(f.name) ?
+                        '<button class="tribal-btn tribal-btn-xs tr-play" data-fp="' +
+                            X.esc(f.path) + '" data-id="' + j.id + '">' +
+                            '<i class="bi bi-play-circle"></i></button>' : '') +
+                '</span>' +
                 '<span class="tribal-p2p-fsize">' + X.hsize(f.length) + '</span>' +
-                '<div class="tribal-p2p-bar sm"><i style="width:' + pct + '%"></i></div>' +
                 '<span class="tribal-p2p-fpct">' + pct + '%</span>' +
-                (X.isMediaName(f.name) ?
-                    '<button class="tribal-btn tribal-btn-xs tr-play" data-fp="' +
-                        X.esc(f.path) + '" data-id="' + j.id + '">' +
-                        '<i class="bi bi-play-circle"></i></button>' : '') +
+                '<div class="tribal-p2p-bar sm"><i style="width:' + pct + '%"></i></div>' +
             '</div>';
         }).join('');
     }

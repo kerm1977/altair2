@@ -24,7 +24,7 @@
 window.TribalP2PQBIT = (function () {
     'use strict';
     var FLAG = 'tribu_p2p_qbit';
-    var VER = 3;
+    var VER = 4;
 
     var DEFS = [
         // ---- APIs JSON reales (buscan dentro de TRIBALs) --------------------
@@ -56,6 +56,13 @@ window.TribalP2PQBIT = (function () {
         { n: 'ETTV',          u: 'https://www.ettvcentral.com/torrents-search.php?search=%q', k: 'scrape' },
         { n: 'TraHT',         u: 'https://traht.org/?s=%q',                          k: 'scrape' },
         { n: 'The Pirate Bay', u: 'https://thepiratebay.org/search.php?q=%q',        k: 'scrape' },
+        // VER 4 — más sitios vivos (magnets visibles en la página)
+        { n: 'Knaben',       u: 'https://knaben.org/search/?q=%q',                       k: 'scrape', on: 1 },
+        { n: 'Glodls',       u: 'https://glodls.to/search_results.php?search=%q',        k: 'scrape' },
+        { n: 'ExtTorrents',  u: 'https://ext.to/browse/?q=%q',                           k: 'scrape' },
+        { n: 'BitCQ',        u: 'https://bitcq.com/search?q=%q',                         k: 'scrape' },
+        { n: 'ACGNX',        u: 'https://share.acgnx.se/rss.xml?keyword=%q',             k: 'rss' },
+        { n: 'Bangumi',      u: 'https://bangumi.moe/rss/search/%q',                     k: 'rss' },
 
         // ---- scrape + persecución a página de detalle -------------------------
         { n: '1337x',            u: 'https://1337x.to/search/%q/1/',                      k: 'scrape', on: 1, detail: '1337x\\.to/torrent/' },

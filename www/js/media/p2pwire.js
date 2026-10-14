@@ -163,7 +163,10 @@ window.TribalP2PWire = (function () {
             this.value = '';
             if (!f) return;
             var j = TribalP2P.seed({ name: f.name, mime: f.type }, f);
-            if (j) { deps.toast('Sembrando «' + f.name + '»'); copyMagnet(j); }
+            if (j) {
+                deps.toast('Sembrando «' + f.name + '»');
+                if (j.magnet) copyMagnet(j);   // nativo copia al generarlo
+            }
         });
     }
 
