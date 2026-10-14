@@ -43,7 +43,7 @@ solo agregando su botón al menú ⋮ y un módulo aparte.
   eso fue lo que los hizo ovalar y luego gigantizar.
 - Ícono en PC: `1.15rem`.
 
-## Íconos dentro de círculos (play, ⋮, kind) — REGLA FIJA
+## Íconos dentro de círculos (play, ⋮, kind) — SAGRADO, NO TOCAR
 
 `bootstrap-icons.css` pone `vertical-align: -.125em` en `::before` →
 el glifo queda bajo dentro de círculos (visible sobre todo en Firefox).
@@ -63,6 +63,17 @@ El `<i>` flex convierte el `::before` en flex item y el centrado es
 exacto en PC/móvil/Firefox. El triángulo `bi-play-fill` además lleva
 `transform: translate(1px,0)` porque su glifo está ópticamente a la
 izquierda.
+
+### Medidas FIJAS de los círculos de fila (sagradas)
+
+- `.tr-row-play`: **30×30 px**, `border-radius: 50%`, borde
+  `1px var(--tb-border)`, fondo `rgba(0,0,0,.35)`, ícono `0.95rem`;
+  `.playing` → borde `--tb-gold` + halo dorado.
+- `.tr-row-kind`: 30px de ancho, ícono `1rem` en `--tb-muted`.
+- `.tr-row-menu`: **30×30 px** circular transparente, ícono `1rem`.
+- Todos con el `<i>` en `inline-flex` centrado (regla de arriba).
+- **PROHIBIDO** cambiar tamaños, centrado, colores o la corrección
+  óptica del play salvo orden explícita del usuario.
 
 ## Subsistemas blindados recientes (no regresar)
 
