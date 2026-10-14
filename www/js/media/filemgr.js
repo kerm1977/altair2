@@ -1,37 +1,56 @@
 // ============================================================================
 // ARCHIVO: media/filemgr.js
 // RESPONSABILIDAD: administrador de archivos UNIVERSAL de TRIBALs.
-//   - Navega el almacenamiento de la app (files/) y del dispositivo
-//     (Documentos, Descargas, DCIM, raíz externa) vía Capacitor Filesystem —
-//     nunca abre el administrador/picker del sistema
-//   - Filtros por tipo: Todo · Imágenes · Videos · Música · Libros · Magnets
-//   - Vista lista o cuadrícula con THUMBNAILS reales (getUri + convertFileSrc)
-//   - Vista detalle: tocar un archivo lo abre en grande (img/video/audio)
-//   - Selección: long-press (~450 ms) activa el selector — Todos/Ninguno +
-//     Importar + Abrir; un .magnet/.txt con enlace abre el panel P2P
-//   - API TribalFiles.pick({kinds,title}) → Promise<metas[]> para que el FAB,
-//     el slideshow, el chat… elijan archivos sin el picker del celular
+//   - Carpetas personales: TRIBALs, Documentos, Descargas, Imágenes,
+//     Cámara, Música, Videos, Grabaciones, Tonos y raíz externa —
+//     vía Capacitor Filesystem, nunca el picker del sistema
+//   - Búsqueda en vivo dentro de la carpeta + orden por
+//     nombre/fecha/tamaño asc-desc (persistido en tribu_fm_sort)
+//   - Filtros por tipo: Todo · Imágenes · Videos · Música · Libros ·
+//     Magnets · Otros — filas con tamaño y fecha
+//   - Vista lista o cuadrícula con THUMBNAILS reales
+//   - Vista detalle: img/video/audio en grande; pdf/epub/txt se abren
+//     con el LECTOR TRIBAL (meta sintético + urlFor directo)
+//   - ⋮ por elemento → hoja de acciones: Ver · Leer · Compartir ·
+//     Importar · Renombrar · Eliminar (doble confirmación — borrado
+//     permanente del dispositivo) · Nueva carpeta en la barra
+//   - Selección: long-press (~450 ms) → Todos/Ninguno/Abrir/Importar
+//   - API TribalFiles.pick({kinds,title}) → Promise<metas[]>
 // ============================================================================
 window.TribalFiles = (function () {
     'use strict';
 
     var ov = null;            // overlay
     var cur = null;           // { dir, path, label }
-    var entries = [];         // filas crudas {name, dir, size}
+    var entries = [];         // filas crudas {name, dir, size, mtime}
     var filter = 'all';
     var view = 'list';        // 'list' | 'grid'
     var selMode = false;
     var sel = {};             // path → true
     var pick = null;          // { kinds:[], title, resolve, single }
     var S = null;             // contexto Sono (toast, reload, extDeps)
+    var query = '';           // búsqueda en vivo dentro de la carpeta
+    var sortBy = 'name';      // 'name' | 'date' | 'size'
+    var sortAsc = true;
+    var sheetEntry = null;    // entrada del action-sheet
     var LP_MS = 450;
+    try {
+        var so = JSON.parse(localStorage.getItem('tribu_fm_sort') || 'null');
+        if (so && so.by) { sortBy = so.by; sortAsc = !!so.asc; }
+    } catch (e0) {}
 
+    // raíces = carpetas personales del teléfono (EXTERNAL_STORAGE público)
     var ROOTS = [
-        { label: 'TRIBALs',        dir: 'DATA',             path: '' },
-        { label: 'Documentos',     dir: 'DOCUMENTS',        path: '' },
-        { label: 'Descargas',      dir: 'EXTERNAL_STORAGE', path: 'Download' },
-        { label: 'Fotos',          dir: 'EXTERNAL_STORAGE', path: 'DCIM' },
-        { label: 'Almacenamiento', dir: 'EXTERNAL_STORAGE', path: '' }
+        { label: 'TRIBALs',       icon: 'bi-boombox-fill',            dir: 'DATA',             path: '' },
+        { label: 'Documentos',    icon: 'bi-file-earmark-text-fill',  dir: 'DOCUMENTS',        path: '' },
+        { label: 'Descargas',     icon: 'bi-download',                dir: 'EXTERNAL_STORAGE', path: 'Download' },
+        { label: 'Imágenes',      icon: 'bi-images',                  dir: 'EXTERNAL_STORAGE', path: 'Pictures' },
+        { label: 'Cámara',        icon: 'bi-camera-fill',             dir: 'EXTERNAL_STORAGE', path: 'DCIM' },
+        { label: 'Música',        icon: 'bi-music-note-beamed',       dir: 'EXTERNAL_STORAGE', path: 'Music' },
+        { label: 'Videos',        icon: 'bi-camera-video-fill',       dir: 'EXTERNAL_STORAGE', path: 'Movies' },
+        { label: 'Grabaciones',   icon: 'bi-mic-fill',                dir: 'EXTERNAL_STORAGE', path: 'Recordings' },
+        { label: 'Tonos',         icon: 'bi-bell-fill',               dir: 'EXTERNAL_STORAGE', path: 'Ringtones' },
+        { label: 'Almacenamiento', icon: 'bi-hdd-fill',               dir: 'EXTERNAL_STORAGE', path: '' }
     ];
     var FILTERS = [
         ['all', 'Todo'], ['image', 'Imágenes'], ['video', 'Videos'],
@@ -89,6 +108,12 @@ window.TribalFiles = (function () {
     }
     function join(base, name) { return base ? base + '/' + name : name; }
     function toast(m) { if (S && S.showToast) S.showToast(m); }
+    function saveSort() {
+        try {
+            localStorage.setItem('tribu_fm_sort',
+                JSON.stringify({ by: sortBy, asc: sortAsc }));
+        } catch (e) {}
+    }
 
     // url servible por el WebView para un archivo del dispositivo/app
     function entryUrl(e) {
@@ -99,13 +124,30 @@ window.TribalFiles = (function () {
     }
 
     function filtered() {
-        return entries.filter(function (e) {
+        var q = query.trim().toLowerCase();
+        var list = entries.filter(function (e) {
             if (pick && !e.dir && pick.kinds &&
                 pick.kinds.indexOf(kindOf(e.name)) < 0) return false;
-            if (filter === 'all') return true;
-            if (e.dir) return true;                       // carpetas siempre
-            return kindOf(e.name) === filter;
+            if (filter !== 'all' && !e.dir &&
+                kindOf(e.name) !== filter) return false;
+            if (q && e.name.toLowerCase().indexOf(q) < 0) return false;
+            return true;
         });
+        list.sort(function (a, b) {
+            if (a.dir !== b.dir) return a.dir ? -1 : 1;   // carpetas arriba
+            var r = sortBy === 'size' ? (a.size || 0) - (b.size || 0)
+                  : sortBy === 'date' ? (a.mtime || 0) - (b.mtime || 0)
+                  : a.name.localeCompare(b.name);
+            return sortAsc ? r : -r;
+        });
+        return list;
+    }
+    function fmtDate(ms) {
+        if (!ms) return '';
+        var d = new Date(ms);
+        function z(n) { return n < 10 ? '0' + n : '' + n; }
+        return z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' +
+               String(d.getFullYear()).slice(2);
     }
 
     // ------------------------------------------------------------ render ---
@@ -121,19 +163,32 @@ window.TribalFiles = (function () {
             '<div class="fm-roots" id="fm-roots">' +
                 ROOTS.map(function (r, i) {
                     return '<button class="tribal-btn tribal-btn-xs fm-root"' +
-                        ' data-root="' + i + '">' + esc(r.label) + '</button>';
+                        ' data-root="' + i + '"><i class="bi ' + r.icon +
+                        '"></i><span>' + esc(r.label) + '</span></button>';
                 }).join('') +
             '</div>' +
             '<div class="fm-bar">' +
-                '<div class="fm-roots fm-filters" id="fm-filters">' +
-                    FILTERS.map(function (f) {
-                        return '<button class="tribal-btn tribal-btn-xs fm-f"' +
-                            (f[0] === 'all' ? ' fm-on' : '') +
-                            ' data-f="' + f[0] + '">' + f[1] + '</button>';
-                    }).join('') +
-                '</div>' +
+                '<input type="search" class="fm-q" id="fm-q"' +
+                    ' placeholder="Buscar aquí…" autocomplete="off">' +
+                '<select class="fm-sort" id="fm-sort" title="Ordenar">' +
+                    '<option value="name">Nombre</option>' +
+                    '<option value="date">Fecha</option>' +
+                    '<option value="size">Tamaño</option>' +
+                '</select>' +
+                '<button class="tribal-btn tribal-btn-xs" id="fm-dir"' +
+                    ' title="Ascendente / descendente">' +
+                    '<i class="bi bi-sort-alpha-down"></i></button>' +
+                '<button class="tribal-btn tribal-btn-xs" id="fm-mkdir"' +
+                    ' title="Nueva carpeta"><i class="bi bi-folder-plus"></i></button>' +
                 '<button class="tribal-btn tribal-btn-xs" id="fm-view"' +
                     ' title="Cambiar vista"><i class="bi bi-grid-3x3-gap"></i></button>' +
+            '</div>' +
+            '<div class="fm-roots fm-filters" id="fm-filters">' +
+                FILTERS.map(function (f) {
+                    return '<button class="tribal-btn tribal-btn-xs fm-f"' +
+                        (f[0] === 'all' ? ' fm-on' : '') +
+                        ' data-f="' + f[0] + '">' + f[1] + '</button>';
+                }).join('') +
             '</div>' +
             '<div class="fm-crumb" id="fm-crumb"></div>' +
             '<div class="tribal-batch-tools" id="fm-tools" hidden>' +
@@ -155,6 +210,20 @@ window.TribalFiles = (function () {
             '<ol class="tribal-batch-ol" id="fm-list"></ol>' +
             '<div class="fm-grid" id="fm-grid" hidden></div>' +
         '</div>' +
+        '<div class="fm-sheet" id="fm-sheet" hidden>' +
+            '<div class="fm-sheet-card" id="fm-sheet-card"></div>' +
+        '</div>' +
+        '<div class="fm-sheet fm-promptov" id="fm-prompt" hidden>' +
+            '<div class="fm-sheet-card fm-prompt-card">' +
+                '<strong id="fm-prompt-title">Renombrar</strong>' +
+                '<input type="text" id="fm-prompt-in" autocomplete="off">' +
+                '<div class="fm-sheet-row">' +
+                    '<button class="tribal-btn" id="fm-prompt-cancel">Cancelar</button>' +
+                    '<button class="tribal-btn primary" id="fm-prompt-ok">' +
+                        'Aceptar</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
         '<div class="fm-detail" id="fm-detail" hidden>' +
             '<button class="tribal-ctrl fm-det-x" id="fm-det-x">' +
                 '<i class="bi bi-x-lg"></i></button>' +
@@ -171,6 +240,9 @@ window.TribalFiles = (function () {
             });
         ov.querySelector('#fm-view i').className =
             'bi ' + (view === 'grid' ? 'bi-list-ul' : 'bi-grid-3x3-gap');
+        ov.querySelector('#fm-dir i').className =
+            'bi ' + (sortAsc ? 'bi-sort-alpha-down' : 'bi-sort-alpha-up');
+        ov.querySelector('#fm-sort').value = sortBy;
         var multi = selMode || !!pick;
         ov.querySelector('#fm-tools').hidden = !selMode;
         ov.querySelector('#fm-picktools').hidden = !pick;
@@ -189,13 +261,18 @@ window.TribalFiles = (function () {
         var n = Object.keys(sel).length;
         ov.querySelector('#fm-status').textContent =
             selMode ? n + ' seleccionado(s) — toca filas para marcar'
-            : (pick ? 'Toca para elegir — long-press abre la vista detalle' : '');
+            : (pick ? 'Toca para elegir — long-press abre la vista detalle'
+              : list.length + ' elemento(s)' +
+                (query ? ' · filtrando «' + query + '»' : ''));
         if (view === 'list') {
             ls.hidden = false; gr.hidden = true;
             ls.innerHTML = list.map(function (e, i) {
                 var p = join(cur.path, e.name);
                 var on = sel[p];
                 var multi = selMode || !!pick;
+                var meta = (e.dir ? fmtDate(e.mtime)
+                          : (hsize(e.size) + (e.mtime ? ' · ' +
+                             fmtDate(e.mtime) : '')));
                 return '<li class="tribal-batch-li fm-li' + (on ? ' fm-on' : '') +
                     '" data-i="' + i + '">' +
                     (multi
@@ -205,15 +282,19 @@ window.TribalFiles = (function () {
                     '<i class="bi ' + ICONS[e.dir ? 'dir' : kindOf(e.name)] +
                         ' fm-ico' + (e.dir ? ' fm-dir' : '') + '"></i>' +
                     '<span class="fm-name">' + esc(e.name) + '</span>' +
-                    '<span class="fm-size">' +
-                        (e.dir ? '' : hsize(e.size)) + '</span>' +
+                    '<span class="fm-size">' + meta + '</span>' +
                     (e.dir ? '' :
                         '<button class="tribal-ctrl fm-eye" data-eye="' + i +
                         '" title="Ver"><i class="bi bi-eye"></i></button>') +
+                    (multi ? '' :
+                        '<button class="tribal-ctrl fm-act" data-act="' + i +
+                        '" title="Opciones">' +
+                        '<i class="bi bi-three-dots-vertical"></i></button>') +
                     '</li>';
             }).join('') || '<div class="tribal-empty-mini"><p>' +
-                (filter === 'all' ? 'Carpeta vacía' : 'Nada de este tipo aquí') +
-                '</p></div>';
+                (query ? 'Nada coincide con «' + esc(query) + '»'
+                 : filter === 'all' ? 'Carpeta vacía'
+                 : 'Nada de este tipo aquí') + '</p></div>';
             return;
         }
         // ---- vista cuadrícula con thumbnails reales ----
@@ -232,7 +313,10 @@ window.TribalFiles = (function () {
                 '" data-i="' + i + '">' +
                 (multi ? '<i class="ms-check bi ' +
                     (on ? 'bi-check-square-fill' : 'bi-square') +
-                    ' fm-ck"></i>' : '') +
+                    ' fm-ck"></i>'
+                 : '<button class="tribal-ctrl fm-act fm-actg" data-act="' + i +
+                   '" title="Opciones">' +
+                   '<i class="bi bi-three-dots-vertical"></i></button>') +
                 thumb +
                 '<span class="fm-cname">' + esc(e.name) + '</span></div>';
         }).join('') || '<div class="tribal-empty-mini"><p>Carpeta vacía</p></div>';
@@ -282,15 +366,12 @@ window.TribalFiles = (function () {
                 var list = (res && res.files) || [];
                 entries = list.map(function (f) {
                     return typeof f === 'string'
-                        ? { name: f, dir: false, size: null }
+                        ? { name: f, dir: false, size: null, mtime: 0 }
                         : { name: f.name,
                             dir: f.type === 'directory',
-                            size: f.size };
+                            size: f.size, mtime: f.mtime || 0 };
                 }).filter(function (e) {
                     return e.name && e.name.charAt(0) !== '.';
-                }).sort(function (a, b) {
-                    if (a.dir !== b.dir) return a.dir ? -1 : 1;
-                    return a.name.localeCompare(b.name);
                 });
                 renderList();
             }).catch(function (e) {
@@ -313,9 +394,15 @@ window.TribalFiles = (function () {
         var k = kindOf(e.name);
         det.hidden = false;
         body.innerHTML = '<p class="fm-det-msg">Cargando…</p>';
+        var canRead = /^(pdf|epub|txt)$/i
+            .test(String(e.name).split('.').pop());
         foot.innerHTML =
             '<span class="fm-det-name">' + esc(e.name) + '</span>' +
             '<span class="fm-det-size">' + hsize(e.size) + '</span>' +
+            (canRead
+                ? '<button class="tribal-btn" id="fm-det-read">' +
+                  '<i class="bi bi-book"></i> Leer</button>'
+                : '') +
             (pick
                 ? '<button class="tribal-btn primary" id="fm-det-sel">' +
                   (sel[p] ? 'Quitar' : 'Elegir') + '</button>'
@@ -337,6 +424,11 @@ window.TribalFiles = (function () {
             }
         }).catch(function () {
             body.innerHTML = '<i class="bi ' + ICONS[k] + ' fm-det-ico"></i>';
+        });
+        var rd = foot.querySelector('#fm-det-read');
+        if (rd) rd.addEventListener('click', function () {
+            det.hidden = true;
+            openDoc(e);
         });
         var btn = foot.querySelector('#fm-det-sel') ||
                   foot.querySelector('#fm-det-imp');
@@ -451,6 +543,195 @@ window.TribalFiles = (function () {
         });
     }
 
+    // ----------------------------------------------------- operaciones FS -
+    function refresh() { nav({ dir: cur.dir, label: cur.label }, cur.path); }
+
+    // mini-prompt propio (renombrar / nueva carpeta)
+    function askText(title, initial, cb) {
+        var pr = ov.querySelector('#fm-prompt');
+        ov.querySelector('#fm-prompt-title').textContent = title;
+        var inp = ov.querySelector('#fm-prompt-in');
+        inp.value = initial || '';
+        pr.hidden = false;
+        inp.focus(); inp.select();
+        function done(ok) {
+            pr.hidden = true;
+            ov.querySelector('#fm-prompt-ok').onclick =
+                ov.querySelector('#fm-prompt-cancel').onclick = null;
+            inp.onkeydown = null;
+            if (ok) cb(inp.value.trim());
+        }
+        ov.querySelector('#fm-prompt-ok').onclick = function () { done(true); };
+        ov.querySelector('#fm-prompt-cancel').onclick = function () { done(false); };
+        inp.onkeydown = function (ev) {
+            if (ev.key === 'Enter') done(true);
+            if (ev.key === 'Escape') done(false);
+        };
+    }
+
+    // hoja de acciones por archivo/carpeta
+    function openSheet(i) {
+        var list = filtered();
+        var e = list[i];
+        if (!e) return;
+        sheetEntry = e;
+        var card = ov.querySelector('#fm-sheet-card');
+        var acts = [];
+        if (e.dir) {
+            acts = [
+                ['open', 'bi-folder2-open', 'Abrir'],
+                ['rename', 'bi-pencil', 'Renombrar'],
+                ['del', 'bi-trash3', 'Eliminar']
+            ];
+        } else {
+            var k = kindOf(e.name);
+            acts = [['view', 'bi-eye', 'Ver']];
+            if (/^(pdf|epub|txt)$/i.test(e.name.split('.').pop()))
+                acts.push(['read', 'bi-book-half', 'Abrir con el lector']);
+            acts.push(['share', 'bi-share', 'Compartir'],
+                      ['import', 'bi-box-arrow-in-down', 'Importar a la tribu'],
+                      ['rename', 'bi-pencil', 'Renombrar'],
+                      ['del', 'bi-trash3', 'Eliminar']);
+            if (k === 'magnet') acts.splice(1, 0,
+                ['open', 'bi-magnet-fill', 'Abrir enlace']);
+        }
+        card.innerHTML =
+            '<div class="fm-sheet-name"><i class="bi ' +
+            ICONS[e.dir ? 'dir' : kindOf(e.name)] +
+            (e.dir ? ' fm-dir' : '') + '"></i>' + esc(e.name) + '</div>' +
+            acts.map(function (a) {
+                return '<button class="fm-actbtn" data-do="' + a[0] + '">' +
+                    '<i class="bi ' + a[1] + '"></i>' + a[2] + '</button>';
+            }).join('') +
+            '<button class="fm-actbtn fm-cancel" data-do="x">' +
+                '<i class="bi bi-x-lg"></i>Cancelar</button>';
+        ov.querySelector('#fm-sheet').hidden = false;
+    }
+
+    function doSheet(act) {
+        var e = sheetEntry;
+        sheetEntry = null;
+        ov.querySelector('#fm-sheet').hidden = true;
+        if (!e || act === 'x') return;
+        var p = join(cur.path, e.name);
+        if (act === 'open' || act === 'view') {
+            if (e.dir) return nav({ dir: cur.dir, label: cur.label }, p);
+            var k = kindOf(e.name);
+            if (act === 'open') return openMagnetOrImport(e);
+            if (k === 'image' || k === 'video' || k === 'audio')
+                return showDetail(e);
+            return openMagnetOrImport(e);
+        }
+        if (act === 'read') return openDoc(e);
+        if (act === 'import') return importOne(e);
+        if (act === 'share') {
+            return fs().getUri({ path: p, directory: cur.dir })
+                .then(function (r) {
+                    return window.Capacitor.Plugins.Share.share(
+                        { title: e.name, url: r.uri });
+                }).catch(function (err) {
+                    toast('No se pudo compartir: ' +
+                        String(err && err.message || err));
+                });
+        }
+        if (act === 'rename') {
+            return askText('Renombrar «' + e.name + '»', e.name,
+                function (nn) {
+                    if (!nn || nn === e.name) return;
+                    if (/[\\/:*?"<>|]/.test(nn))
+                        return toast('El nombre tiene caracteres inválidos');
+                    fs().rename({
+                        from: p, to: join(cur.path, nn),
+                        directory: cur.dir, toDirectory: cur.dir
+                    }).then(function () {
+                        delete sel[p];
+                        toast('Renombrado a «' + nn + '»');
+                        refresh();
+                    }).catch(function (err) {
+                        toast('No se pudo renombrar: ' +
+                            String(err && err.message || err));
+                    });
+                });
+        }
+        if (act === 'del') {
+            var extra = e.dir ? ' y todo su contenido' : '';
+            return S.confirm('Eliminar',
+                '¿Borrar «' + e.name + '»' + extra + '?', 'Eliminar',
+                function () {
+                    S.confirm('Última advertencia',
+                        'Se borra permanentemente del teléfono. ' +
+                        'No se puede deshacer.', 'Sí, borrar',
+                        function () {
+                            var pr = e.dir
+                                ? fs().rmdir({ path: p, directory: cur.dir,
+                                               recursive: true })
+                                : fs().deleteFile({ path: p,
+                                                    directory: cur.dir });
+                            pr.then(function () {
+                                delete sel[p];
+                                toast('«' + e.name + '» eliminado');
+                                refresh();
+                            }).catch(function (err) {
+                                toast('No se pudo eliminar: ' +
+                                    String(err && err.message || err));
+                            });
+                        });
+                });
+        }
+    }
+
+    function newFolder() {
+        askText('Nueva carpeta en «' + (cur.label + '/' + (cur.path || '')) +
+            '»', '', function (nn) {
+                if (!nn) return;
+                if (/[\\/:*?"<>|]/.test(nn))
+                    return toast('Nombre inválido');
+                fs().mkdir({ path: join(cur.path, nn), directory: cur.dir,
+                             recursive: true })
+                    .then(function () {
+                        toast('Carpeta «' + nn + '» creada');
+                        refresh();
+                    }).catch(function (err) {
+                        toast('No se pudo crear: ' +
+                            String(err && err.message || err));
+                    });
+            });
+    }
+
+    // abrir pdf/epub/txt del dispositivo con el lector tribal —
+    // meta sintético + urlFor directo al archivo (sin importarlo)
+    function openDoc(e) {
+        var p = join(cur.path, e.name);
+        entryUrl(e).then(function (u) {
+            if (!window.TribalReader)
+                return toast('El lector no está disponible');
+            var meta = { id: 'fm:' + p, name: e.name };
+            window.TribalReader.open(meta, {
+                mount: document.body,
+                urlFor: function (m, cb) { cb(u); },
+                store: {
+                    share: function () {
+                        return fs().getUri({ path: p, directory: cur.dir })
+                            .then(function (r) {
+                                return window.Capacitor.Plugins.Share.share(
+                                    { title: e.name, url: r.uri });
+                            });
+                    },
+                    remove: function () {
+                        return fs().deleteFile({ path: p,
+                                                 directory: cur.dir })
+                            .then(refresh);
+                    }
+                },
+                toast: toast,
+                confirm: S.confirm,
+                onDeleted: refresh
+            });
+        }).catch(function (err) {
+            toast('No se pudo abrir: ' + String(err && err.message || err));
+        });
+    }
+
     // ------------------------------------------------------------ gestos ---
     function activateSel(i) {
         var list = filtered();
@@ -520,6 +801,33 @@ window.TribalFiles = (function () {
             view = view === 'grid' ? 'list' : 'grid';
             renderList();
         });
+        ov.querySelector('#fm-q').addEventListener('input', function (e) {
+            query = e.target.value || '';
+            renderList();
+        });
+        ov.querySelector('#fm-sort').addEventListener('change', function (e) {
+            sortBy = e.target.value;
+            saveSort(); renderList();
+        });
+        ov.querySelector('#fm-dir').addEventListener('click', function () {
+            sortAsc = !sortAsc;
+            saveSort(); renderList();
+        });
+        ov.querySelector('#fm-mkdir').addEventListener('click', newFolder);
+        // hoja de acciones: tocar fuera cierra, data-do ejecuta
+        ov.querySelector('#fm-sheet').addEventListener('click', function (e) {
+            if (e.target === ov.querySelector('#fm-sheet')) {
+                ov.querySelector('#fm-sheet').hidden = true;
+                sheetEntry = null;
+                return;
+            }
+            var b = e.target.closest('.fm-actbtn');
+            if (b) doSheet(b.dataset.do);
+        });
+        ov.querySelector('#fm-prompt').addEventListener('click', function (e) {
+            if (e.target === ov.querySelector('#fm-prompt'))
+                ov.querySelector('#fm-prompt-cancel').click();
+        });
         ov.querySelector('#fm-crumb').addEventListener('click', function (e) {
             var b = e.target.closest('.fm-cb');
             if (b) nav({ dir: cur.dir, label: cur.label }, b.dataset.p);
@@ -579,6 +887,8 @@ window.TribalFiles = (function () {
                 var i = itemOf(e.target);
                 var eye = e.target.closest && e.target.closest('.fm-eye');
                 if (eye) { showDetail(filtered()[+eye.dataset.eye]); return; }
+                var act = e.target.closest && e.target.closest('.fm-act');
+                if (act) { openSheet(+act.dataset.act); return; }
                 if (i >= 0 && i === lpI && !lpOk) onTap(i);
                 lpI = -1;
             });
@@ -602,6 +912,7 @@ window.TribalFiles = (function () {
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = null; entries = []; sel = {}; selMode = false;
         filter = 'all'; view = 'list'; pick = null; cur = null;
+        query = ''; sheetEntry = null;
     }
 
     function open(sono, opts) {

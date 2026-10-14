@@ -1170,6 +1170,81 @@
 }
 .fm-det-size { color: var(--tb-muted); font-size: 0.7rem; }
 
+/* ---- administrador completo: buscador, orden, acciones ---- */
+.fm-q {
+    flex: 1; min-width: 0; height: 28px;
+    border-radius: 8px; border: 1px solid var(--tb-border);
+    background: rgba(0,0,0,.35); color: var(--tb-cream);
+    padding: 0 10px; font-size: 0.75rem; outline: none;
+}
+.fm-q:focus { border-color: var(--tb-gold); }
+.fm-q::placeholder { color: var(--tb-muted); }
+.fm-sort {
+    height: 28px; max-width: 88px; border-radius: 8px;
+    border: 1px solid var(--tb-border); font-size: 0.7rem;
+    background: rgba(0,0,0,.35); color: var(--tb-gold);
+}
+.fm-sort option { color: #241708; background: #f7ecd7; }
+.fm-act { flex: none; width: 30px; height: 30px; }
+.fm-actg {
+    position: absolute; top: 4px; right: 4px; z-index: 2;
+    width: 26px; height: 26px;
+    background: rgba(0,0,0,.55); border-radius: 50%;
+    border: 1px solid var(--tb-border);
+}
+.fm-root i { margin-right: 4px; color: var(--tb-gold); }
+/* hoja de acciones inferior */
+.fm-sheet {
+    position: absolute; inset: 0; z-index: 7;
+    background: rgba(0,0,0,.55);
+    display: flex; flex-direction: column; justify-content: flex-end;
+}
+.fm-sheet-card {
+    background: #1a0f06; border-top: 1px solid var(--tb-border);
+    border-radius: 16px 16px 0 0; padding: 10px 12px
+        calc(12px + env(safe-area-inset-bottom, 0px));
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 70%; overflow-y: auto;
+    animation: fm-sheet-up .22s ease-out;
+}
+@keyframes fm-sheet-up {
+    from { transform: translateY(30%); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+.fm-sheet-name {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--tb-cream); font-size: 0.85rem; font-weight: 600;
+    padding: 4px 6px 10px; border-bottom: 1px solid var(--tb-border);
+    margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.fm-actbtn {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 10px;
+    background: rgba(0,0,0,.3); border: 1px solid var(--tb-border);
+    color: var(--tb-cream); font-size: 0.85rem; cursor: pointer;
+    text-align: left;
+}
+.fm-actbtn i { color: var(--tb-gold); font-size: 1rem; }
+.fm-actbtn:active { background: rgba(201, 124, 58, .2); }
+.fm-actbtn.fm-cancel { justify-content: center; color: var(--tb-muted); }
+.fm-actbtn.fm-cancel i { color: var(--tb-muted); }
+/* prompt renombrar / nueva carpeta (reusa la hoja) */
+.fm-prompt-card {
+    margin: auto 12px; border-radius: 14px;
+    border: 1px solid var(--tb-border);
+    animation: fm-sheet-up .18s ease-out;
+}
+.fm-promptov { justify-content: center; }
+.fm-prompt-card strong { color: var(--tb-cream); font-size: 0.85rem; }
+#fm-prompt-in {
+    height: 34px; border-radius: 8px; font-size: 0.85rem;
+    border: 1px solid var(--tb-border); padding: 0 10px;
+    background: rgba(0,0,0,.4); color: var(--tb-cream); outline: none;
+}
+#fm-prompt-in:focus { border-color: var(--tb-gold); }
+.fm-sheet-row { display: flex; gap: 8px; justify-content: flex-end; }
+
 /* ============================================================ stage+cutter */
 .vf-stage { position: relative; width: 100%; display: flex; justify-content: center; }
 /* fullscreen real: el video ocupa TODO lo ancho/alto — solo controles nativos

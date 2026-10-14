@@ -95,3 +95,11 @@ izquierda.
   restaurar = seguir/guardar/eliminar (triple confirmación); retomar
   fusiona por decode+paste→wav (NUNCA concatenar blobs webm crudos —
   cada sesión trae su propio header y se corrompe).
+- **Slider de volumen del vinilo con relleno de nivel** — SAGRADO:
+  `.tribal-vinyl-volrange` muestra el nivel real — izquierda del thumb
+  = degradado tribal (terracota→dorado), derecha = gris apagado.
+  `paintVol()` en `media-vinyl.js` repinta el gradiente con tope duro
+  en el % actual (WebKit); Firefox usa `::-moz-range-progress` nativo.
+  Se llama en el `input` directo, en el gesto vertical del lado
+  derecho y al abrir el fullscreen. NO cambiar colores, thumb, ni el
+  mecanismo de repintado salvo orden explícita del usuario.
