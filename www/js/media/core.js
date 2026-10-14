@@ -120,8 +120,9 @@ window.Sono = (function () {
     S.exitFull = function () {
         if (document.fullscreenElement) document.exitFullscreen().catch(function () {});
     };
-    // confirmación de doble paso genérica: S.confirm(title, msg, okLabel, cb)
-    S.confirm = function (title, msg, okLabel, cb) {
+    // confirmación de doble paso genérica:
+    // S.confirm(title, msg, okLabel, cb [, onNo]) — onNo corre al cancelar
+    S.confirm = function (title, msg, okLabel, cb, onNo) {
         var ov = S.$('confirm-overlay');
         if (!ov) return cb();
         S.$('confirm-title').textContent = title || 'Confirmar';
@@ -131,7 +132,7 @@ window.Sono = (function () {
         var done = function (yes) {
             ov.hidden = true;
             S.$('confirm-ok').onclick = S.$('confirm-cancel').onclick = ov.onclick = null;
-            if (yes) cb();
+            if (yes) cb(); else if (onNo) onNo();
         };
         S.$('confirm-ok').onclick = function () { done(true); };
         S.$('confirm-cancel').onclick = function () { done(false); };

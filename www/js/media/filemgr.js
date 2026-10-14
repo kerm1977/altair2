@@ -388,8 +388,11 @@ window.TribalFiles = (function () {
         return fs().readFile({ path: p, directory: cur.dir })
             .then(function (r) {
                 var f = new File([b64ToBlob(r.data)], e.name);
-                return window.MediaStore.add(f);
-            }).then(function () {
+                return window.TribalDup.guard(f, S).then(function (f2) {
+                    return f2 ? window.MediaStore.add(f2) : null;
+                });
+            }).then(function (m) {
+                if (!m) return;   // usuario canceló el duplicado
                 toast('«' + e.name + '» importado a la tribu');
                 if (S && S.reload) S.reload();
             }).catch(function (err) {
@@ -406,9 +409,11 @@ window.TribalFiles = (function () {
                     'Importando ' + (i + 1) + '/' + paths.length + '…';
                 return fs().readFile({ path: p, directory: cur.dir });
             }).then(function (r) {
-                return window.MediaStore.add(
-                    new File([b64ToBlob(r.data)], p.split('/').pop()));
-            }).then(function (m) { metas.push(m); })
+                var f = new File([b64ToBlob(r.data)], p.split('/').pop());
+                return window.TribalDup.guard(f, S).then(function (f2) {
+                    return f2 ? window.MediaStore.add(f2) : null;
+                });
+            }).then(function (m) { if (m) metas.push(m); })
               .catch(function () { fail++; });
         });
         return seq.then(function () { done(metas, fail); });

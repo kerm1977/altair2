@@ -194,11 +194,22 @@
 
 .tribal-vinyl-stage {
     position: relative;
+    /* ancho = alto explícitos: el flex-shrink del padre NO puede ovalar
+       el círculo en horizontal — siempre cuadrado → siempre redondo */
     width: min(78vmin, 62vh);
-    aspect-ratio: 1;
-    flex-shrink: 1;
-    min-height: 160px;
+    height: min(78vmin, 62vh);
+    flex-shrink: 0;
 }
+@media (orientation: landscape) {
+    .tribal-vinyl { gap: 6px;
+        padding-top: calc(34px + env(safe-area-inset-top, 0px));
+        padding-bottom: 6px; }
+    .tribal-vinyl-brand small { display: none; }
+    .tribal-vinyl-stage { width: min(42vh, 62vw); height: min(42vh, 62vw); }
+}
+/* gestos táctiles del fullscreen: swipe horizontal = pista;
+   arrastre vertical en el lado derecho = volumen */
+.tribal-vinyl { touch-action: none; }
 .tribal-vinyl-ring {
     position: absolute;
     inset: 0;

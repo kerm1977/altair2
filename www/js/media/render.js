@@ -84,13 +84,33 @@ window.Sono.register('render', function (S) {
             v.addEventListener('loadedmetadata', function () {
                 var d = Math.round(v.duration || 0);
                 done();
-                if (!d) return;
+                // duración no finita (webm/opus sin header) → decodificar
+                if (!isFinite(d) || d <= 0) return deepDur(m, el);
                 if (el.isConnected) el.textContent = S.fmtTime(d);
                 window.MediaStore.updateInfo(m.id, { dur: d }).then(function () {
                     m.info = m.info || {}; m.info.dur = d;
                 });
             });
             v.addEventListener('error', done);
+        });
+    }
+    // fallback: el contenedor no trae duración → decodificar el audio entero
+    // una sola vez (AudioBuffer.duration siempre es exacta)
+    function deepDur(m, el) {
+        if (!window.TribalVDSP) return;
+        S.urlFor(m, function (u) {
+            if (!u) return;
+            fetch(u).then(function (r) { return r.blob(); })
+                .then(window.TribalVDSP.decode)
+                .then(function (buf) {
+                    var d = Math.round(buf.duration || 0);
+                    if (!d) return;
+                    if (el.isConnected) el.textContent = S.fmtTime(d);
+                    window.MediaStore.updateInfo(m.id, { dur: d })
+                        .then(function () {
+                            m.info = m.info || {}; m.info.dur = d;
+                        });
+                }).catch(function () {});
         });
     }
 
@@ -101,7 +121,8 @@ window.Sono.register('render', function (S) {
                 if (!en.isIntersecting) return;
                 durIO.unobserve(en.target);
                 var meta = S.byId(en.target.dataset.dur);
-                if (meta && !(meta.info && meta.info.dur)) probeDur(meta, en.target);
+                if (meta && !(meta.info && isFinite(meta.info.dur) &&
+                              meta.info.dur > 0)) probeDur(meta, en.target);
             });
         }, { root: S.gridWrap, rootMargin: '300px' })
         : null;
@@ -198,7 +219,8 @@ window.Sono.register('render', function (S) {
                       S.KIND_ICON[m.kind] + '"></i></span>';
                 var side = isAV
                     ? '<span class="tr-row-dur" data-dur="' + m.id + '">' +
-                      ((m.info && m.info.dur) ? S.fmtTime(m.info.dur) : '—') +
+                      ((m.info && isFinite(m.info.dur) && m.info.dur)
+                        ? S.fmtTime(m.info.dur) : '—') +
                       '</span>'
                     : '<span class="tr-row-dur">' + S.fmtSize(m.size) + '</span>';
                 row.innerHTML =
@@ -340,9 +362,13 @@ window.Sono.register('render', function (S) {
         files.forEach(function (f) {
             chain = chain.then(function () {
                 S.uploadProgress(done, files.length, 0, f.name);
-                return window.MediaStore.add(f, null, function (fr) {
-                    S.uploadProgress(done, files.length, fr, f.name);
-                }).then(function () { ok++; done++; });
+                // anti-duplicados: mismo nombre → doble confirm + «-2, -3…»
+                return window.TribalDup.guard(f, S).then(function (f2) {
+                    if (!f2) { done++; return; }   // usuario canceló
+                    return window.MediaStore.add(f2, null, function (fr) {
+                        S.uploadProgress(done, files.length, fr, f2.name);
+                    }).then(function () { ok++; done++; });
+                });
             }).catch(function (e) { lastErr = e; done++; });
         });
         chain.then(function () {

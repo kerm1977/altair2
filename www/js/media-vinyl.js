@@ -127,6 +127,43 @@ window.TribalVinyl = (function () {
             var r = bar.getBoundingClientRect();
             el.currentTime = (e.clientX - r.left) / r.width * el.duration;
         });
+        // gestos táctiles del fullscreen:
+        //   swipe horizontal en zona vacía → prev/next
+        //   arrastre vertical en el lado derecho → volumen
+        var gX = null, gY, gMode, gV0;
+        ov.addEventListener('pointerdown', function (e) {
+            if (e.target.closest('button,input,.tribal-vinyl-bar')) return;
+            gX = e.clientX; gY = e.clientY; gMode = null;
+            gV0 = el ? el.volume : 1;
+        });
+        ov.addEventListener('pointermove', function (e) {
+            if (gX == null || !el) return;
+            var dx = e.clientX - gX, dy = e.clientY - gY;
+            if (!gMode) {
+                if (Math.abs(dx) < 22 && Math.abs(dy) < 22) return;
+                // vertical solo si empezó en el 40% derecho de la pantalla
+                gMode = (Math.abs(dy) > Math.abs(dx) &&
+                         gX > ov.clientWidth * .6) ? 'vol' : 'nav';
+            }
+            if (gMode === 'vol') {
+                var v = Math.max(0, Math.min(1,
+                    gV0 - dy / ov.clientHeight * 1.6));
+                el.muted = false; el.volume = v;
+                if (volRange) volRange.value = Math.round(v * 100);
+            }
+        });
+        function gUp(e) {
+            if (gX == null) return;
+            var dx = e.clientX - gX, dy = e.clientY - gY;
+            if (gMode === 'nav' && Math.abs(dx) > 55 &&
+                Math.abs(dx) > Math.abs(dy)) {
+                if (dx < 0 && cb.onNext) cb.onNext();
+                else if (dx > 0 && cb.onPrev) cb.onPrev();
+            }
+            gX = null; gMode = null;
+        }
+        ov.addEventListener('pointerup', gUp);
+        ov.addEventListener('pointercancel', gUp);
     }
 
     function sync() {

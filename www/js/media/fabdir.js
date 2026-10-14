@@ -82,8 +82,11 @@ window.Sono.register('fabdir', function (S) {
         files.forEach(function (f) {
             chain = chain.then(function () {
                 if (S.uploadProgress) S.uploadProgress(done, files.length, 0, f.name);
-                return window.MediaStore.add(f, null, function (fr) {
-                    if (S.uploadProgress) S.uploadProgress(done, files.length, fr, f.name);
+                return window.TribalDup.guard(f, S).then(function (f2) {
+                    if (!f2) { done++; return null; }
+                    return window.MediaStore.add(f2, null, function (fr) {
+                        if (S.uploadProgress) S.uploadProgress(done, files.length, fr, f2.name);
+                    });
                 }).then(function (m) {
                     if (m) metas.push(m);
                     done++;
