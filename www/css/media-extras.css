@@ -1572,7 +1572,7 @@
 }
 /* título de grupo: solo texto espaciado, sin ninguna raya */
 .stats-fgrp {
-    margin: 14px 6px 4px; font-size: 0.64rem; font-weight: 800;
+    margin: 14px 6px 10px; font-size: 0.64rem; font-weight: 800;
     letter-spacing: .15em; text-transform: uppercase;
     color: var(--tb-terra);
 }
