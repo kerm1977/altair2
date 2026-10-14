@@ -3,6 +3,9 @@ package com.miapp.local;
 import android.Manifest;
 import android.bluetooth.*;
 import android.content.*;
+import android.net.wifi.ScanResult;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import com.getcapacitor.*;
 import com.getcapacitor.annotation.CapacitorPlugin;
@@ -12,6 +15,11 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -60,7 +68,10 @@ public class TribalBtPlugin extends Plugin {
         TribalBtPlugin p = inst;
         if (p == null) return false;
         p.attach(s); return true; }
-    @Override public void load() { inst = this; }
+    @Override public void load() {
+        inst = this;
+        startWifiUdpServer();
+    }
     private void emit(JSObject d) { notifyListeners("bt", d, true); }
     private boolean markSeen(String m) {         // true = nuevo
         int h = m.hashCode();
@@ -467,6 +478,200 @@ public class TribalBtPlugin extends Plugin {
 
     @PluginMethod
     public void close(PluginCall call) { closeAll(); call.resolve(); }
+
+    // =========================================================================
+    // MOTOR WI-FI / HOTSPOT + DESCUBRIMIENTO Y CONTROL REMOTO UDP (PUERTO 47777)
+    // =========================================================================
+    private static final int WIFI_PORT = 47777;
+    private DatagramSocket udpSock;
+
+    private String localIp() {
+        try {
+            Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();
+            while (en != null && en.hasMoreElements()) {
+                NetworkInterface ni = en.nextElement();
+                if (!ni.isUp() || ni.isLoopback()) continue;
+                Enumeration<InetAddress> addrs = ni.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    InetAddress a = addrs.nextElement();
+                    if (a instanceof Inet4Address && !a.isLoopbackAddress()) {
+                        return a.getHostAddress();
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return "0.0.0.0";
+    }
+
+    private void startWifiUdpServer() {
+        if (udpSock != null) return;
+        new Thread(new Runnable() { public void run() {
+            try {
+                udpSock = new DatagramSocket(WIFI_PORT);
+                udpSock.setBroadcast(true);
+                byte[] buf = new byte[8192];
+                while (udpSock != null && !udpSock.isClosed()) {
+                    DatagramPacket pkt = new DatagramPacket(buf, buf.length);
+                    udpSock.receive(pkt);
+                    String fromIp = pkt.getAddress().getHostAddress();
+                    if (fromIp.equals(localIp())) continue;
+                    String s = new String(pkt.getData(), 0, pkt.getLength(), StandardCharsets.UTF_8);
+                    JSONObject j = new JSONObject(s);
+                    String k = j.optString("k", "");
+                    if ("wifi_hello".equals(k)) {
+                        String devName = Build.MODEL != null ? Build.MODEL : "TRIBALs Android";
+                        byte[] rep = ("{\"k\":\"wifi_hi\",\"name\":\"" + devName.replace("\"", "") + "\"}").getBytes(StandardCharsets.UTF_8);
+                        udpSock.send(new DatagramPacket(rep, rep.length, pkt.getAddress(), WIFI_PORT));
+                        JSObject ev = new JSObject();
+                        ev.put("type", "wifiDevice");
+                        ev.put("ip", fromIp);
+                        ev.put("name", j.optString("name", fromIp));
+                        emit(ev);
+                    } else if ("wifi_hi".equals(k)) {
+                        JSObject ev = new JSObject();
+                        ev.put("type", "wifiDevice");
+                        ev.put("ip", fromIp);
+                        ev.put("name", j.optString("name", fromIp));
+                        emit(ev);
+                    } else {
+                        JSObject ev = new JSObject();
+                        ev.put("type", "msg");
+                        ev.put("msg", s);
+                        ev.put("from", fromIp);
+                        emit(ev);
+                    }
+                }
+            } catch (Throwable ignored) {}
+        }}).start();
+    }
+
+    @PluginMethod
+    public void wifiScan(PluginCall call) {
+        JSObject res = new JSObject();
+        JSONArray nets = new JSONArray();
+        try {
+            WifiManager wm = (WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            String ip = localIp();
+            res.put("ip", ip);
+            boolean wifiEnabled = wm != null && wm.isWifiEnabled();
+            res.put("enabled", wifiEnabled);
+
+            boolean apOn = false;
+            if (wm != null) {
+                try {
+                    java.lang.reflect.Method m = wm.getClass().getDeclaredMethod("isWifiApEnabled");
+                    m.setAccessible(true);
+                    apOn = Boolean.TRUE.equals(m.invoke(wm));
+                } catch (Throwable ignored) {}
+            }
+            res.put("hotspotOn", apOn);
+
+            String curSsid = "";
+            if (wm != null) {
+                try {
+                    WifiInfo wi = wm.getConnectionInfo();
+                    if (wi != null && wi.getSSID() != null) {
+                        curSsid = wi.getSSID().replace("\"", "");
+                        if ("<unknown ssid>".equalsIgnoreCase(curSsid)) curSsid = "";
+                    }
+                } catch (Throwable ignored) {}
+                try { wm.startScan(); } catch (Throwable ignored) {}
+                try {
+                    List<ScanResult> list = wm.getScanResults();
+                    Map<String, JSONObject> best = new LinkedHashMap<>();
+                    if (list != null) {
+                        for (ScanResult sr : list) {
+                            String ssid = sr.SSID != null ? sr.SSID.trim() : "";
+                            if (ssid.isEmpty()) continue;
+                            int lvl = WifiManager.calculateSignalLevel(sr.level, 100);
+                            if (!best.containsKey(ssid) || lvl > best.get(ssid).optInt("level", 0)) {
+                                JSONObject o = new JSONObject();
+                                o.put("ssid", ssid);
+                                o.put("bssid", sr.BSSID != null ? sr.BSSID : "");
+                                o.put("level", lvl);
+                                String caps = sr.capabilities != null ? sr.capabilities : "";
+                                o.put("secure", caps.contains("WPA") || caps.contains("WEP") || caps.contains("SAE"));
+                                String low = ssid.toLowerCase();
+                                o.put("hotspot", low.contains("android") || low.contains("iphone") ||
+                                    low.contains("galaxy") || low.contains("redmi") || low.contains("hotspot") ||
+                                    low.contains("poco") || low.contains("moto") || low.contains("tribu"));
+                                o.put("connected", ssid.equals(curSsid));
+                                best.put(ssid, o);
+                            }
+                        }
+                    }
+                    for (JSONObject o : best.values()) nets.put(o);
+                } catch (Throwable ignored) {}
+            }
+            res.put("currentSsid", curSsid);
+            res.put("networks", nets);
+
+            // Descubrir dispositivos TRIBALs en la misma red Wi-Fi o Hotspot por UDP
+            startWifiUdpServer();
+            new Thread(new Runnable() { public void run() {
+                try {
+                    String devName = Build.MODEL != null ? Build.MODEL : "TRIBALs Android";
+                    byte[] hello = ("{\"k\":\"wifi_hello\",\"name\":\"" + devName.replace("\"", "") + "\"}").getBytes(StandardCharsets.UTF_8);
+                    DatagramSocket ds = udpSock != null ? udpSock : new DatagramSocket();
+                    ds.setBroadcast(true);
+                    ds.send(new DatagramPacket(hello, hello.length, InetAddress.getByName("255.255.255.255"), WIFI_PORT));
+                } catch (Throwable ignored) {}
+            }}).start();
+        } catch (Throwable ignored) {}
+        call.resolve(res);
+    }
+
+    @PluginMethod
+    public void wifiSend(final PluginCall call) {
+        final String msg = call.getString("msg", "");
+        final String toIp = call.getString("ip", "255.255.255.255");
+        if (msg.isEmpty()) { call.reject("vacío"); return; }
+        new Thread(new Runnable() { public void run() {
+            try {
+                startWifiUdpServer();
+                byte[] b = msg.getBytes(StandardCharsets.UTF_8);
+                DatagramSocket ds = udpSock != null ? udpSock : new DatagramSocket();
+                ds.setBroadcast(true);
+                String target = (toIp == null || toIp.isEmpty()) ? "255.255.255.255" : toIp;
+                ds.send(new DatagramPacket(b, b.length, InetAddress.getByName(target), WIFI_PORT));
+                call.resolve();
+            } catch (Exception e) { call.reject(e.getMessage()); }
+        }}).start();
+    }
+
+    @PluginMethod
+    public void openWifiSettings(PluginCall call) {
+        try {
+            Intent i;
+            if (Build.VERSION.SDK_INT >= 29) {
+                i = new Intent(android.provider.Settings.Panel.ACTION_WIFI);
+            } else {
+                i = new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS);
+            }
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+            call.resolve();
+        } catch (Exception e) {
+            try {
+                Intent i2 = new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS);
+                i2.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(i2);
+                call.resolve();
+            } catch (Exception e2) { call.reject(e2.getMessage()); }
+        }
+    }
+
+    @PluginMethod
+    public void openHotspotSettings(PluginCall call) {
+        try {
+            Intent i = new Intent("android.settings.TETHER_SETTINGS");
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+            call.resolve();
+        } catch (Exception e) {
+            openWifiSettings(call);
+        }
+    }
 
     private void closeAll() {
         try {
