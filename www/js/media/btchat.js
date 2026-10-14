@@ -6,7 +6,8 @@ window.TribalBtChat = (function () {
         groupOn = false, replyTo = null, paused = false;
     var MAX_FILE = 8 * 1024 * 1024, ON_KEY = 'tribu_btchat_on',
         CHUNK = 120 * 1024,            // media se trocea: el bridge muere con frames MB+
-        parts = {};                    // reensamblaje entrante: id → {…}
+        parts = {},                    // reensamblaje entrante: id → {…}
+        outQueue = [];                 // cola de reenvío automático al reconectar
     var EMOJI_RE = /((?:[\uD83C-\uD83E][\uDC00-\uDFFF]|[\u231A\u231B\u23E9-\u23EC\u23F0\u23F3\u25FD\u25FE\u2614\u2615\u2648-\u2653\u267F\u2693\u26A1\u26AA\u26AB\u26BD\u26BE\u26C4\u26C5\u26CE\u26D4\u26EA\u26F2\u26F3\u26F5\u26FA\u26FD\u2702\u2705\u2708-\u270D\u270F\u2712\u2716\u271D\u2721\u2728\u2733\u2734\u2744\u2747\u274C\u274E\u2753-\u2755\u2757\u2763\u2764\u2795-\u2797\u27A1\u27B0\u27BF\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B50\u2B55\u3030\u303D\u3297\u3299]|\uFE0F|\u200D|\u20E3)+)/g;
     function bigEmojis(html) {   // emoji → span grande (3× la fuente del chat)
         return html.replace(EMOJI_RE, function (g) { return '<span class="btc-big">' + g + '</span>'; }); }
@@ -55,6 +56,8 @@ window.TribalBtChat = (function () {
             '<button id="btc-close" class="btchat-btn"><i class="bi bi-x-lg"></i></button>' +
             '<div id="btc-dd" class="btchat-dd" hidden>' +
             '<button id="btc-scan"><i class="bi bi-search"></i>Buscar cerca</button>' +
+            '<button id="btc-mgr"><i class="bi bi-bluetooth"></i>Administrador Bluetooth</button>' +
+            '<button id="btc-rc"><i class="bi bi-controller"></i>Control remoto</button>' +
             '<button id="btc-pause"><i class="bi bi-pause-circle"></i><span id="btc-pause-lb">Pausar escucha</span></button>' +
             '<button id="btc-invite"><i class="bi bi-megaphone"></i>Hacerme visible</button>' +
             '<button id="btc-ping"><i class="bi bi-bell"></i>Notificación</button>' +
@@ -106,6 +109,8 @@ window.TribalBtChat = (function () {
         on('btc-del-me', function () { doDelete(delId, false); });
         on('btc-del-x', function () { $('btc-delsh').hidden = true; });
         on('btc-scan', doScan); on('btc-share', shareInvite); on('btc-grp', toggleGroup);
+        on('btc-mgr', function () { if (window.TribalBtMgr) window.TribalBtMgr.open(deps); });
+        on('btc-rc', function () { if (window.TribalRemote) window.TribalRemote.open(deps); });
         on('btc-pause', function () {           // mute: frena scan + escucha
             paused = !paused;
             $('btc-pause-lb').textContent = paused ? 'Reanudar escucha' : 'Pausar escucha';
@@ -231,7 +236,8 @@ window.TribalBtChat = (function () {
             if (d.state === 'open') { peers[d.addr || d.name || 'peer'] = d.name || 'la tribu';
                 saveFav(d.addr, d.name); connModal(d.name);
                 status(peersLabel()); $('btc-title').textContent = chatTitle() === 'Chat tribal' ? (d.name || 'Chat tribal') : chatTitle();
-                showChat(); sendAv(); }
+                showChat(); sendAv();
+                while (outQueue.length) { N.send(outQueue.shift()).catch(function () {}); } }
             else { var nm = (d.addr && peers[d.addr]) || d.name;
                 if (d.addr) delete peers[d.addr]; else peers = {};
                 if (nPeers()) { status(peersLabel()); $('btc-title').textContent = chatTitle(); }
@@ -243,6 +249,7 @@ window.TribalBtChat = (function () {
                 N.listen().catch(function () {}); } }
         else if (d.type === 'msg') {
             var m; try { m = JSON.parse(d.msg); } catch (e) { return; } m.me = false;
+            if (m.k === 'rc') return;                 // comando de control remoto multimedia
             if (m.k === 'mhead') {                    // cabecera de media troceada
                 parts[m.id] = { k: m.mk, name: m.name, mime: m.mime, tot: m.tot,
                     q: m.q, who: m.n, got: 0, p: [], t: Date.now() };
@@ -324,7 +331,9 @@ window.TribalBtChat = (function () {
     function sendText() {
         var t = $('btc-text'), v = t.value.trim();
         if (!v) return; t.value = ''; var q = takeQ();
-        var m = push({ k: 'text', text: v, q: q }); N.send(tag({ k: 'text', text: v, id: m.id, q: q })).catch(function () { toast('Sin conexión'); }); }
+        var m = push({ k: 'text', text: v, q: q });
+        var pkt = tag({ k: 'text', text: v, id: m.id, q: q });
+        N.send(pkt).catch(function () { outQueue.push(pkt); toast('En cola — se enviará al conectar'); }); }
     function sendFile(f) {
         if (f.size > MAX_FILE) return toast('Máximo 8 MB por Bluetooth');
         // MIME del picker puede venir vacío → respaldo por extensión (gif, etc.)

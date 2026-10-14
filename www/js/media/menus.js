@@ -30,6 +30,10 @@ window.Sono.register('menus', function (S) {
         $('menu-vnote').style.display = m.kind === 'audio' ? '' : 'none';
         $('menu-cover').style.display = m.kind === 'doc' ? '' : 'none';
         $('menu-imgedit').style.display = m.kind === 'image' ? '' : 'none';
+        if ($('menu-cast')) {
+            $('menu-cast').style.display =
+                (m.kind === 'audio' || m.kind === 'video' || m.kind === 'image') ? '' : 'none';
+        }
         menu.hidden = false;
         if (menuBd) menuBd.hidden = false;
     }
@@ -246,6 +250,24 @@ window.Sono.register('menus', function (S) {
                 String((e && e.message) || e || 'error'));
         });
     });
+
+    // transmitir a Chromecast / Smart TV (audio, video e imagen)
+    if ($('menu-cast')) {
+        $('menu-cast').addEventListener('click', function () {
+            if (!S.menuItem) return closeMenu();
+            var m = S.menuItem;
+            closeMenu();
+            if (window.TribalCast) window.TribalCast.open(m, S);
+        });
+    }
+    if ($('pm-cast')) {
+        $('pm-cast').addEventListener('click', function () {
+            $('player-menu').hidden = true;
+            var id = S.activeItemId || S.audio.dataset.current;
+            var m = id ? S.byId(id) : null;
+            if (m && window.TribalCast) window.TribalCast.open(m, S);
+        });
+    }
 
     // convertir audio → MP3 / WAV / WebM
     var convOv = $('conv-overlay'), convList = $('conv-list'),

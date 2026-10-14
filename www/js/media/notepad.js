@@ -228,6 +228,8 @@ window.TribalNotepad = (function () {
                         '<button type="button" class="np-tbtn" data-case="upper" title="MAYÚSCULAS">AA</button>' +
                         '<button type="button" class="np-tbtn" data-case="lower" title="minúsculas">aa</button>' +
                         '<button type="button" class="np-tbtn" data-case="title" title="Title Case">Aa</button>' +
+                        '<button type="button" class="np-tbtn" data-act="autocorrect" title="Autocorregir ortografía"><i class="bi bi-spellcheck"></i> Ortografía</button>' +
+                        '<button type="button" class="np-tbtn" data-act="synonyms" title="Sinónimos de la palabra seleccionada"><i class="bi bi-book"></i> Sinónimos</button>' +
                     '</div>' +
                     '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn" data-act="lh" title="Interlineado"><i class="bi bi-arrows-vertical"></i> <small id="np-lh-lbl">1.5</small></button>' +
@@ -250,14 +252,25 @@ window.TribalNotepad = (function () {
 
                 '<!-- LIENZO EN VIVO AL AIRE (SIN INPUTS) -->' +
                 '<div class="np-paper">' +
-                    '<div id="np-title" class="np-air-title" contenteditable="true" ' +
+                    '<div id="np-title" class="np-air-title" contenteditable="true" spellcheck="true" lang="es" ' +
                         'data-placeholder="Escribe el título aquí al aire…"></div>' +
                     '<div class="np-timestamps">' +
                         '<span><i class="bi bi-clock"></i> Creado: <b id="np-ts-created">—</b></span>' +
                         '<span><i class="bi bi-clock-history"></i> Actualizado: <b id="np-ts-updated">—</b></span>' +
                     '</div>' +
-                    '<div id="np-canvas" class="np-air-canvas" contenteditable="true" ' +
+                    '<div id="np-canvas" class="np-air-canvas" contenteditable="true" spellcheck="true" lang="es" ' +
                         'data-placeholder="Escribe tu nota aquí al aire… Mantén presionada cualquier imagen, audio o video para abrir su menú contextual."></div>' +
+                '</div>' +
+            '</div>' +
+
+            '<!-- MODAL DE SINÓNIMOS -->' +
+            '<div class="np-modal-bd" id="np-syn-modal" hidden>' +
+                '<div class="np-modal-card">' +
+                    '<strong><i class="bi bi-book"></i> Sinónimos de «<span id="np-syn-word"></span>»</strong>' +
+                    '<div class="np-ctx-grid" id="np-syn-list"></div>' +
+                    '<div class="np-modal-acts">' +
+                        '<button type="button" class="tribal-btn" id="np-syn-close">Cerrar</button>' +
+                    '</div>' +
                 '</div>' +
             '</div>' +
 
@@ -781,6 +794,34 @@ window.TribalNotepad = (function () {
             }
         });
         titleEl.addEventListener('input', scheduleLiveSave);
+        canvas.addEventListener('keydown', function (e) {
+            if ((e.key === ' ' || e.key === 'Enter' || e.key === ',' || e.key === '.') &&
+                window.TribalNotepadWords) {
+                var sel = window.getSelection && window.getSelection();
+                if (sel && sel.rangeCount && sel.isCollapsed) {
+                    var r = sel.getRangeAt(0);
+                    var nd = r.startContainer;
+                    if (nd && nd.nodeType === 3) {
+                        var before = nd.nodeValue.slice(0, r.startOffset);
+                        var m = /([A-Za-zÁÉÍÓÚáéíóúñÑüÜ]{2,})$/.exec(before);
+                        if (m) {
+                            var orig = m[1];
+                            var fixed = window.TribalNotepadWords.autocorrectWord(orig);
+                            if (fixed && fixed !== orig) {
+                                var start = r.startOffset - orig.length;
+                                nd.nodeValue = before.slice(0, start) + fixed +
+                                    nd.nodeValue.slice(r.startOffset);
+                                var nr = document.createRange();
+                                nr.setStart(nd, start + fixed.length);
+                                nr.collapse(true);
+                                sel.removeAllRanges();
+                                sel.addRange(nr);
+                            }
+                        }
+                    }
+                }
+            }
+        });
         canvas.addEventListener('input', function () {
             pushHistory();
             scheduleLiveSave();
@@ -952,7 +993,71 @@ window.TribalNotepad = (function () {
             if (act === 'song-tribu') {
                 saveSelection();
                 openSongPicker();
+                return;
             }
+            if (act === 'autocorrect') {
+                if (!window.TribalNotepadWords) return;
+                canvas.focus();
+                restoreSelection();
+                var sel0 = window.getSelection && window.getSelection();
+                if (sel0 && sel0.rangeCount && !sel0.isCollapsed) {
+                    var fixedSel = window.TribalNotepadWords.autocorrectText(sel0.toString());
+                    document.execCommand('insertText', false, fixedSel);
+                } else {
+                    var walk = document.createTreeWalker(canvas, NodeFilter.SHOW_TEXT, null, false);
+                    var tn;
+                    while ((tn = walk.nextNode())) {
+                        tn.nodeValue = window.TribalNotepadWords.autocorrectText(tn.nodeValue);
+                    }
+                    titleEl.textContent = window.TribalNotepadWords.autocorrectText(titleEl.textContent);
+                }
+                pushHistory();
+                scheduleLiveSave();
+                if (deps && deps.toast) deps.toast('Ortografía corregida');
+                return;
+            }
+            if (act === 'synonyms') {
+                if (!window.TribalNotepadWords) return;
+                saveSelection();
+                var selW = (window.getSelection && window.getSelection().toString() || '').trim();
+                var runSyn = function (word) {
+                    word = String(word || '').trim().split(/\s+/)[0];
+                    if (!word) return;
+                    var synModal = ov.querySelector('#np-syn-modal');
+                    var synList = ov.querySelector('#np-syn-list');
+                    ov.querySelector('#np-syn-word').textContent = word;
+                    synList.innerHTML = '<p class="np-hint">Buscando sinónimos…</p>';
+                    synModal.hidden = false;
+                    window.TribalNotepadWords.synonymsFor(word).then(function (arr) {
+                        if (!arr || !arr.length) {
+                            synList.innerHTML = '<p class="np-hint">Sin sinónimos para «' + esc(word) + '».</p>';
+                            return;
+                        }
+                        synList.innerHTML = arr.map(function (s) {
+                            return '<button type="button" data-syn="' + esc(s) + '">' +
+                                '<i class="bi bi-arrow-left-right"></i> ' + esc(s) + '</button>';
+                        }).join('');
+                    });
+                };
+                if (selW) runSyn(selW);
+                else askAirUrl('Escribe la palabra para buscar sinónimos', '', runSyn);
+            }
+        });
+
+        ov.querySelector('#np-syn-modal').addEventListener('click', function (e) {
+            if (e.target.id === 'np-syn-modal' || e.target.id === 'np-syn-close') {
+                ov.querySelector('#np-syn-modal').hidden = true;
+                return;
+            }
+            var b = e.target.closest('[data-syn]');
+            if (!b) return;
+            var rep = b.getAttribute('data-syn');
+            ov.querySelector('#np-syn-modal').hidden = true;
+            canvas.focus();
+            restoreSelection();
+            document.execCommand('insertText', false, rep);
+            pushHistory();
+            scheduleLiveSave();
         });
 
         // Archivos locales (imagen, audio, video del dispositivo)

@@ -38,6 +38,25 @@ window.Sono.register('viewmenu', function (S) {
         else S.showToast('Chat Bluetooth no disponible');
     });
 
+    if ($('vm-btmgr')) {
+        $('vm-btmgr').addEventListener('click', function () {
+            viewMenu.hidden = true;
+            if (window.TribalBtMgr) window.TribalBtMgr.open(S.extDeps());
+            else S.showToast('Administrador Bluetooth no disponible');
+        });
+    }
+
+    if ($('vm-remote')) {
+        $('vm-remote').addEventListener('click', function () {
+            viewMenu.hidden = true;
+            if (window.TribalRemote) window.TribalRemote.open(S.extDeps());
+            else S.showToast('Control remoto no disponible');
+        });
+    }
+    if (window.TribalRemote && window.TribalRemote.initListener) {
+        window.TribalRemote.initListener(S);
+    }
+
     // Libros y notas: filtro en el menú
     $('vm-doc').addEventListener('click', function () {
         viewMenu.hidden = true;

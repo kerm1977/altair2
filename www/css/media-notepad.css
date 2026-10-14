@@ -476,3 +476,123 @@
     background: rgba(240, 180, 41, 0.18);
     border-color: var(--tb-gold, #f0b429);
 }
+
+/* Administrador Bluetooth (btmgr.js) */
+.btm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.btm-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.btm-sec {
+    margin: 10px 0 4px;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--tb-terra, #e2602e);
+}
+
+.btm-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(240, 180, 41, 0.2);
+}
+
+.btm-row.on {
+    border-color: var(--tb-gold, #f0b429);
+    background: rgba(240, 180, 41, 0.1);
+}
+
+.btm-ico {
+    font-size: 1.25rem;
+    color: var(--tb-gold, #f0b429);
+}
+
+.btm-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.btm-info b {
+    color: var(--tb-cream, #f3e6cf);
+    font-size: 0.94rem;
+}
+
+.btm-info small {
+    color: var(--tb-muted, #b99b82);
+    font-size: 0.75rem;
+}
+
+/* Control Remoto Multimedia (btremote.js) */
+.rc-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.rc-modes,
+.rc-wifi-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.rc-wifi-bar input {
+    flex: 1;
+    min-width: 180px;
+}
+
+.rc-pad {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.rc-btn {
+    flex: 1 1 calc(33.33% - 10px);
+    min-width: 92px;
+    min-height: 76px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(240, 180, 41, 0.25);
+    color: var(--tb-cream, #f3e6cf);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.rc-btn i {
+    font-size: 1.4rem;
+    color: var(--tb-gold, #f0b429);
+}
+
+.rc-btn.rc-play {
+    background: rgba(226, 96, 46, 0.25);
+    border-color: var(--tb-gold, #f0b429);
+}
+
+.rc-btn:active {
+    transform: scale(0.96);
+    background: rgba(240, 180, 41, 0.22);
+}
+

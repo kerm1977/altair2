@@ -63,6 +63,26 @@ public class TribalNativePlugin extends Plugin {
         call.resolve();
     }
 
+    // Abre el selector nativo de Cast / Pantalla inalámbrica (Chromecast, Miracast, Smart TV)
+    @PluginMethod
+    public void openCastSettings(PluginCall call) {
+        try {
+            Intent i = new Intent(Settings.ACTION_CAST_SETTINGS);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+            call.resolve();
+        } catch (Exception e) {
+            try {
+                Intent i2 = new Intent("android.settings.WIFI_DISPLAY_SETTINGS");
+                i2.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(i2);
+                call.resolve();
+            } catch (Exception e2) {
+                call.reject("cast_unavailable", e2.getMessage());
+            }
+        }
+    }
+
     // Compartir directo por Bluetooth: ACTION_SEND dirigido al paquete BT de
     // Android con URI de FileProvider (cache-path está cubierto en
     // file_paths.xml). Si el dispositivo no tiene stack BT, rechaza y el JS
