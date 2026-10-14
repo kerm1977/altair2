@@ -431,11 +431,23 @@
                 <div class="stats-cards" id="stats-cards"></div>
                 <h5 class="stats-h">Almacenamiento</h5>
                 <div class="stats-store" id="stats-store"></div>
-                <details class="stats-det">
-                    <summary><i class="bi bi-list-ul"></i>Archivos guardados
-                        <b id="stats-fcount"></b></summary>
+                <button class="stats-fopen" id="stats-fopen">
+                    <i class="bi bi-list-ul"></i>Archivos guardados
+                    <b id="stats-fcount"></b>
+                    <i class="bi bi-chevron-right stats-fopen-arrow"></i>
+                </button>
+            </div>
+            <!-- panel emergente difuminado con la lista de archivos -->
+            <div class="stats-fov" id="stats-fov" hidden>
+                <div class="stats-fov-card">
+                    <div class="stats-fov-head">
+                        <i class="bi bi-list-ul"></i>
+                        <strong>Archivos guardados</strong>
+                        <button class="tribal-ctrl" id="stats-fx"
+                            title="Cerrar"><i class="bi bi-x-lg"></i></button>
+                    </div>
                     <div class="stats-files" id="stats-files"></div>
-                </details>
+                </div>
             </div>
         </div>
     </div>

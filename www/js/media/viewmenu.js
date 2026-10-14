@@ -288,8 +288,21 @@ window.Sono.register('viewmenu', function (S) {
         goTab(parts[0], parts[1]);
     });
 
+    // «Archivos guardados» → panel emergente con fondo difuminado
+    var statsFov = $('stats-fov');
+    $('stats-fopen').addEventListener('click', function () {
+        statsFov.hidden = false;
+    });
+    $('stats-fx').addEventListener('click', function () {
+        statsFov.hidden = true;
+    });
+    statsFov.addEventListener('click', function (e) {
+        if (e.target === statsFov) statsFov.hidden = true;
+    });
+
     // «Volver» cierra la página y aterriza en «Todo» — centrado en la barra
     $('stats-back').addEventListener('click', function () {
+        statsFov.hidden = true;
         goTab('tab-all');
     });
     statsOv.addEventListener('click', function (e) {
