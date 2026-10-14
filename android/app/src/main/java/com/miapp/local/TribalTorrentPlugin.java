@@ -1,15 +1,19 @@
 package com.miapp.local;
 
+import com.frostwire.jlibtorrent.AlertListener;
 import com.frostwire.jlibtorrent.AnnounceEntry;
 import com.frostwire.jlibtorrent.FileStorage;
 import com.frostwire.jlibtorrent.Priority;
 import com.frostwire.jlibtorrent.SessionManager;
+import com.frostwire.jlibtorrent.SessionParams;
 import com.frostwire.jlibtorrent.SettingsPack;
 import com.frostwire.jlibtorrent.Sha1Hash;
 import com.frostwire.jlibtorrent.TorrentHandle;
 import com.frostwire.jlibtorrent.TorrentInfo;
 import com.frostwire.jlibtorrent.TorrentStatus;
 import com.frostwire.jlibtorrent.Vectors;
+import com.frostwire.jlibtorrent.alerts.AddTorrentAlert;
+import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.swig.create_torrent;
 import com.frostwire.jlibtorrent.swig.entry;
 import com.frostwire.jlibtorrent.swig.error_code;
@@ -25,8 +29,12 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 // ============================================================================
 // Motor torrent NATIVO (libtorrent real vía jlibtorrent): TCP + UDP +
@@ -44,35 +52,59 @@ public class TribalTorrentPlugin extends Plugin {
     // registro propio: esta versión de jlibtorrent no expone torrents();
     // el id de cada torrent es el btih del magnet (hex de 40)
     private final Set<String> ids = new LinkedHashSet<>();
+    private final Map<String, List<String>> pendingTrackers = new ConcurrentHashMap<>();
+
+    private void attachTrackersAndResume(TorrentHandle th, List<String> trList) {
+        if (th == null) return;
+        try { th.resume(); } catch (Throwable ignored) {}
+        if (trList != null) {
+            for (String u : trList) {
+                try {
+                    if (u != null && !u.isEmpty() && !u.startsWith("ws"))
+                        th.addTracker(new AnnounceEntry(u));
+                } catch (Throwable ignored) {}
+            }
+        }
+        try { th.forceReannounce(); } catch (Throwable ignored) {}
+        try { th.forceDHTAnnounce(); } catch (Throwable ignored) {}
+    }
 
     private synchronized SessionManager session() {
         if (session == null) {
             dir = new File(getContext().getFilesDir(), "tribu_torrents");
             if (!dir.exists()) dir.mkdirs();
             session = new SessionManager();
-            session.start();
-            // DHT NO arranca solo en esta versión: sin esto un magnet sin
-            // trackers se queda en "obteniendo datos" para siempre
-            try { session.startDht(); } catch (Throwable ignored) {}
-            // ajustes de swarm: LSD + UPnP/NAT-PMP + uTP y anuncio a todos
-            // los trackers/tiers — máxima cobertura de peers
+            session.addListener(new AlertListener() {
+                @Override public int[] types() { return null; }
+                @Override public void alert(Alert<?> alert) {
+                    if (alert instanceof AddTorrentAlert) {
+                        try {
+                            TorrentHandle th = ((AddTorrentAlert) alert).handle();
+                            if (th != null && th.isValid()) {
+                                String h = th.infoHash().toHex().toLowerCase();
+                                attachTrackersAndResume(th, pendingTrackers.remove(h));
+                            }
+                        } catch (Throwable ignored) {}
+                    }
+                }
+            });
             try {
-                SettingsPack sp = session.settings();
+                SettingsPack sp = new SettingsPack();
                 sp.setBoolean(settings_pack.bool_types.enable_dht.swigValue(), true);
                 sp.setBoolean(settings_pack.bool_types.enable_lsd.swigValue(), true);
-                sp.setBoolean(settings_pack.bool_types.broadcast_lsd.swigValue(), true);
                 sp.setBoolean(settings_pack.bool_types.enable_upnp.swigValue(), true);
                 sp.setBoolean(settings_pack.bool_types.enable_natpmp.swigValue(), true);
                 sp.setBoolean(settings_pack.bool_types.enable_outgoing_utp.swigValue(), true);
                 sp.setBoolean(settings_pack.bool_types.enable_incoming_utp.swigValue(), true);
                 sp.setBoolean(settings_pack.bool_types.announce_to_all_trackers.swigValue(), true);
                 sp.setBoolean(settings_pack.bool_types.announce_to_all_tiers.swigValue(), true);
-                sp.setInteger(settings_pack.int_types.connections_limit.swigValue(), 300);
-                sp.setInteger(settings_pack.int_types.active_downloads.swigValue(), -1);
                 sp.setString(settings_pack.string_types.user_agent.swigValue(),
                              "TRIBALs/1.0 libtorrent/1.2");
-                session.applySettings(sp);
-            } catch (Throwable ignored) {}
+                session.start(new SessionParams(sp));
+            } catch (Throwable e) {
+                session.start();
+            }
+            try { session.startDht(); } catch (Throwable ignored) {}
             // el servicio en primer plano mantiene vivo el proceso aunque
             // el usuario siga leyendo/escuchando dentro de la app (y fuera)
             try { TribalTorrentSvc.start(getContext()); } catch (Throwable ignored) {}
@@ -94,25 +126,23 @@ public class TribalTorrentPlugin extends Plugin {
         String h = btihHex(magnet);
         if (h == null) { call.reject("magnet sin btih reconocible"); return; }
         try {
-            session().download(magnet, dir);
-            ids.add(h);
-            // trackers extra desde el JS (los magnets guardados van
-            // "desnudos" — sin tr= — para WebTorrent; aquí se inyectan)
+            List<String> trList = new ArrayList<>();
             JSArray trs = call.getArray("trackers");
             if (trs != null) {
-                final TorrentHandle th = find(h);
-                if (th != null) {
-                    for (int i = 0; i < trs.length(); i++) {
-                        try {
-                            String u = trs.getString(i);
-                            if (u != null && !u.isEmpty() &&
-                                !u.startsWith("ws"))
-                                th.addTracker(new AnnounceEntry(u));
-                        } catch (Throwable ignored) {}
-                    }
-                    try { th.forceReannounce(); } catch (Throwable ignored) {}
-                    try { th.forceDHTAnnounce(); } catch (Throwable ignored) {}
+                for (int i = 0; i < trs.length(); i++) {
+                    try {
+                        String u = trs.getString(i);
+                        if (u != null && !u.isEmpty() && !u.startsWith("ws"))
+                            trList.add(u);
+                    } catch (Throwable ignored) {}
                 }
+            }
+            pendingTrackers.put(h.toLowerCase(), trList);
+            session().download(magnet, dir);
+            ids.add(h);
+            final TorrentHandle th = find(h);
+            if (th != null) {
+                attachTrackersAndResume(th, pendingTrackers.remove(h.toLowerCase()));
             }
             JSObject r = new JSObject();
             r.put("id", h);
@@ -302,10 +332,12 @@ public class TribalTorrentPlugin extends Plugin {
             entry e = ct.generate();
             byte[] bin = Vectors.byte_vector2bytes(e.bencode());
             TorrentInfo ti = new TorrentInfo(bin);
-            session().download(ti, dir);
+            session().download(ti, f.getParentFile());
             String magnet = ti.makeMagnetUri();
             String h = ti.infoHash().toHex();
             ids.add(h);
+            TorrentHandle th = find(h);
+            if (th != null) attachTrackersAndResume(th, null);
             JSObject r = new JSObject();
             r.put("id", h);
             r.put("magnet", magnet);

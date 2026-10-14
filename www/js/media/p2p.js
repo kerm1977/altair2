@@ -638,9 +638,26 @@ window.TribalP2P = (function () {
         catch (e) { if (toast) toast('No se pudo sembrar'); return null; }
         var j = { id: 'p2p-' + Date.now().toString(36) +
                         Math.random().toString(36).slice(2, 6),
-                  magnet: t.magnetURI, name: meta.name, torrent: t,
+                  magnet: t.magnetURI || '', name: meta.name, torrent: t,
                   status: 'seed', seeded: true, addedAt: Date.now(), files: [] };
         jobs.push(j);
+        function syncSeedMagnet() {
+            if (!t.magnetURI && !t.infoHash) return;
+            var base = t.magnetURI ||
+                ('magnet:?xt=urn:btih:' + t.infoHash +
+                 '&dn=' + encodeURIComponent(meta.name || 'seed'));
+            var extraTr = nativeTrackers().slice(0, 15).map(function (u) {
+                return 'tr=' + encodeURIComponent(u);
+            }).join('&');
+            j.magnet = extraTr ? (base + '&' + extraTr) : base;
+            j.infoHash = t.infoHash;
+            log('Siembra web lista: «' + j.name + '» · btih ' +
+                String(t.infoHash || '').slice(0, 12) + '…');
+            save(); emit('change');
+        }
+        if (t.infoHash || t.magnetURI) syncSeedMagnet();
+        t.on('infoHash', syncSeedMagnet);
+        t.on('ready', syncSeedMagnet);
         t.on('wire', function () { emit('change'); });
         t.on('upload', function () { emit('change'); });
         save(); emit('change');
