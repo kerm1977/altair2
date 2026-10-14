@@ -2484,6 +2484,20 @@
 .tribal-p2p-donebox h3 { color: var(--tb-gold); margin: 8px 0 4px; }
 .tribal-p2p-donebox p { color: var(--tb-cream); font-size: 0.8rem; }
 
+/* diálogo «Semilla plantada» — magnet listo para copiar/compartir;
+   va por encima del panel P2P (z 70) y del done (z 90) */
+.tribal-p2p-magov { z-index: 95; }
+.tp-magdlg { text-align: center; }
+.tp-magico { font-size: 2.2rem; color: var(--tb-gold); }
+.tp-magdlg h3 {
+    color: var(--tb-gold); margin: 8px 0 4px;
+    letter-spacing: .08em; text-transform: uppercase; font-size: .95rem;
+}
+.tp-magtxt { color: var(--tb-cream); font-size: 0.78rem; margin: 0 0 12px; }
+.tp-magbtns { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.tp-magbtns .tribal-btn { flex: 1 1 40%; }
+.tr-btn-ghost { background: transparent !important; color: var(--tb-muted); }
+
 /* ===== p2p: acordeones exclusivos, motores, trackers, archivos ===== */
 .tribal-p2p .tribal-acc.sm { margin: 6px 0 2px; padding: 0 8px; }
 .tribal-p2p .tribal-acc.sm summary { font-size: 0.7rem; padding: 6px 2px; }

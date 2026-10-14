@@ -209,10 +209,22 @@ window.TribalP2PWire = (function () {
             this.value = '';
             if (!f) return;
             var j = TribalP2P.seed({ name: f.name, mime: f.type }, f);
-            if (j) {
-                deps.toast('Sembrando «' + f.name + '»');
-                if (j.magnet) copyMagnet(j);   // nativo copia al generarlo
-            }
+            if (!j) return;
+            deps.toast('Sembrando «' + f.name + '»');
+            if (X.magnetDialog) X.magnetDialog(j, deps.mount, deps.toast);
+            else if (j.magnet) copyMagnet(j);
+            // el archivo plantado también queda en la tribu, marcado p2p →
+            // aparece en Todo bajo «Descargados por torrents»
+            var MS = window.MediaStore;
+            if (MS && MS.add)
+                MS.list().then(function (items) {
+                    if (items.some(function (x) { return x.name === f.name; }))
+                        return null;
+                    return MS.add(f).then(function (m) {
+                        if (m && MS.updateInfo)
+                            MS.updateInfo(m.id, { p2p: 1 });
+                    });
+                }).catch(function () {});
         });
     }
 

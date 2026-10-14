@@ -186,7 +186,7 @@ window.Sono.register('render', function (S) {
         if (secOrder) {
             var seenG = {};
             list.forEach(function (m) {
-                var g = grpOf(m);
+                var g = SEC.grpIn ? SEC.grpIn(m, S) : grpOf(m);
                 if (!seenG[g]) { seenG[g] = 1; stream.push({ sep: g }); }
                 if (!collapsed[g]) stream.push({ item: m });
             });

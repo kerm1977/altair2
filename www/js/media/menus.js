@@ -244,8 +244,11 @@ window.Sono.register('menus', function (S) {
             if (!u) return S.showToast('No se pudo leer el archivo');
             fetch(u).then(function (r) { return r.blob(); }).then(function (blob) {
                 var j = window.TribalP2P && window.TribalP2P.seed(m, blob);
-                S.showToast(j ? 'Sembrando «' + m.name + '» — magnet en P2P'
-                            : 'No se pudo sembrar');
+                if (j && window.TribalP2PExtra && window.TribalP2PExtra.magnetDialog)
+                    window.TribalP2PExtra.magnetDialog(j, S.root, S.showToast);
+                else
+                    S.showToast(j ? 'Sembrando «' + m.name + '» — magnet en P2P'
+                                : 'No se pudo sembrar');
             }).catch(function () { S.showToast('No se pudo leer el archivo'); });
         });
     });

@@ -96,7 +96,9 @@ window.TribalP2PUI = (function () {
                 var j = TribalP2P.seed(m, b);
                 if (j) {
                     deps.toast('Sembrando «' + m.name + '»');
-                    if (j.magnet) copyMagnet(j);   // nativo copia al generarlo
+                    if (X().magnetDialog)
+                        X().magnetDialog(j, deps.mount, deps.toast);
+                    else if (j.magnet) copyMagnet(j);
                 }
             });
         });
@@ -245,7 +247,16 @@ window.TribalP2PUI = (function () {
     return {
         open: function (S) {
             if (!boundDone) {
-                TribalP2P.on('done', completeModal);
+                TribalP2P.on('done', function (j) {
+                    completeModal(j);
+                    // lo descargado ya entró al store → repintar la tribu
+                    if (deps && deps.reload) deps.reload();
+                });
+                // la importación es async — repintar de nuevo cuando el
+                // último archivo del torrent ya está indexado
+                TribalP2P.on('imported', function () {
+                    if (deps && deps.reload) deps.reload();
+                });
                 TribalP2P.on('change', function () { if (ov) renderJobs(); });
                 boundDone = true;
             }

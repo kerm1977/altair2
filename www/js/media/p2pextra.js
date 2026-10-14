@@ -140,6 +140,69 @@ window.TribalP2PExtra = (function () {
         });
     }
 
+    // ---- diálogo de semilla: el magnet recién generado, listo para ----
+    // ---- copiar o compartir por WhatsApp/cualquier app (share nativo) --
+    function magnetDialog(j, mount, toast) {
+        var d = document.createElement('div');
+        d.className = 'tribal-overlay tribal-p2p-magov';
+        d.innerHTML =
+            '<div class="tribal-dialog tp-magdlg">' +
+                '<i class="bi bi-magnet-fill tp-magico"></i>' +
+                '<h3>Semilla plantada</h3>' +
+                '<p class="tp-magtxt">«' + esc(j.name || 'archivo') +
+                    '» está sembrando al swarm.<br>Comparte el magnet — ' +
+                    'quien lo pegue descarga directo de tu teléfono.</p>' +
+                '<textarea class="tp-magtext" readonly rows="4"></textarea>' +
+                '<div class="tp-magbtns">' +
+                    '<button class="tribal-btn tribal-btn-xs" data-act="copy">' +
+                        '<i class="bi bi-clipboard"></i> Copiar</button>' +
+                    '<button class="tribal-btn tribal-btn-xs" data-act="wa">' +
+                        '<i class="bi bi-whatsapp"></i> WhatsApp</button>' +
+                    '<button class="tribal-btn tribal-btn-xs" data-act="share">' +
+                        '<i class="bi bi-share"></i> Otra app</button>' +
+                    '<button class="tribal-btn tribal-btn-xs tr-btn-ghost" ' +
+                        'data-act="close">Cerrar</button>' +
+                '</div></div>';
+        (mount || document.body).appendChild(d);
+        var ta = d.querySelector('.tp-magtext');
+        ta.value = j.magnet || 'Generando magnet… (hasheando el archivo)';
+        // la siembra nativa rellena j.magnet cuando termina de crear el
+        // .torrent — el diálogo espera hasta 30 s
+        var poll = setInterval(function () {
+            if (j.magnet) { ta.value = j.magnet; clearInterval(poll); }
+            if (!d.isConnected) clearInterval(poll);
+        }, 500);
+        setTimeout(function () { clearInterval(poll); }, 30000);
+        function txt() {
+            return 'Semilla torrent: ' + (j.name || 'archivo') +
+                   '\n' + (j.magnet || ta.value);
+        }
+        d.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-act]');
+            if (e.target === d || (b && b.dataset.act === 'close')) {
+                d.remove(); return;
+            }
+            if (!b || !j.magnet) return;
+            if (b.dataset.act === 'copy') {
+                if (navigator.clipboard && navigator.clipboard.writeText)
+                    navigator.clipboard.writeText(txt());
+                if (toast) toast('Magnet copiado');
+            } else if (b.dataset.act === 'wa') {
+                window.open('https://wa.me/?text=' +
+                            encodeURIComponent(txt()), '_blank');
+            } else if (b.dataset.act === 'share') {
+                var P = window.Capacitor && window.Capacitor.Plugins;
+                if (P && P.Share && P.Share.share)
+                    P.Share.share({ title: 'Semilla torrent',
+                        text: txt() }).catch(function () {});
+                else if (navigator.share)
+                    navigator.share({ text: txt() }).catch(function () {});
+                else if (navigator.clipboard)
+                    navigator.clipboard.writeText(txt());
+            }
+        });
+    }
+
     // --------------------------------------------------- constructores UI --
     function acc(ico, title, body) {
         return '<details class="tribal-acc" name="tpacc"><summary><i class="bi ' +
@@ -230,5 +293,6 @@ window.TribalP2PExtra = (function () {
              isMediaName: isMediaName, search: search,
              renderEngines: renderEngines, renderTrackers: renderTrackers,
              probeInto: probeInto, probeEngineInto: probeEngineInto,
+             magnetDialog: magnetDialog,
              acc: acc, panelHtml: panelHtml };
 })();

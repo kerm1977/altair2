@@ -102,18 +102,31 @@ window.TribalP2PJobs = (function () {
             '<div class="tribal-p2p-btns">' + btns + '</div></div>';
     }
 
-    // importa los archivos multimedia completados de un torrent a la tribu
+    // importa TODOS los archivos completados del torrent a la tribu
+    // (música, videos, docs, lo que sea) marcados info.p2p → la biblioteca
+    // los muestra bajo «Descargados por torrents» / «<tipo> por torrents»
     function importMedia(j, store, toast) {
-        if (!store || !j.torrent) return;
-        j.torrent.files.forEach(function (f) {
-            if (!X.isMediaName(f.name)) return;
-            f.getBlob(function (e, blob) {
-                if (e || !blob) return;
-                store.add(new File([blob], f.name, { type: blob.type }),
-                          { source: 'p2p' }).then(function () {
-                    if (toast) toast('«' + f.name + '» ya está en la tribu');
-                }).catch(function () {});
+        if (!store || !j.torrent) return Promise.resolve(0);
+        var jobs = (j.torrent.files || []).map(function (f) {
+            return new Promise(function (res) {
+                f.getBlob(function (e, blob) {
+                    if (e || !blob) return res(0);
+                    store.add(new File([blob], f.name,
+                              { type: blob.type || '' })).then(function (m) {
+                        if (m && store.updateInfo)
+                            return store.updateInfo(m.id, { p2p: 1 })
+                                .then(function () { res(1); },
+                                      function () { res(1); });
+                        res(1);
+                    }).catch(function () { res(0); });
+                });
             });
+        });
+        return Promise.all(jobs).then(function (r) {
+            var n = 0; r.forEach(function (x) { n += x; });
+            if (toast && n)
+                toast(n + ' archivo(s) del torrent ya en la tribu');
+            return n;
         });
     }
 

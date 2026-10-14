@@ -281,7 +281,8 @@ window.TribalP2P = (function () {
                     if (toast) toast('«' + (j.name || 'Torrent') +
                                      '» descargado');
                     if (window.TribalP2PJobs)
-                        TribalP2PJobs.import(j, store, toast);
+                        TribalP2PJobs.import(j, store, toast)
+                            .then(function () { emit('imported', j); });
                     emit('done', j);
                     pump();
                 }
@@ -497,7 +498,9 @@ window.TribalP2P = (function () {
             log('«' + (j.name || 'Torrent') + '» COMPLETO ✓');
             save(); emit('change');
             if (toast) toast('«' + (j.name || 'Torrent') + '» descargado');
-            if (window.TribalP2PJobs) TribalP2PJobs.import(j, store, toast);
+            if (window.TribalP2PJobs)
+                TribalP2PJobs.import(j, store, toast)
+                    .then(function () { emit('imported', j); });
             emit('done', j);
             pump();
         });
