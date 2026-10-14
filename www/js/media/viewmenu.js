@@ -374,6 +374,9 @@ window.Sono.register('viewmenu', function (S) {
                 clearTimeout(t); t = null;
             }
         });
+        box.addEventListener('contextmenu', function (e) {
+            if (e.target.closest('.stats-file')) e.preventDefault();
+        });
     })();
 
     // «Archivos guardados» → panel emergente con fondo difuminado

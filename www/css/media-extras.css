@@ -1549,12 +1549,30 @@
     padding: 0 10px; font-size: 0.78rem;
 }
 .stats-fbar input:focus { border-color: var(--tb-gold); }
-/* encabezado de grupo dentro de la lista (Música, Videos…) */
+/* encabezado de grupo dentro de la lista (Música, Videos…) — con aire
+   suficiente para que una fila revelada nunca se le monte encima */
 .stats-fgrp {
-    padding: 8px 2px 4px; font-size: 0.66rem; font-weight: 800;
+    margin-top: 6px;
+    padding: 10px 2px 6px; font-size: 0.66rem; font-weight: 800;
     letter-spacing: .1em; text-transform: uppercase;
     color: var(--tb-terra);
     border-bottom: 1px solid var(--tb-border);
+}
+.stats-file {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 4px;
+    border-bottom: 1px solid rgba(90, 58, 28, 0.35);
+    /* sin selección de texto: el long-press del WebView la activaba y el
+       texto seleccionado flotaba encima del título de la sección */
+    user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+.stats-file:last-child { border-bottom: none; }
+/* al revelar la ruta la fila se convierte en tarjeta — separada de todo */
+.stats-file.showpath {
+    margin: 4px 0; padding: 8px 8px;
+    border: 1px solid var(--tb-terra); border-radius: 8px;
+    background: rgba(201,124,58,.12);
 }
 /* paginador: 20 en 20 */
 .stats-fpager {
@@ -1571,12 +1589,6 @@
     display: flex; flex-direction: column;
     padding: 6px 14px 12px; overflow-y: auto; flex: 1; min-height: 0;
 }
-.stats-file {
-    display: flex; align-items: center; gap: 10px;
-    padding: 7px 2px;
-    border-bottom: 1px solid rgba(90, 58, 28, 0.35);
-}
-.stats-file:last-child { border-bottom: none; }
 .stats-file > i { color: var(--tb-gold); font-size: 0.95rem; flex: none; }
 .stats-finfo {
     flex: 1; min-width: 0; display: flex; flex-direction: column;
@@ -1598,7 +1610,6 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .stats-file.showpath .stats-finfo span { display: block; }
-.stats-file.showpath { background: rgba(201,124,58,.12); }
 .stats-fhint {
     flex: none; margin: 0; padding: 4px 14px 0;
     color: var(--tb-muted); font-size: 0.62rem; text-align: center;
