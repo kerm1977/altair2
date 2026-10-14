@@ -42,3 +42,45 @@ solo agregando su botón al menú ⋮ y un módulo aparte.
   ícono `1.05rem`. **Sin `aspect-ratio` ni `flex-basis` porcentual** —
   eso fue lo que los hizo ovalar y luego gigantizar.
 - Ícono en PC: `1.15rem`.
+
+## Íconos dentro de círculos (play, ⋮, kind) — REGLA FIJA
+
+`bootstrap-icons.css` pone `vertical-align: -.125em` en `::before` →
+el glifo queda bajo dentro de círculos (visible sobre todo en Firefox).
+NUNCA usar `display:inline-block`/`block` en el `<i>` de un botón
+circular. La regla blindada (media-extras.css) es:
+
+```css
+.btn-circular i {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    line-height: 1;
+}
+.btn-circular i::before { vertical-align: initial; }
+```
+
+El `<i>` flex convierte el `::before` en flex item y el centrado es
+exacto en PC/móvil/Firefox. El triángulo `bi-play-fill` además lleva
+`transform: translate(1px,0)` porque su glifo está ópticamente a la
+izquierda.
+
+## Subsistemas blindados recientes (no regresar)
+
+- **Secciones por tipo** — `sections.js` agrupa (Todo/orden del usuario,
+  Música + "Mis grabaciones", búsqueda); `render.js` pinta un stream
+  separador+items; separadores `.tribal-kind-sep` con hr centrados.
+- **Colapso de secciones** — tap en el título de sección colapsa su
+  grupo; long-press (~550ms) en `#sec-order` colapsa/expande TODO.
+  Estado en `tribu_sec_collapsed`. Sin botones extra en el separador.
+- **Orden de secciones** — botón `#sec-order` junto a `#view-switch`
+  abre el panel `.sec-panel` (flechas ▲▼). Orden en `tribu_sec_order`
+  (default image,audio,video,doc,other; 'grab' va pegado tras 'audio').
+- **Buscador inteligente** — `smartsearch.js` (`S.buildMatcher`):
+  nombre/metadatos/tipo/ext/colección/duración/tamaño; soporta
+  `3:45`, `>1:00`, `<90s`, `>10mb`, `tipo:x ext:y col:z`.
+- **Grabador de notas persistente** — `vnotes.js` + `vnotesav.js` +
+  `vndraft.js`: autoguardado en IndexedDB (ranuras `__vn_*`) +
+  localStorage `tribu_vn_draft`; auto-pausa al ocultar la app;
+  restaurar = seguir/guardar/eliminar (triple confirmación); retomar
+  fusiona por decode+paste→wav (NUNCA concatenar blobs webm crudos —
+  cada sesión trae su propio header y se corrompe).

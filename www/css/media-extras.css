@@ -1903,14 +1903,20 @@
     padding: 0;
     display: flex; align-items: center; justify-content: center;
 }
-/* el triángulo de Bootstrap no está ópticamente centrado: se compensa con
-   un pequeño empuje a la derecha y line-height limpio (solo en play —
-   las barras de pausa sí van centradas) */
-.tr-row-play i {
-    display: block;
+/* el glifo de Bootstrap Icons lleva vertical-align:-.125em que baja el
+   ícono dentro del círculo (peor en Firefox): con el <i> como flex el
+   ::before se vuelve flex item y queda centrado de verdad. El triángulo
+   de play sigue ópticamente corrido a la izquierda → empuje de 1px */
+.tr-row-play i, .tr-row-kind i, .tr-row-menu i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     line-height: 1;
 }
-.tr-row-play i.bi-play-fill { transform: translate(1px, 0.5px); }
+.tr-row-play i::before, .tr-row-kind i::before, .tr-row-menu i::before {
+    vertical-align: initial;
+}
+.tr-row-play i.bi-play-fill { transform: translate(1px, 0); }
 .tr-row-play.playing {
     border-color: var(--tb-gold);
     color: var(--tb-gold);
