@@ -2,21 +2,17 @@
 window.TribalRemote = (function () {
     'use strict';
     var N = window.TribalBtNet;
-    var ov = null, deps = {}, tab = 'pad', targetIp = '', showDevs = false;
+    var ov = null, deps = {}, tab = 'pad', targetIp = '', showDevs = true;
     var btDevs = {}, btPeers = {}, wifiNets = [], wifiDevs = {}, wifiInfo = {};
     var curEl = null, curX = 180, curY = 260, hideCurT = null;
     function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
     function toast(m) { if (deps && deps.toast) deps.toast(m); }
-    function activeMedia() {
-        var S = (deps && deps.sono) || window.Sono;
-        return !S ? document.getElementById('media-audio') : ((S.videoOv && !S.videoOv.hidden && S.videoEl) ? S.videoEl : S.audio);
-    }
+    function activeMedia() { var S = (deps && deps.sono) || window.Sono;
+        return !S ? document.getElementById('media-audio') : ((S.videoOv && !S.videoOv.hidden && S.videoEl) ? S.videoEl : S.audio); }
     function moveVirtualCursor(dx, dy) {
         if (!curEl) { curEl = document.createElement('div'); curEl.id = 'rc-virtual-cursor'; document.body.appendChild(curEl); }
-        curX = Math.max(8, Math.min(window.innerWidth - 16, curX + dx * 1.4));
-        curY = Math.max(8, Math.min(window.innerHeight - 16, curY + dy * 1.4));
-        curEl.style.transform = 'translate(' + Math.round(curX) + 'px,' + Math.round(curY) + 'px)';
-        curEl.classList.add('on'); clearTimeout(hideCurT);
+        curX = Math.max(8, Math.min(window.innerWidth - 16, curX + dx * 1.4)); curY = Math.max(8, Math.min(window.innerHeight - 16, curY + dy * 1.4));
+        curEl.style.transform = 'translate(' + Math.round(curX) + 'px,' + Math.round(curY) + 'px)'; curEl.classList.add('on'); clearTimeout(hideCurT);
         hideCurT = setTimeout(function () { curEl.classList.remove('on'); }, 3500);
     }
     function clickAtCursor(btnType) {
@@ -49,12 +45,10 @@ window.TribalRemote = (function () {
         syncBtnStates();
     }
 
-    function sendPkt(pkt) {
-        pkt.k = 'rc';
+    function sendPkt(pkt) { pkt.k = 'rc';
         if (N && targetIp && N.wifiSend) return void N.wifiSend(pkt, targetIp).catch(function () {});
         if (N && Object.keys(btPeers).length) return void N.send(pkt).catch(function () {});
-        execLocal(pkt.cmd, pkt);
-    }
+        execLocal(pkt.cmd, pkt); }
     function syncBtnStates() {
         if (!ov) return;
         var S = (deps && deps.sono) || window.Sono, el = activeMedia();
@@ -70,16 +64,22 @@ window.TribalRemote = (function () {
         else if (d.type === 'device' && d.addr) { btDevs[d.addr] = { addr: d.addr, name: d.name || d.addr, kind: d.kind || 'bt' }; if (d.connected) btPeers[d.addr] = d.name || d.addr; renderDevs(); }
         else if (d.type === 'wifiDevice' && d.ip) { wifiDevs[d.ip] = { ip: d.ip, name: d.name || d.ip }; if (!targetIp) targetIp = d.ip; renderDevs(); }
         else if (d.type === 'peer') { var a = d.addr || d.name || 'peer'; if (d.state === 'open') { btPeers[a] = d.name || a; btDevs[a] = { addr: a, name: d.name || a }; } else delete btPeers[a]; renderDevs(); }
+        else if (d.type === 'scanDone') renderDevs();
     }
     function refreshAll(fromUser) {
         if (!N) return;
         var saved = N.favs ? N.favs() : {};
         Object.keys(saved).forEach(function (a) { btDevs[a] = { addr: a, name: saved[a].name || a }; });
-        N.listen().catch(function () {});
-        N.devices().then(function (r) {
+        renderDevs();
+        N.ensurePerms().then(function () { return N.init(onNetEvt); }).then(function () {
+            N.listen().catch(function () {});
+            return N.devices();
+        }).then(function (r) {
             ((r && r.bonded) || []).forEach(function (x) { if (x && x.addr) { btDevs[x.addr] = x; if (x.connected) btPeers[x.addr] = x.name || x.addr; } });
-            renderDevs(); return N.scan(!!fromUser);
-        }).catch(function () {});
+            renderDevs();
+            if (r && r.enabled === false && N.isNative && N.isNative()) N.enable().then(function () { N.listen().catch(function () {}); }).catch(function () {});
+            return N.scan(!!fromUser);
+        }).catch(function () { renderDevs(); });
         N.wifiScan().then(function (w) { wifiInfo = w || {}; wifiNets = (w && w.networks) || []; renderDevs(); }).catch(function () {});
     }
 
@@ -113,8 +113,7 @@ window.TribalRemote = (function () {
         box.innerHTML = html;
     }
 
-    function ringSvg() {
-        var rays = '';
+    function ringSvg() { var rays = '';
         for (var i = 0; i < 8; i++) rays += '<polygon points="100,2 104,13 96,13" transform="rotate(' + (i * 45) + ' 100 100)"/>';
         return '<svg class="rc-wheel-ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="none" stroke="#f0b429" stroke-width="2" stroke-dasharray="6 6"/><circle cx="100" cy="100" r="88" fill="none" stroke="#e2602e" stroke-width="1.5" stroke-dasharray="3 8"/><g fill="#e2602e">' + rays + '</g></svg>';
     }
