@@ -77,6 +77,7 @@ window.TribalRemote = (function () {
         }).then(function (r) {
             ((r && r.bonded) || []).forEach(function (x) { if (x && x.addr) { btDevs[x.addr] = x; if (x.connected) btPeers[x.addr] = x.name || x.addr; } });
             renderDevs();
+            if (r && r.permsOk === false) toast('Permisos Bluetooth denegados — actívalos en Ajustes');
             if (r && r.enabled === false && N.isNative && N.isNative()) N.enable().then(function () { N.listen().catch(function () {}); }).catch(function () {});
             return N.scan(!!fromUser);
         }).catch(function () { renderDevs(); });

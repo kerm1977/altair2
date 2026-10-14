@@ -156,6 +156,9 @@ public class TribalBtPlugin extends Plugin {
                 } catch (SecurityException ignored) {} }
             else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(a)) {
                 discovering = false; d.put("type", "scanDone"); emit(d); }
+            else if (BluetoothAdapter.ACTION_SCAN_MODE_CHANGED.equals(a)) {
+                int mode = i.getIntExtra(BluetoothAdapter.EXTRA_SCAN_MODE, BluetoothAdapter.ERROR);
+                d.put("type", "scanMode"); d.put("mode", mode); emit(d); }
         }
     };
 
@@ -217,6 +220,20 @@ public class TribalBtPlugin extends Plugin {
     }
     @PermissionCallback
     private void permsDone(PluginCall call) { call.resolve(); }
+    private boolean allPermsOk() {
+        List<String> need = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= 31) {
+            need.add(Manifest.permission.BLUETOOTH_SCAN);
+            need.add(Manifest.permission.BLUETOOTH_CONNECT);
+            need.add(Manifest.permission.BLUETOOTH_ADVERTISE);
+        }
+        need.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        need.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        for (String p : need) {
+            if (getContext().checkSelfPermission(p) != android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
+        }
+        return true;
+    }
     private BluetoothAdapter adapter() {
         if (adapter == null) adapter = BluetoothAdapter.getDefaultAdapter();
         return adapter; }
@@ -231,6 +248,7 @@ public class TribalBtPlugin extends Plugin {
         try { on = ad != null && ad.isEnabled(); }
         catch (SecurityException ignored) {}
         r.put("enabled", on);
+        r.put("permsOk", allPermsOk());
         if (ad != null) try {
             Set<BluetoothDevice> set = ad.getBondedDevices();
             if (set != null) for (BluetoothDevice d : set) try {
@@ -605,6 +623,15 @@ public class TribalBtPlugin extends Plugin {
             }
             res.put("currentSsid", curSsid);
             res.put("networks", nets);
+            res.put("permsOk", allPermsOk());
+            try {
+                android.location.LocationManager lm =
+                    (android.location.LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+                boolean locOn = lm != null &&
+                    (lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) ||
+                     lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER));
+                res.put("locationOn", locOn);
+            } catch (Throwable ignored) {}
 
             // Descubrir dispositivos TRIBALs en la misma red Wi-Fi o Hotspot por UDP
             startWifiUdpServer();
