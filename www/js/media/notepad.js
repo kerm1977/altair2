@@ -33,7 +33,16 @@ window.TribalNotepad = (function () {
     var redoStack = [];
     var autoSaveTimer = null;
 
-    var LINE_HEIGHTS = ['1.2', '1.5', '1.8', '2.2'];
+    var LINE_HEIGHTS = ['-2', '-1.5', '-1.25', '1', '1.25', '1.5', '2'];
+    var LH_CSS = {
+        '-2': '0.78',
+        '-1.5': '0.86',
+        '-1.25': '0.93',
+        '1': '1',
+        '1.25': '1.25',
+        '1.5': '1.5',
+        '2': '2'
+    };
     var LETTER_SPACINGS = ['0px', '1px', '2px', '4px'];
 
     function esc(s) {
@@ -176,6 +185,8 @@ window.TribalNotepad = (function () {
                 '<div class="np-head-acts">' +
                     '<button class="tribal-btn tribal-btn-xs primary" id="np-new-btn">' +
                         '<i class="bi bi-plus-lg"></i> Nueva nota</button>' +
+                    '<button class="tribal-btn tribal-btn-xs" id="np-read-btn" hidden title="Ver nota en texto completo">' +
+                        '<i class="bi bi-arrows-fullscreen"></i> Texto completo</button>' +
                     '<button class="tribal-btn tribal-btn-xs primary" id="np-save-btn" hidden>' +
                         '<i class="bi bi-check2-circle"></i> Guardar</button>' +
                 '</div>' +
@@ -188,9 +199,9 @@ window.TribalNotepad = (function () {
                 '<div class="np-docs-grid" id="np-docs-grid"></div>' +
             '</div>' +
 
-            '<!-- VISTA 2: EDITOR WYSIWYG EN VIVO AL AIRE (CERO INPUTS) -->' +
-            '<div class="lk-body np-edit-view" id="np-edit-view" hidden>' +
-                '<div class="np-toolbar" id="np-toolbar">' +
+            '<!-- VISTA 2: EDITOR WYSIWYG EN VIVO AL AIRE (ARCHIVO COMPLETO SIN CARD) -->' +
+            '<section class="np-edit-view" id="np-edit-view" hidden>' +
+                '<nav class="np-toolbar" id="np-toolbar">' +
                     '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn" data-cmd="undo" title="Deshacer"><i class="bi bi-arrow-counterclockwise"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="redo" title="Rehacer"><i class="bi bi-arrow-clockwise"></i></button>' +
@@ -206,34 +217,45 @@ window.TribalNotepad = (function () {
                         '<button type="button" class="np-tbtn" data-act="hr" title="Línea horizontal"><i class="bi bi-hr"></i></button>' +
                     '</div>' +
                     '<div class="np-tb-group">' +
-                        '<button type="button" class="np-tbtn" data-block="H1">H1</button>' +
-                        '<button type="button" class="np-tbtn" data-block="H2">H2</button>' +
-                        '<button type="button" class="np-tbtn" data-block="H3">H3</button>' +
-                        '<button type="button" class="np-tbtn" data-block="H4">H4</button>' +
-                        '<button type="button" class="np-tbtn" data-block="H5">H5</button>' +
-                        '<button type="button" class="np-tbtn" data-block="H6">H6</button>' +
-                        '<button type="button" class="np-tbtn" data-block="P">P</button>' +
-                    '</div>' +
-                    '<div class="np-tb-group">' +
-                        '<button type="button" class="np-tbtn" data-align="left" title="Izquierda"><i class="bi bi-text-left"></i></button>' +
-                        '<button type="button" class="np-tbtn" data-align="center" title="Centrar"><i class="bi bi-text-center"></i></button>' +
-                        '<button type="button" class="np-tbtn" data-align="right" title="Derecha"><i class="bi bi-text-right"></i></button>' +
-                        '<button type="button" class="np-tbtn" data-align="justify" title="Justificado"><i class="bi bi-justify"></i></button>' +
+                        '<select class="np-dd" id="np-dd-block" title="Títulos y formato de bloque">' +
+                            '<option value="">Título / Bloque…</option>' +
+                            '<option value="P">Párrafo normal (P)</option>' +
+                            '<option value="H1">Título H1</option>' +
+                            '<option value="H2">Título H2</option>' +
+                            '<option value="H3">Título H3</option>' +
+                            '<option value="H4">Título H4</option>' +
+                            '<option value="H5">Título H5</option>' +
+                            '<option value="H6">Título H6</option>' +
+                        '</select>' +
+                        '<select class="np-dd" id="np-dd-align" title="Alinear elementos seleccionados">' +
+                            '<option value="">Alinear selección…</option>' +
+                            '<option value="left">Izquierda</option>' +
+                            '<option value="center">Centrar</option>' +
+                            '<option value="right">Derecha</option>' +
+                            '<option value="justify">Justificado</option>' +
+                        '</select>' +
+                        '<select class="np-dd" id="np-dd-case" title="Cambiar mayúsculas/minúsculas">' +
+                            '<option value="">Mayús / Minús…</option>' +
+                            '<option value="upper">MAYÚSCULAS (AA)</option>' +
+                            '<option value="lower">minúsculas (aa)</option>' +
+                            '<option value="title">Title Case (Aa)</option>' +
+                        '</select>' +
+                        '<select class="np-dd" id="np-dd-lh" title="Interlineado">' +
+                            '<option value="-2">Interlineado: -2</option>' +
+                            '<option value="-1.5">Interlineado: -1.5</option>' +
+                            '<option value="-1.25">Interlineado: -1.25</option>' +
+                            '<option value="1">Interlineado: 1</option>' +
+                            '<option value="1.25">Interlineado: 1.25</option>' +
+                            '<option value="1.5" selected>Interlineado: 1.5</option>' +
+                            '<option value="2">Interlineado: 2</option>' +
+                        '</select>' +
                     '</div>' +
                     '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn" data-cmd="insertUnorderedList" title="Viñetas"><i class="bi bi-list-ul"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="insertOrderedList" title="Lista ordenada"><i class="bi bi-list-ol"></i></button>' +
-                    '</div>' +
-                    '<div class="np-tb-group">' +
-                        '<button type="button" class="np-tbtn" data-case="upper" title="MAYÚSCULAS">AA</button>' +
-                        '<button type="button" class="np-tbtn" data-case="lower" title="minúsculas">aa</button>' +
-                        '<button type="button" class="np-tbtn" data-case="title" title="Title Case">Aa</button>' +
+                        '<button type="button" class="np-tbtn" data-act="ls" title="Letter-spacing"><i class="bi bi-distribute-horizontal"></i> <small id="np-ls-lbl">0px</small></button>' +
                         '<button type="button" class="np-tbtn" data-act="autocorrect" title="Autocorregir ortografía"><i class="bi bi-spellcheck"></i> Ortografía</button>' +
                         '<button type="button" class="np-tbtn" data-act="synonyms" title="Sinónimos de la palabra seleccionada"><i class="bi bi-book"></i> Sinónimos</button>' +
-                    '</div>' +
-                    '<div class="np-tb-group">' +
-                        '<button type="button" class="np-tbtn" data-act="lh" title="Interlineado"><i class="bi bi-arrows-vertical"></i> <small id="np-lh-lbl">1.5</small></button>' +
-                        '<button type="button" class="np-tbtn" data-act="ls" title="Letter-spacing"><i class="bi bi-distribute-horizontal"></i> <small id="np-ls-lbl">0px</small></button>' +
                     '</div>' +
                     '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn" data-act="img-dev" title="Imagen del dispositivo"><i class="bi bi-image"></i></button>' +
@@ -248,20 +270,20 @@ window.TribalNotepad = (function () {
                         '<button type="button" class="np-tbtn" data-exp="txt" title="Exportar a TXT"><i class="bi bi-filetype-txt"></i> TXT</button>' +
                         '<button type="button" class="np-tbtn" data-exp="wa" title="Enviar a WhatsApp"><i class="bi bi-whatsapp"></i></button>' +
                     '</div>' +
-                '</div>' +
+                '</nav>' +
 
-                '<!-- LIENZO EN VIVO AL AIRE (SIN INPUTS) -->' +
-                '<div class="np-paper">' +
-                    '<div id="np-title" class="np-air-title" contenteditable="true" spellcheck="true" lang="es" ' +
-                        'data-placeholder="Escribe el título aquí al aire…"></div>' +
-                    '<div class="np-timestamps">' +
+                '<!-- ARCHIVO COMPLETO AL AIRE SIN CARD DE FONDO -->' +
+                '<main class="np-doc-scroll" id="np-doc-scroll">' +
+                    '<h1 id="np-title" class="np-air-title" contenteditable="true" spellcheck="true" lang="es" ' +
+                        'data-placeholder="Escribe el título aquí al aire…"></h1>' +
+                    '<header class="np-timestamps">' +
                         '<span><i class="bi bi-clock"></i> Creado: <b id="np-ts-created">—</b></span>' +
                         '<span><i class="bi bi-clock-history"></i> Actualizado: <b id="np-ts-updated">—</b></span>' +
-                    '</div>' +
-                    '<div id="np-canvas" class="np-air-canvas" contenteditable="true" spellcheck="true" lang="es" ' +
-                        'data-placeholder="Escribe tu nota aquí al aire… Mantén presionada cualquier imagen, audio o video para abrir su menú contextual."></div>' +
-                '</div>' +
-            '</div>' +
+                    '</header>' +
+                    '<article id="np-canvas" class="np-air-canvas" contenteditable="true" spellcheck="true" lang="es" ' +
+                        'data-placeholder="Escribe tu nota aquí al aire… Mantén presionada cualquier imagen, audio o video para abrir su menú contextual."></article>' +
+                '</main>' +
+            '</section>' +
 
             '<!-- MODAL DE SINÓNIMOS -->' +
             '<div class="np-modal-bd" id="np-syn-modal" hidden>' +
@@ -637,19 +659,83 @@ window.TribalNotepad = (function () {
         scheduleLiveSave();
     }
 
-    // Aplica alineación tanto al texto como al elemento multimedia activo
+    // Aplica alineación ESTRICTAMENTE a los elementos seleccionados
     function applyAlignment(dir) {
-        if (activeWrap && activeWrap.classList.contains('np-sel')) {
+        var canvas = ov.querySelector('#np-canvas');
+        // 1) Si hay un elemento multimedia seleccionado (.np-img-wrap.np-sel),
+        //    alineamos SOLO ese elemento multimedia sin tocar el texto
+        if (activeWrap && activeWrap.classList.contains('np-sel') && canvas.contains(activeWrap)) {
             activeWrap.setAttribute('data-free', '0');
             activeWrap.setAttribute('data-align', dir === 'justify' ? 'center' : dir);
             applyWrapTransform(activeWrap);
+            pushHistory();
             scheduleLiveSave();
+            return;
         }
-        var cmd = dir === 'center' ? 'justifyCenter'
-            : (dir === 'right' ? 'justifyRight'
-            : (dir === 'justify' ? 'justifyFull' : 'justifyLeft'));
-        document.execCommand(cmd, false, null);
-        pushHistory();
+        canvas.focus();
+        restoreSelection();
+        var sel = window.getSelection && window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        var r = sel.getRangeAt(0);
+        if (!canvas.contains(r.commonAncestorContainer)) return;
+
+        // 2) Si hay texto seleccionado, envolvemos o alineamos SOLO los bloques dentro del Range
+        if (!r.collapsed) {
+            var blocks = Array.prototype.slice.call(
+                canvas.querySelectorAll('p,h1,h2,h3,h4,h5,h6,li,blockquote')
+            ).filter(function (b) { return r.intersectsNode(b); });
+            if (blocks.length) {
+                blocks.forEach(function (b) { b.style.textAlign = dir; });
+            } else {
+                var frag = r.extractContents();
+                var p = document.createElement('p');
+                p.style.textAlign = dir;
+                p.appendChild(frag);
+                r.insertNode(p);
+                sel.removeAllRanges();
+                var nr = document.createRange();
+                nr.selectNodeContents(p);
+                sel.addRange(nr);
+                saveSelection();
+            }
+            pushHistory();
+            scheduleLiveSave();
+            return;
+        }
+
+        // 3) Cursor sin selección: alinea únicamente el párrafo/bloque actual
+        var node = r.startContainer;
+        while (node && node !== canvas) {
+            if (node.nodeType === 1 && /^(P|H[1-6]|LI|BLOCKQUOTE)$/.test(node.tagName)) {
+                node.style.textAlign = dir;
+                pushHistory();
+                scheduleLiveSave();
+                return;
+            }
+            node = node.parentNode;
+        }
+    }
+
+    function applyLineHeight(val) {
+        if (!curNote || !ov) return;
+        var cssLh = LH_CSS[val] || val || '1.5';
+        curNote.lineHeight = val;
+        var canvas = ov.querySelector('#np-canvas');
+        restoreSelection();
+        var sel = window.getSelection && window.getSelection();
+        if (sel && sel.rangeCount && !sel.isCollapsed) {
+            var r = sel.getRangeAt(0);
+            var blocks = Array.prototype.slice.call(
+                canvas.querySelectorAll('p,h1,h2,h3,h4,h5,h6,li,blockquote')
+            ).filter(function (b) { return r.intersectsNode(b); });
+            if (blocks.length) {
+                blocks.forEach(function (b) { b.style.lineHeight = cssLh; });
+                pushHistory();
+                scheduleLiveSave();
+                return;
+            }
+        }
+        canvas.style.lineHeight = cssLh;
         scheduleLiveSave();
     }
 
@@ -725,6 +811,7 @@ window.TribalNotepad = (function () {
         ov.querySelector('#np-edit-view').hidden = true;
         ov.querySelector('#np-new-btn').hidden = false;
         ov.querySelector('#np-save-btn').hidden = true;
+        ov.querySelector('#np-read-btn').hidden = true;
         ov.querySelector('#np-head-title').textContent = 'Bloc de notas';
         ov.querySelector('#np-back-lbl').textContent = 'Volver';
         curNote = null;
@@ -733,6 +820,7 @@ window.TribalNotepad = (function () {
 
     function openNoteEditor(note) {
         if (!ov) return;
+        try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) {}
         var now = Date.now();
         curNote = note || {
             id: uid(),
@@ -746,8 +834,11 @@ window.TribalNotepad = (function () {
         };
         ov.querySelector('#np-list-view').hidden = true;
         ov.querySelector('#np-edit-view').hidden = false;
+        ov.querySelector('#np-toolbar').hidden = false;
         ov.querySelector('#np-new-btn').hidden = true;
         ov.querySelector('#np-save-btn').hidden = false;
+        ov.querySelector('#np-read-btn').hidden = false;
+        ov.querySelector('#np-read-btn').innerHTML = '<i class="bi bi-arrows-fullscreen"></i> Texto completo';
         ov.querySelector('#np-head-title').textContent = 'Editor en vivo';
         ov.querySelector('#np-back-lbl').textContent = 'Notas';
 
@@ -755,9 +846,11 @@ window.TribalNotepad = (function () {
         var canvasEl = ov.querySelector('#np-canvas');
         titleEl.textContent = curNote.title || '';
         canvasEl.innerHTML = curNote.html || '<p><br></p>';
-        canvasEl.style.lineHeight = curNote.lineHeight || '1.5';
+        var lhVal = curNote.lineHeight || '1.5';
+        canvasEl.style.lineHeight = LH_CSS[lhVal] || lhVal;
         canvasEl.style.letterSpacing = curNote.letterSpacing || '0px';
-        ov.querySelector('#np-lh-lbl').textContent = curNote.lineHeight || '1.5';
+        var ddLh = ov.querySelector('#np-dd-lh');
+        if (ddLh) ddLh.value = lhVal;
         ov.querySelector('#np-ls-lbl').textContent = curNote.letterSpacing || '0px';
         ov.querySelector('#np-ts-created').textContent = IO.fmtDateTime(curNote.createdAt);
         ov.querySelector('#np-ts-updated').textContent = IO.fmtDateTime(curNote.updatedAt);
@@ -838,8 +931,53 @@ window.TribalNotepad = (function () {
         ov.querySelector('#np-save-btn').addEventListener('click', function () {
             saveCurrentNoteAndSync(true).then(showListView);
         });
+        ov.querySelector('#np-read-btn').addEventListener('click', function () {
+            var tb = ov.querySelector('#np-toolbar');
+            tb.hidden = !tb.hidden;
+            this.innerHTML = tb.hidden
+                ? '<i class="bi bi-sliders"></i> Mostrar herramientas'
+                : '<i class="bi bi-arrows-fullscreen"></i> Texto completo';
+        });
         ov.querySelector('#np-new-btn').addEventListener('click', function () {
             openNoteEditor(null);
+        });
+
+        // Deseleccionar elemento multimedia al tocar texto del lienzo
+        canvas.addEventListener('pointerdown', function (e) {
+            if (!e.target.closest('.np-img-wrap')) {
+                ov.querySelectorAll('.np-img-wrap.np-sel').forEach(function (w) {
+                    w.classList.remove('np-sel');
+                });
+                activeWrap = null;
+            }
+        });
+
+        // Dropdowns de Títulos, Alineación, Mayús/Minús e Interlineado
+        ov.querySelector('#np-dd-block').addEventListener('change', function () {
+            var v = this.value;
+            this.value = '';
+            if (!v) return;
+            canvas.focus();
+            restoreSelection();
+            document.execCommand('formatBlock', false, '<' + v + '>');
+            pushHistory();
+            scheduleLiveSave();
+        });
+        ov.querySelector('#np-dd-align').addEventListener('change', function () {
+            var v = this.value;
+            this.value = '';
+            if (!v) return;
+            applyAlignment(v);
+        });
+        ov.querySelector('#np-dd-case').addEventListener('change', function () {
+            var v = this.value;
+            this.value = '';
+            if (!v) return;
+            transformSelectedCase(v);
+        });
+        ov.querySelector('#np-dd-lh').addEventListener('change', function () {
+            if (!this.value) return;
+            applyLineHeight(this.value);
         });
 
         // Barra de herramientas WYSIWYG
