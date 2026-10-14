@@ -21,14 +21,15 @@
     };
 
     // alta en bloque: lista de trackers (uno por línea); devuelve cuántos
-    // entraron. SOLO acepta wss:// — udp/http jamás funcionan en WebView.
+    // entraron. Acepta udp/http/https/wss — el motor NATIVO los usa todos;
+    // en web solo anuncian los wss://.
     P._lastRejected = 0;
     P.addTrackers = function (text) {
         var t = _.getTrackers(), n = 0, rej = 0;
         String(text || '').split(/\r?\n|,|;/).forEach(function (u) {
             u = u.trim();
             if (!u) return;
-            if (!/^wss?:\/\//.test(u)) { rej++; return; }
+            if (!/^(udp|https?|wss?):\/\//.test(u)) { rej++; return; }
             if (t.indexOf(u) < 0) { t.push(u); n++; }
         });
         P._lastRejected = rej;
@@ -39,6 +40,7 @@
     // probar un tracker o URL: vivo/muerto (y latencia)
     P.probeTracker = function (u, cb) {
         u = String(u || '').trim();
+        if (/^udp:/.test(u)) return cb(null, null, 'solo nativo');
         if (/^wss?:/.test(u)) {
             var t0 = Date.now();
             fetch(u.replace(/^ws/, 'http'), { mode: 'no-cors' })
@@ -70,16 +72,20 @@
         String(text || '').split(/\r?\n/).forEach(function (ln) {
             ln = ln.trim();
             if (!ln) return;
-            var name = '', url = ln;
+            var name = '', url = ln, k2 = kind;
             var p = ln.split('|');
-            if (p.length > 1) { name = p[0].trim(); url = p.slice(1).join('|').trim(); }
+            if (p.length > 1) { name = p[0].trim(); url = p[1].trim(); }
+            if (p.length > 2) {
+                if (KINDS[p[2].trim()]) k2 = p[2].trim();
+                else url = p.slice(1).join('|').trim();   // url con | dentro
+            }
             if (url.indexOf('%q') < 0) return;
             if (!name) {
                 try { name = new URL(url).hostname; }
                 catch (e) { name = url.slice(0, 24); }
             }
             if (eng.some(function (e) { return e.url === url; })) return;
-            eng.push({ name: name, url: url, kind: kindOf(kind), on: true });
+            eng.push({ name: name, url: url, kind: kindOf(k2), on: true });
             n++;
         });
         if (n) _.save();

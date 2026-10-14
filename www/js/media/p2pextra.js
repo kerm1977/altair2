@@ -102,21 +102,32 @@ window.TribalP2PExtra = (function () {
     }
 
     function renderTrackers(box) {
-        box.innerHTML = TribalP2P.trackers().map(function (u, i) {
+        var own = TribalP2P.trackers().map(function (u, i) {
             return '<div class="tribal-p2p-track">' +
                 '<span class="tr-url">' + esc(u) + '</span>' +
                 '<span class="tr-probe" data-trk="' + i + '"></span>' +
                 '<button class="tribal-ctrl tr-danger" data-trk-del="' + esc(u) + '"' +
                     ' title="Quitar tracker"><i class="bi bi-trash3"></i></button></div>';
-        }).join('') || '<div class="tribal-empty-mini"><p>Sin trackers propios ' +
-            '(se usan los de WebTorrent por defecto)</p></div>';
+        }).join('') || '<div class="tribal-empty-mini"><p>Sin trackers propios</p></div>';
+        var swarm = TribalP2P.swarmTrackers ? TribalP2P.swarmTrackers() : [];
+        var extra = swarm.length > 60
+            ? '<div class="tr-swarm-more">… +' + (swarm.length - 60) +
+              ' más en uso</div>' : '';
+        box.innerHTML = own +
+            '<div class="tr-swarm-h">Swarm vivo — ' + swarm.length +
+            ' trackers udp/http/https en uso automático</div>' +
+            swarm.slice(0, 60).map(function (u) {
+                return '<div class="tribal-p2p-track"><span class="tr-url">' +
+                    esc(u) + '</span><span class="tr-probe tr-auto">auto</span></div>';
+            }).join('') + extra;
     }
 
     function probeInto(el, url) {
         el.className = 'tr-probe tr-probing';
         el.textContent = 'probando…';
         TribalP2P.probeTracker(url, function (ok, ms, why) {
-            el.className = 'tr-probe ' + (ok ? 'tr-ok' : 'tr-bad');
+            el.className = 'tr-probe ' +
+                (ok ? 'tr-ok' : (ok === null ? 'tr-auto' : 'tr-bad'));
             el.textContent = ok ? ('vivo · ' + ms + 'ms') : (why || 'caído');
         });
     }
@@ -172,6 +183,8 @@ window.TribalP2PExtra = (function () {
                     '<button class="tribal-btn" id="tp-eng-file">' +
                         '<i class="bi bi-filetype-txt"></i> Importar lista .txt</button>' +
                     '<input type="file" id="tp-eng-file-input" accept=".txt,text/plain" hidden>' +
+                    '<button class="tribal-btn" id="tp-eng-exp">' +
+                        '<i class="bi bi-download"></i> Exportar motores</button>' +
                     '<button class="tribal-btn" id="tp-eng-test">' +
                         '<i class="bi bi-activity"></i> Probar todos</button></div>') +
             acc('bi-broadcast', 'Trackers',
@@ -184,6 +197,10 @@ window.TribalP2PExtra = (function () {
                     '<button class="tribal-btn" id="tp-trk-file">' +
                         '<i class="bi bi-filetype-txt"></i> Importar lista .txt</button>' +
                     '<input type="file" id="tp-trk-file-input" accept=".txt,text/plain" hidden>' +
+                    '<button class="tribal-btn" id="tp-trk-exp">' +
+                        '<i class="bi bi-download"></i> Exportar trackers</button>' +
+                    '<button class="tribal-btn" id="tp-trk-live">' +
+                        '<i class="bi bi-arrow-clockwise"></i> Lista viva</button>' +
                     '<button class="tribal-btn" id="tp-trk-test">' +
                         '<i class="bi bi-activity"></i> Probar todos</button></div>') +
             acc('bi-terminal', 'Consola',

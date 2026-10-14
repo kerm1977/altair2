@@ -2533,6 +2533,16 @@
     font-size: 0.68rem;
 }
 .tr-probe { font-size: 0.64rem; min-width: 70px; text-align: right; }
+.tr-probe.tr-auto { color: var(--tb-muted); font-style: italic; }
+.tr-swarm-h {
+    margin: 14px 4px 6px; padding-top: 10px;
+    border-top: 1px dashed #3d2817;
+    font-size: 0.62rem; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--tb-terra);
+}
+.tr-swarm-more {
+    padding: 4px 6px; font-size: 0.62rem; color: var(--tb-muted);
+}
 .tribal-p2p-track .tribal-ctrl { width: 30px; height: 30px; flex: none; }
 .tribal-p2p-sites { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .tr-site { text-decoration: none; }

@@ -19,6 +19,30 @@ window.TribalP2PWire = (function () {
         function refreshEngines() { X.renderEngines(ov.querySelector('#tp-engines')); }
         function refreshTrackers() { X.renderTrackers(ov.querySelector('#tp-trackers')); }
 
+        // exportar: .txt por descarga web o a Documentos/TRIBALs/ en la APK
+        function downloadTxt(name, text) {
+            var blob = new Blob([text], { type: 'text/plain' });
+            var web = function () {
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = name;
+                document.body.appendChild(a); a.click();
+                setTimeout(function () {
+                    URL.revokeObjectURL(a.href); a.remove();
+                }, 2000);
+                deps.toast('Descargando ' + name);
+            };
+            var C = window.Capacitor;
+            if (C && C.isNativePlatform && C.isNativePlatform()) {
+                var FS = C.Plugins.Filesystem;
+                FS.writeFile({ path: 'TRIBALs/' + name, data: text,
+                               directory: 'DOCUMENTS', recursive: true })
+                  .then(function () {
+                      deps.toast('Exportado a Documentos/TRIBALs/' + name);
+                  }).catch(web);
+            } else web();
+        }
+
         // clicks delegados: quitar motor/tracker, probar uno, sembrar, magnet
         ov.addEventListener('click', function (e) {
             var seedB = e.target.closest('[data-seed]');
@@ -108,6 +132,12 @@ window.TribalP2PWire = (function () {
                 if (eg) X.probeEngineInto(el, eg);
             });
         });
+        ov.querySelector('#tp-eng-exp').addEventListener('click', function () {
+            var txt = TribalP2P.engines().map(function (e) {
+                return e.name + '|' + e.url + '|' + (e.kind || 'api');
+            }).join('\n');
+            downloadTxt('tribu-motores.txt', txt + '\n');
+        });
 
         // ---- trackers: bloque (una por línea) + individual + .txt ----
         ov.querySelector('#tp-trk-add').addEventListener('click', function () {
@@ -116,13 +146,13 @@ window.TribalP2PWire = (function () {
             var n = TribalP2P.addTrackers(bulk + '\n' + one);
             var rej = TribalP2P._lastRejected || 0;
             if (!n)
-                return deps.toast(rej ? 'Rechazados: solo sirven trackers wss://'
+                return deps.toast(rej ? 'Rechazados: solo udp/http/https/wss'
                                       : 'Nada que agregar');
             ov.querySelector('#tp-tracker-bulk').value = '';
             ov.querySelector('#tp-tracker').value = '';
             refreshTrackers();
             deps.toast(n + ' tracker' + (n > 1 ? 's' : '') + ' agregados' +
-                (rej ? ' · ' + rej + ' descartados (solo wss://)' : ''));
+                (rej ? ' · ' + rej + ' con formato inválido' : ''));
             // probar los recién agregados
             TribalP2P.trackers().slice(-n).forEach(function (u) {
                 var el = ov.querySelector('[data-trk="' +
@@ -143,8 +173,8 @@ window.TribalP2PWire = (function () {
                 var rej = TribalP2P._lastRejected || 0;
                 refreshTrackers();
                 deps.toast(n ? (n + ' trackers importados' +
-                    (rej ? ' · ' + rej + ' descartados (solo wss://)' : ''))
-                             : 'El .txt no traía trackers wss:// válidos');
+                    (rej ? ' · ' + rej + ' con formato inválido' : ''))
+                             : 'El .txt no traía trackers válidos');
             };
             reader.readAsText(f);
         });
@@ -152,6 +182,22 @@ window.TribalP2PWire = (function () {
             ov.querySelectorAll('[data-trk]').forEach(function (el) {
                 X.probeInto(el, TribalP2P.trackers()[+el.dataset.trk]);
             });
+        });
+        // exportar TODOS: swarm vivo + los propios del usuario
+        ov.querySelector('#tp-trk-exp').addEventListener('click', function () {
+            var all = TribalP2P.trackers()
+                .concat(TribalP2P.swarmTrackers ? TribalP2P.swarmTrackers() : []);
+            var seen = {}, out = [];
+            all.forEach(function (u) {
+                if (!seen[u]) { seen[u] = 1; out.push(u); }
+            });
+            downloadTxt('tribu-trackers.txt', out.join('\n') + '\n');
+        });
+        // forzar refresco de la lista viva del swarm (ngosang trackerslist)
+        ov.querySelector('#tp-trk-live').addEventListener('click', function () {
+            if (TribalP2P.refreshSwarm) TribalP2P.refreshSwarm();
+            deps.toast('Actualizando lista viva de trackers…');
+            setTimeout(refreshTrackers, 4000);
         });
 
         // ---- sembrar desde el dispositivo ----

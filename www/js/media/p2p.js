@@ -92,6 +92,57 @@ window.TribalP2P = (function () {
         'trackerslist/master/trackers_all.txt';
     var ALL_TRK_LS = 'tribu_p2p_trk_all';
     var allTrackers = [];
+    // semilla de respaldo: trackers públicos conocidos vivos — el swarm
+    // nativo anuncia en TODOS aunque la lista remota falle (sin red)
+    var SWARM_SEED = [
+        'udp://tracker.opentrackr.org:1337/announce',
+        'udp://open.stealth.si:80/announce',
+        'udp://tracker.torrent.eu.org:451/announce',
+        'udp://tracker.openbittorrent.com:6969/announce',
+        'udp://exodus.desync.com:6969/announce',
+        'udp://open.demonii.com:1337/announce',
+        'udp://tracker.moeking.me:6969/announce',
+        'udp://explodie.org:6969/announce',
+        'udp://tracker.dler.org:6969/announce',
+        'udp://opentracker.i2p.rocks:6969/announce',
+        'udp://open.tracker.cl:1337/announce',
+        'udp://tracker.tiny-vps.com:6969/announce',
+        'udp://tracker.beeimg.com:6969/announce',
+        'udp://retracker.lanta-net.ru:2710/announce',
+        'udp://www.torrent.eu.org:451/announce',
+        'udp://tracker.theoks.net:6969/announce',
+        'udp://tracker1.bt.moack.co.kr:80/announce',
+        'udp://tracker.edkj.club:6969/announce',
+        'udp://dumped.gay:6969/announce',
+        'udp://tracker.johnrosen1.com:6969/announce',
+        'udp://tracker.tryhackx.org:6969/announce',
+        'udp://uploads.gamecoast.net:6969/announce',
+        'udp://tracker.srv00.com:6969/announce',
+        'udp://tracker.leech.ie:1337/announce',
+        'udp://tracker.ccp.ovh:6969/announce',
+        'udp://t.overflow.biz:6969/announce',
+        'udp://retracker01-msk-virt.corbina.net:80/announce',
+        'udp://bt2.archive.org:6969/announce',
+        'udp://bt1.archive.org:6969/announce',
+        'udp://9.rarbg.to:2870/announce',
+        'udp://tracker.skyts.net:6969/announce',
+        'udp://tracker.doko.moe:6969/announce',
+        'udp://tracker-udp.gbitt.info:80/announce',
+        'udp://concen.org:6969/announce',
+        'udp://open.tracker.ink:6969/announce',
+        'udp://ttk2.nbaonlineservice.com:6969/announce',
+        'https://tracker.tamersunion.org:443/announce',
+        'https://tracker.gbitt.info:443/announce',
+        'https://tracker.nanoha.org:443/announce',
+        'https://tracker.ghostchu-services.top:443/announce',
+        'https://tr.ready4.icu:443/announce',
+        'https://tracker.lilithraws.org:443/announce',
+        'http://nyaa.tracker.wf:7777/announce',
+        'http://tracker.ipv6tracker.org:80/announce',
+        'http://t.nyaatracker.com:80/announce',
+        'http://h4.trakx.nibba.trade:80/announce',
+        'http://tracker.mywaifu.best:6969/announce'
+    ];
     try {
         var _ac = JSON.parse(localStorage.getItem(ALL_TRK_LS) || '{}');
         if (_ac.list && _ac.list.length) allTrackers = _ac.list;
@@ -118,15 +169,20 @@ window.TribalP2P = (function () {
             log('Trackers swarm (udp/http) actualizados: ' + list.length);
         }).catch(function () {});
     }
-    // lista para inyectar al motor nativo: TODOS los udp/http/https vivos +
-    // los propios del usuario (deduplicados, sin ws)
+    // lista para inyectar al motor nativo: TODOS los udp/http/https vivos
+    // (o la semilla si la lista aún no bajó) + los propios del usuario
     function nativeTrackers() {
         var seen = {};
-        return allTrackers.concat(extraTrackers).filter(function (u) {
+        var base = allTrackers.length ? allTrackers : SWARM_SEED;
+        return base.concat(extraTrackers).filter(function (u) {
             if (!/^(udp|https?):\/\//.test(u) || seen[u]) return false;
             seen[u] = 1;
             return true;
         });
+    }
+    // la lista viva (o la semilla) — para mostrarla en la sección Trackers
+    function swarmTrackers() {
+        return allTrackers.length ? allTrackers.slice() : SWARM_SEED.slice();
     }
 
     // WebTorrent en navegador/WebView solo habla trackers wss://: los
@@ -593,8 +649,10 @@ window.TribalP2P = (function () {
     }
     function addTracker(u) {
         u = String(u || '').trim();
-        // solo wss:// sirve: udp/http jamás anuncian desde una WebView
-        if (!/^wss?:\/\//.test(u) || extraTrackers.indexOf(u) >= 0) return;
+        // nativo acepta udp/http/https/wss; web solo usa los ws —
+        // guardamos todos: el motor nativo los anuncia de verdad
+        if (!/^(udp|https?|wss?):\/\//.test(u) ||
+            extraTrackers.indexOf(u) >= 0) return;
         extraTrackers.push(u);
         save();
     }
@@ -730,6 +788,8 @@ window.TribalP2P = (function () {
 
         trackers: trackers,
         addTracker: addTracker,
+        swarmTrackers: swarmTrackers,
+        refreshSwarm: function () { refreshAllTrackers(true); },
 
         // acceso interno para p2pcfg.js (motores/trackers/buscador)
         _: {

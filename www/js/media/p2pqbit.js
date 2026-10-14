@@ -24,7 +24,7 @@
 window.TribalP2PQBIT = (function () {
     'use strict';
     var FLAG = 'tribu_p2p_qbit';
-    var VER = 4;
+    var VER = 5;
 
     var DEFS = [
         // ---- APIs JSON reales (buscan dentro de TRIBALs) --------------------
@@ -63,6 +63,16 @@ window.TribalP2PQBIT = (function () {
         { n: 'BitCQ',        u: 'https://bitcq.com/search?q=%q',                         k: 'scrape' },
         { n: 'ACGNX',        u: 'https://share.acgnx.se/rss.xml?keyword=%q',             k: 'rss' },
         { n: 'Bangumi',      u: 'https://bangumi.moe/rss/search/%q',                     k: 'rss' },
+        // VER 5 — más sitios vivos
+        { n: 'TorrentFunk',   u: 'https://www.torrentfunk.com/all/torrents/%q.html',       k: 'scrape' },
+        { n: 'Torrentz2',     u: 'https://torrentz2.nz/?q=%q',                             k: 'scrape' },
+        { n: 'SkidrowReloaded', u: 'https://skidrowreloaded.com/?s=%q',                    k: 'scrape' },
+        { n: 'TokyoTosho',    u: 'https://www.tokyotosho.info/rss.php?term=%q',            k: 'rss' },
+        { n: 'AniRena',       u: 'https://www.anirena.com/rss.php?search=%q',              k: 'rss' },
+        { n: 'AIO Search',    u: 'https://www.aiosearch.com/search/4/Torrents/%q',         k: 'site' },
+        { n: 'Veoble',        u: 'https://veoble.com/torrent/?q=%q',                       k: 'site' },
+        { n: 'OxTorrent',     u: 'https://www.oxtorrent.info/recherche/%q',                k: 'site' },
+        { n: 'RuTracker',     u: 'https://rutracker.org/forum/tracker.php?nm=%q',          k: 'site' },
 
         // ---- scrape + persecución a página de detalle -------------------------
         { n: '1337x',            u: 'https://1337x.to/search/%q/1/',                      k: 'scrape', on: 1, detail: '1337x\\.to/torrent/' },
@@ -141,10 +151,12 @@ window.TribalP2PQBIT = (function () {
                            on: !!d.on, detail: d.detail });
             }
         });
-        // 3) trackers: solo wss:// puede funcionar — fuera udp/http y duplicados
+        // 3) trackers: deduplicar y quitar esquemas inválidos — desde VER 4
+        // el motor nativo anuncia por udp/http/https además de wss
         for (i = trk.length - 1; i >= 0; i--) {
             var u = trk[i];
-            if (!/^wss?:\/\//.test(u) || trk.indexOf(u) !== i) trk.splice(i, 1);
+            if (!/^(udp|https?|wss?):\/\//.test(u) ||
+                trk.indexOf(u) !== i) trk.splice(i, 1);
         }
         P._.save();
         try { localStorage.setItem(FLAG, String(VER)); } catch (e) {}
