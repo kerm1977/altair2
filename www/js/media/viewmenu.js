@@ -9,7 +9,7 @@
 window.Sono.register('viewmenu', function (S) {
     'use strict';
     var $ = S.$;
-    var viewMenu = $('view-menu'), statsOv = $('stats-overlay'), statsRows = $('stats-rows');
+    var viewMenu = $('view-menu'), statsOv = $('stats-overlay');
     var audio = S.audio, videoEl = S.videoEl, videoOv = S.videoOv;
 
     // deps comunes para overlays externos (lector, p2p)
@@ -169,69 +169,128 @@ window.Sono.register('viewmenu', function (S) {
         });
     });
 
+    // ---------------------------------------------------- estadísticas ----
+    // Página completa: tarjetas FUNCIONALES (toca Música → vas a la música),
+    // almacenamiento legible y lista de archivos colapsable con filas limpias.
+    var STAT_ICO = { audio: 'bi-music-note-beamed',
+                     grab: 'bi-mic-fill', video: 'bi-camera-video-fill',
+                     image: 'bi-image-fill', doc: 'bi-book-half',
+                     other: 'bi-file-earmark' };
+
+    // aterrizar en un tab de la barra: click + centrarlo horizontalmente
+    function goTab(id, extra) {
+        statsOv.hidden = true;
+        var t = $(id);
+        if (!t) return;
+        t.click();
+        try {
+            t.scrollIntoView({ block: 'nearest', inline: 'center' });
+        } catch (e) { t.scrollIntoView(false); }
+        if (extra === 'grab') {
+            var s = S.grid.querySelector(
+                '.tribal-kind-sep[data-grp="grab"]');
+            if (s) s.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+    }
+    // filtros sin tab propio (documentos, otros): misma lógica que vm-doc
+    function goFilter(kind) {
+        statsOv.hidden = true;
+        S.tabs.querySelectorAll('.tribal-tab').forEach(function (b) {
+            b.classList.remove('active');
+        });
+        S.viewMode = 'items'; S.activeCol = null;
+        S.filter = kind; S.page = 0; S.render();
+    }
+    function goFavs() {
+        statsOv.hidden = true;
+        S.tabs.querySelectorAll('.tribal-tab').forEach(function (b) {
+            b.classList.remove('active');
+        });
+        S.viewMode = 'col'; S.activeCol = 'fav'; S.page = 0; S.render();
+    }
+
     $('vm-stats').addEventListener('click', function () {
         viewMenu.hidden = true;
-        var n = {}, size = 0, favs = 0;
+        var n = {}, sz = {}, total = 0, favs = 0;
         S.items.forEach(function (m) {
             var g = window.TribalSections ? window.TribalSections.grpOf(m)
-                                        : m.kind;
+                                          : m.kind;
             n[g] = (n[g] || 0) + 1;
-            size += m.size || 0;
+            sz[g] = (sz[g] || 0) + (m.size || 0);
+            total += m.size || 0;
             if (m.fav) favs++;
         });
         var cols = window.MediaStore.listCollections().length;
+        // [grupo|null, ícono, etiqueta, destino, valor, subtexto]
         var CARDS = [
-            ['audio', 'bi-music-note-beamed', 'Música'],
-            ['grab',  'bi-mic-fill',          'Mis grabaciones'],
-            ['video', 'bi-camera-video-fill', 'Videos'],
-            ['image', 'bi-image-fill',        'Imágenes'],
-            ['doc',   'bi-book-half',         'Documentos'],
-            ['other', 'bi-file-earmark',      'Otros']
+            ['audio', 'bi-music-note-beamed', 'Música',      'go:tab-audio',      n.audio || 0, sz.audio],
+            ['grab',  'bi-mic-fill',          'Grabaciones', 'go:tab-audio+grab', n.grab || 0,  sz.grab],
+            ['video', 'bi-camera-video-fill', 'Videos',      'go:tab-video',      n.video || 0, sz.video],
+            ['image', 'bi-image-fill',        'Imágenes',    'go:tab-image',      n.image || 0, sz.image],
+            ['doc',   'bi-book-half',         'Documentos',  'f:doc',             n.doc || 0,   sz.doc],
+            ['other', 'bi-file-earmark',      'Otros',       'f:other',           n.other || 0, sz.other],
+            [null,    'bi-heart-fill',        'Favoritos',   'fav',               favs,         0],
+            [null,    'bi-collection-fill',   'Colecciones', 'go:tab-cols',       cols,         0],
+            [null,    'bi-hdd-fill',          'Espacio',     'to:store',          S.fmtSize(total), 0]
         ];
-        $('stats-cards').innerHTML =
-            CARDS.filter(function (c) { return n[c[0]]; })
-                 .map(function (c) {
-                     return '<div class="stats-card"><i class="bi ' + c[1] +
-                         '"></i><b>' + n[c[0]] + '</b><span>' + c[2] +
-                         '</span></div>';
-                 }).join('') +
-            '<div class="stats-card"><i class="bi bi-heart-fill"></i><b>' +
-                favs + '</b><span>Favoritos</span></div>' +
-            '<div class="stats-card"><i class="bi bi-collection-fill"></i><b>' +
-                cols + '</b><span>Colecciones</span></div>' +
-            '<div class="stats-card"><i class="bi bi-hdd-fill"></i><b>' +
-                S.fmtSize(size) + '</b><span>Espacio usado</span></div>';
-        var rowHtml = function (k, v) {
-            return '<div class="tmeta-row"><span>' + S.esc(k) + '</span><b>' + S.esc(v) + '</b></div>';
-        };
-        statsRows.innerHTML = '';
-        $('stats-files').innerHTML =
+        $('stats-cards').innerHTML = CARDS.map(function (c) {
+            return '<button class="stats-card' +
+                (!c[4] && c[4] !== '0 B' ? ' stats-zero' : '') +
+                '" data-go="' + c[3] + '">' +
+                '<i class="bi ' + c[1] + '"></i><b>' + c[4] + '</b>' +
+                '<span>' + c[2] + '</span>' +
+                (c[5] ? '<em>' + S.fmtSize(c[5]) + '</em>' : '') +
+                '</button>';
+        }).join('');
+
+        var filesBox = $('stats-files'), storeBox = $('stats-store');
+        storeBox.innerHTML = filesBox.innerHTML =
             '<p class="stats-loading">Leyendo almacenamiento…</p>';
         window.MediaStore.storageInfo().then(function (si) {
-            statsRows.innerHTML =
-                rowHtml('Modo', si.mode) + rowHtml('Ubicación', si.base);
-            $('stats-files').innerHTML =
-                si.files.map(function (f) {
-                    return '<p><b>' + S.esc(f.name) + '</b><span>' +
-                        S.esc(f.path) + ' · ' + S.fmtSize(f.size) + '</span></p>';
-                }).join('') ||
-                '<p class="stats-loading">Sin archivos nativos</p>';
+            var native = /Dispositivo/.test(si.mode);
+            storeBox.innerHTML =
+                '<div class="stats-storecard">' +
+                    '<i class="bi ' + (native ? 'bi-phone-fill' : 'bi-globe2') +
+                    '"></i><div class="stats-storeinfo"><b>' +
+                    (native ? 'Teléfono' : 'Navegador') + '</b><span>' +
+                    (native ? 'Carpeta privada de la app'
+                            : 'Base interna del navegador') + '</span>' +
+                    '<span class="stats-base">' + S.esc(si.base) + '</span>' +
+                    '</div><b class="stats-totalsize">' +
+                    S.fmtSize(total) + '</b></div>';
+            $('stats-fcount').textContent =
+                si.files.length + ' archivo(s)';
+            filesBox.innerHTML = si.files.map(function (f) {
+                return '<div class="stats-file"><i class="bi ' +
+                    (STAT_ICO[f.kind] || 'bi-file-earmark') + '"></i>' +
+                    '<div class="stats-finfo"><b>' + S.esc(f.name) +
+                    '</b><span>' + S.esc(f.path) + '</span></div>' +
+                    '<em>' + S.fmtSize(f.size) + '</em></div>';
+            }).join('') ||
+                '<p class="stats-loading">Aún no hay archivos</p>';
         });
         statsOv.hidden = false;
     });
-    // «Volver» cierra la página y aterriza en «Todo»: selecciona el tab
-    // y lo centra horizontalmente en la barra de accesos
-    $('stats-back').addEventListener('click', function () {
-        statsOv.hidden = true;
-        var todo = $('tab-all');
-        if (todo) {
-            todo.click();
-            try {
-                todo.scrollIntoView({ block: 'nearest', inline: 'center' });
-            } catch (e) {
-                todo.scrollIntoView(false);
-            }
+
+    // tocar una tarjeta ejecuta su destino (ver goTab/goFilter/goFavs)
+    $('stats-cards').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-go]');
+        if (!b) return;
+        var go = b.dataset.go;
+        if (go === 'to:store') {
+            var st = $('stats-store');
+            if (st) st.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            return;
         }
+        if (go === 'fav') return goFavs();
+        if (go.indexOf('f:') === 0) return goFilter(go.slice(2));
+        var parts = go.slice(3).split('+');        // go:tab-audio[+grab]
+        goTab(parts[0], parts[1]);
+    });
+
+    // «Volver» cierra la página y aterriza en «Todo» — centrado en la barra
+    $('stats-back').addEventListener('click', function () {
+        goTab('tab-all');
     });
     statsOv.addEventListener('click', function (e) {
         if (e.target === statsOv) statsOv.hidden = true;

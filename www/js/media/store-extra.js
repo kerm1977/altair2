@@ -20,7 +20,9 @@
             files: MS._index().map(function (m) {
                 return {
                     name: m.name,
-                    path: m.path || (m.id + '  (blob en IndexedDB)'),
+                    kind: m.kind,
+                    path: m.path || m.builtin ||
+                          'Base interna de la app',
                     size: m.size
                 };
             })

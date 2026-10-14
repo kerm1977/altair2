@@ -1444,37 +1444,94 @@
 .stats-cards {
     display: flex; flex-wrap: wrap; gap: 10px;
 }
+/* cada tarjeta es un BOTÓN funcional: lleva a esa vista de la tribu */
 .stats-card {
-    flex: 1 1 140px; min-width: 130px;
+    flex: 1 1 140px; min-width: 118px;
     display: flex; flex-direction: column; align-items: center;
     gap: 4px; padding: 16px 10px;
     border-radius: 14px; border: 1px solid var(--tb-border);
-    background: rgba(0,0,0,.3);
-    text-align: center;
+    background: rgba(0,0,0,.3); text-align: center;
+    color: var(--tb-cream); font: inherit; cursor: pointer;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
 }
+.stats-card:hover { border-color: var(--tb-gold); }
+.stats-card:active {
+    transform: scale(.96); border-color: var(--tb-gold);
+    box-shadow: 0 0 14px rgba(240,180,41,.25);
+}
+.stats-card.stats-zero { opacity: .4; }
 .stats-card i { font-size: 1.5rem; color: var(--tb-gold); }
-.stats-card b { font-size: 1.3rem; color: var(--tb-cream); }
+.stats-card b { font-size: 1.25rem; color: var(--tb-cream); }
 .stats-card span {
     font-size: 0.68rem; color: var(--tb-muted);
     letter-spacing: .06em; text-transform: uppercase;
+}
+.stats-card em {
+    font-style: normal; font-size: 0.62rem; color: var(--tb-teal);
 }
 .stats-h {
     margin: 6px 0 0; font-size: 0.75rem; font-weight: 800;
     letter-spacing: .12em; text-transform: uppercase;
     color: var(--tb-gold); text-align: center;
 }
-.stats-rows { display: flex; flex-direction: column; gap: 4px; }
-.stats-loading { color: var(--tb-muted); font-size: 0.75rem; }
-/* lista de rutas en estadísticas — la página ya hace scroll sola */
-.stats-files {
-    margin-top: 2px;
-    border-top: 1px solid rgba(216,178,122,0.2);
-    padding-top: 6px;
-    display: flex; flex-direction: column; gap: 6px;
+.stats-loading { color: var(--tb-muted); font-size: 0.75rem; margin: 0; }
+/* tarjeta de almacenamiento: legible, sin jerga técnica arriba */
+.stats-storecard {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: 14px;
+    border: 1px solid var(--tb-border); background: rgba(0,0,0,.3);
 }
-.stats-files p { margin: 0; font-size: 0.68rem; }
-.stats-files b { color: var(--tb-cream); display: block; }
-.stats-files span { color: var(--tb-teal); word-break: break-all; }
+.stats-storecard > i { font-size: 1.6rem; color: var(--tb-gold); flex: none; }
+.stats-storeinfo {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+}
+.stats-storeinfo b { color: var(--tb-cream); font-size: 0.9rem; }
+.stats-storeinfo span { color: var(--tb-muted); font-size: 0.7rem; }
+.stats-base { word-break: break-all; opacity: .75; }
+.stats-totalsize { color: var(--tb-gold); font-size: 1rem; white-space: nowrap; }
+/* lista de archivos colapsable — filas limpias, sin pelota de texto */
+.stats-det {
+    border: 1px solid var(--tb-border); border-radius: 14px;
+    background: rgba(0,0,0,.25); overflow: hidden;
+}
+.stats-det summary {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 12px 14px; list-style: none;
+    color: var(--tb-cream); font-size: 0.82rem; font-weight: 600;
+}
+.stats-det summary::-webkit-details-marker { display: none; }
+.stats-det summary i { color: var(--tb-gold); }
+.stats-det summary b {
+    margin-left: auto; font-weight: 400;
+    color: var(--tb-muted); font-size: 0.7rem;
+}
+.stats-det[open] summary { border-bottom: 1px solid var(--tb-border); }
+.stats-files {
+    display: flex; flex-direction: column;
+    padding: 4px 12px 10px;
+}
+.stats-file {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 2px;
+    border-bottom: 1px solid rgba(90, 58, 28, 0.35);
+}
+.stats-file:last-child { border-bottom: none; }
+.stats-file > i { color: var(--tb-gold); font-size: 0.95rem; flex: none; }
+.stats-finfo {
+    flex: 1; min-width: 0; display: flex; flex-direction: column;
+}
+.stats-finfo b {
+    color: var(--tb-cream); font-size: 0.75rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stats-finfo span {
+    color: var(--tb-muted); font-size: 0.62rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stats-file em {
+    font-style: normal; flex: none;
+    color: var(--tb-teal); font-size: 0.7rem;
+}
 
 /* sin barras de desplazamiento visibles en TODA la interfaz tribal —
    el scroll sigue funcionando, solo no se pinta la barra */
