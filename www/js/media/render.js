@@ -17,7 +17,16 @@ window.Sono.register('render', function (S) {
             }
             // con búsqueda activa el buscador es GLOBAL: ignora el tab de tipo
             if (!S.query && S.filter !== 'all' && m.kind !== S.filter) return false;
-            if (S.query && m.name.toLowerCase().indexOf(S.query) === -1) return false;
+            if (S.query) {
+                if (S._mqQ !== S.query) {          // matcher cacheado por texto
+                    S._mq = S.buildMatcher ? S.buildMatcher(S.query) : null;
+                    S._mqQ = S.query;
+                }
+                var ok = S._mq ? S._mq(m)
+                    : String(m.name || '').toLowerCase()
+                        .indexOf(S.query) !== -1;
+                if (!ok) return false;
+            }
             return true;
         });
     };
