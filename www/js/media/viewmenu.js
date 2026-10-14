@@ -260,14 +260,10 @@ window.Sono.register('viewmenu', function (S) {
                     S.fmtSize(total) + '</b></div>';
             $('stats-fcount').textContent =
                 si.files.length + ' archivo(s)';
-            filesBox.innerHTML = si.files.map(function (f) {
-                return '<div class="stats-file"><i class="bi ' +
-                    (STAT_ICO[f.kind] || 'bi-file-earmark') + '"></i>' +
-                    '<div class="stats-finfo"><b>' + S.esc(f.name) +
-                    '</b><span>' + S.esc(f.path) + '</span></div>' +
-                    '<em>' + S.fmtSize(f.size) + '</em></div>';
-            }).join('') ||
-                '<p class="stats-loading">Aún no hay archivos</p>';
+            statsAll = si.files; fq = ''; fpage = 0;
+            var fqIn = $('stats-fq');
+            if (fqIn) fqIn.value = '';
+            renderStatsFiles();
         });
         statsOv.hidden = false;
     });
@@ -286,6 +282,69 @@ window.Sono.register('viewmenu', function (S) {
         if (go.indexOf('f:') === 0) return goFilter(go.slice(2));
         var parts = go.slice(3).split('+');        // go:tab-audio[+grab]
         goTab(parts[0], parts[1]);
+    });
+
+    // --- lista de archivos del panel: agrupada por tipo, buscador en
+    // vivo y paginación de 20 — nunca se amontona ---
+    var statsAll = [], fq = '', fpage = 0, FPER = 20;
+    var SGRP_ORD = ['audio', 'grab', 'video', 'image', 'doc', 'other'];
+    var SGRP_LBL = { audio: 'Música', grab: 'Mis grabaciones',
+                     video: 'Videos', image: 'Imágenes',
+                     doc: 'Documentos', other: 'Otros' };
+    function fileGrp(f) {
+        return f.kind === 'audio' &&
+               (f.vn || /^mi grabaci/i.test(f.name || ''))
+            ? 'grab' : (f.kind || 'other');
+    }
+    function renderStatsFiles() {
+        var box = $('stats-files'), pager = $('stats-fpager');
+        var q = fq.trim().toLowerCase();
+        var list = statsAll.filter(function (f) {
+            return !q || (String(f.name) + ' ' + (f.path || ''))
+                .toLowerCase().indexOf(q) >= 0;
+        });
+        list.sort(function (a, b) {
+            var ga = SGRP_ORD.indexOf(fileGrp(a)),
+                gb = SGRP_ORD.indexOf(fileGrp(b));
+            if (ga !== gb) return ga - gb;
+            return String(a.name).localeCompare(String(b.name), 'es',
+                                                { sensitivity: 'base' });
+        });
+        var pages = Math.max(1, Math.ceil(list.length / FPER));
+        if (fpage >= pages) fpage = pages - 1;
+        if (fpage < 0) fpage = 0;
+        var slice = list.slice(fpage * FPER, fpage * FPER + FPER);
+        pager.hidden = list.length <= FPER;
+        $('stats-fpage').textContent = (fpage + 1) + ' / ' + pages;
+        var html = '', last = null;
+        slice.forEach(function (f) {
+            var g = fileGrp(f);
+            if (g !== last) {
+                html += '<div class="stats-fgrp">' + SGRP_LBL[g] + '</div>';
+                last = g;
+            }
+            html += '<div class="stats-file"><i class="bi ' +
+                (STAT_ICO[g] || 'bi-file-earmark') + '"></i>' +
+                '<div class="stats-finfo"><b>' + S.esc(f.name) +
+                '</b><span>' + S.esc(f.path) + '</span></div>' +
+                '<em>' + S.fmtSize(f.size) + '</em></div>';
+        });
+        box.innerHTML = html ||
+            '<p class="stats-loading">' +
+            (q ? 'Nada coincide con «' + S.esc(fq) + '»'
+               : 'Aún no hay archivos') + '</p>';
+    }
+    $('stats-fq').addEventListener('input', function (e) {
+        fq = e.target.value || '';
+        fpage = 0;
+        renderStatsFiles();
+    });
+    $('stats-fprev').addEventListener('click', function () {
+        if (fpage > 0) { fpage--; renderStatsFiles(); }
+    });
+    $('stats-fnext').addEventListener('click', function () {
+        fpage++;
+        renderStatsFiles();
     });
 
     // «Archivos guardados» → panel emergente con fondo difuminado

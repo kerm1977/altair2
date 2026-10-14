@@ -1536,6 +1536,37 @@
     flex: 1; color: var(--tb-cream); font-size: 0.85rem;
     letter-spacing: .06em;
 }
+/* buscador en vivo del panel */
+.stats-fbar {
+    flex: none; display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-bottom: 1px solid var(--tb-border);
+}
+.stats-fbar i { color: var(--tb-gold); font-size: 0.85rem; }
+.stats-fbar input {
+    flex: 1; min-width: 0; height: 30px; outline: none;
+    border-radius: 8px; border: 1px solid var(--tb-border);
+    background: rgba(0,0,0,.35); color: var(--tb-cream);
+    padding: 0 10px; font-size: 0.78rem;
+}
+.stats-fbar input:focus { border-color: var(--tb-gold); }
+/* encabezado de grupo dentro de la lista (Música, Videos…) */
+.stats-fgrp {
+    padding: 8px 2px 4px; font-size: 0.66rem; font-weight: 800;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--tb-terra);
+    border-bottom: 1px solid var(--tb-border);
+}
+/* paginador: 20 en 20 */
+.stats-fpager {
+    flex: none; display: flex; align-items: center;
+    justify-content: center; gap: 12px;
+    padding: 8px 14px; border-top: 1px solid var(--tb-border);
+}
+.stats-fpager .tribal-btn { flex: none; width: 34px; padding: 6px 0; }
+.stats-fpager span {
+    color: var(--tb-muted); font-size: 0.75rem; min-width: 44px;
+    text-align: center;
+}
 .stats-files {
     display: flex; flex-direction: column;
     padding: 6px 14px 12px; overflow-y: auto; flex: 1; min-height: 0;

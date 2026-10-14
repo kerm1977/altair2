@@ -21,6 +21,7 @@
                 return {
                     name: m.name,
                     kind: m.kind,
+                    vn: !!(m.info && m.info.vn),
                     path: m.path || m.builtin ||
                           'Base interna de la app',
                     size: m.size
