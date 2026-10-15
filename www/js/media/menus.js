@@ -34,6 +34,9 @@ window.Sono.register('menus', function (S) {
             $('menu-cast').style.display =
                 (m.kind === 'audio' || m.kind === 'video' || m.kind === 'image') ? '' : 'none';
         }
+        var fbtn = $('menu-ftp');
+        if (fbtn) fbtn.innerHTML = '<i class="bi bi-hdd-network"></i>' +
+            ((m.info && m.info.ftp) ? 'Quitar del servidor' : 'Enviar al servidor');
         menu.hidden = false;
         if (menuBd) menuBd.hidden = false;
     }
@@ -237,6 +240,18 @@ window.Sono.register('menus', function (S) {
                 toast: S.showToast, items: S.items, reload: S.reload
             });
         } else S.showToast('Editor no disponible');
+    });
+
+    // enviar/quitar del servidor LAN (marca info.ftp — lo ve la página web)
+    $('menu-ftp').addEventListener('click', function () {
+        var m = S.menuItem;
+        if (!m || !window.TribalFtp) return closeMenu();
+        var on = !(m.info && m.info.ftp);
+        closeMenu();
+        window.TribalFtp.share([m.id], on).then(function () {
+            S.showToast(on ? '📡 «' + m.name + '» ya sale por el servidor'
+                           : '«' + m.name + '» quitado del servidor');
+        });
     });
 
     // compartir por Bluetooth directo (Android) — en web cae a share normal
