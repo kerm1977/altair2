@@ -1000,6 +1000,39 @@
     gap: 6px;
 }
 
+/* Página propia «Dispositivos» del mando: lista limpia, sin apelotar */
+.rc-page {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+}
+
+.rc-page[hidden] {
+    display: none !important;
+}
+
+.rc-page .btm-status-bar {
+    flex-shrink: 0;
+}
+
+.rc-page .btm-list {
+    flex: 0 0 auto;
+}
+
+.rc-page .btm-row {
+    flex-shrink: 0;
+}
+
+#rc-vis.on {
+    background: linear-gradient(135deg, var(--tb-terra, #e2602e), var(--tb-gold, #f0b429));
+    color: #160e07;
+    border-color: var(--tb-gold, #f0b429);
+    font-weight: 700;
+}
+
 .rc-top-pills {
     display: flex;
     flex-direction: column;
