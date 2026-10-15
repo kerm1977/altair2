@@ -7,7 +7,7 @@ window.TribalBtChat = (function () {
     var MAX_FILE = 8 * 1024 * 1024, ON_KEY = 'tribu_btchat_on',
         CHUNK = 120 * 1024,            // media se trocea: el bridge muere con frames MB+
         parts = {},                    // reensamblaje entrante: id → {…}
-        outQueue = [];                 // cola de reenvío automático al reconectar
+        flushing = false;              // drenando el buzón persistente
     var EMOJI_RE = /((?:[\uD83C-\uD83E][\uDC00-\uDFFF]|[\u231A\u231B\u23E9-\u23EC\u23F0\u23F3\u25FD\u25FE\u2614\u2615\u2648-\u2653\u267F\u2693\u26A1\u26AA\u26AB\u26BD\u26BE\u26C4\u26C5\u26CE\u26D4\u26EA\u26F2\u26F3\u26F5\u26FA\u26FD\u2702\u2705\u2708-\u270D\u270F\u2712\u2716\u271D\u2721\u2728\u2733\u2734\u2744\u2747\u274C\u274E\u2753-\u2755\u2757\u2763\u2764\u2795-\u2797\u27A1\u27B0\u27BF\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B50\u2B55\u3030\u303D\u3297\u3299]|\uFE0F|\u200D|\u20E3)+)/g;
     function bigEmojis(html) {   // emoji → span grande (3× la fuente del chat)
         return html.replace(EMOJI_RE, function (g) { return '<span class="btc-big">' + g + '</span>'; }); }
@@ -165,8 +165,8 @@ window.TribalBtChat = (function () {
         btn.classList.remove('rec');
         V.stop().then(function (r) { var q = takeQ(),
             m = push({ k: 'voz', name: 'Nota de voz', mime: r.mime, data: r.data, q: q });
-            N.send(tag({ k: 'voz', name: 'Nota de voz', mime: r.mime, data: r.data, id: m.id, q: q }))
-            .catch(function () { toast('No se pudo enviar'); }); }).catch(function () { toast('Grabación vacía'); }); }
+            deliver(tag({ k: 'voz', name: 'Nota de voz', mime: r.mime, data: r.data, id: m.id, q: q }), m);
+        }).catch(function () { toast('Grabación vacía'); }); }
     function status(t) { if (ov) $('btc-status').textContent = t; }
     // favoritos: los peers que alguna vez se conectaron quedan guardados —
     // la lista muestra en línea / desconectados aunque no estén cerca
@@ -236,8 +236,7 @@ window.TribalBtChat = (function () {
             if (d.state === 'open') { peers[d.addr || d.name || 'peer'] = d.name || 'la tribu';
                 saveFav(d.addr, d.name); connModal(d.name);
                 status(peersLabel()); $('btc-title').textContent = chatTitle() === 'Chat tribal' ? (d.name || 'Chat tribal') : chatTitle();
-                showChat(); sendAv();
-                while (outQueue.length) { N.send(outQueue.shift()).catch(function () {}); } }
+                showChat(); sendAv(); flushOutbox(); }
             else { var nm = (d.addr && peers[d.addr]) || d.name;
                 if (d.addr) delete peers[d.addr]; else peers = {};
                 if (nPeers()) { status(peersLabel()); $('btc-title').textContent = chatTitle(); }
@@ -293,7 +292,9 @@ window.TribalBtChat = (function () {
             qt + body +
             '<button class="btc-rep" title="Responder"><i class="bi bi-reply"></i></button>' +
             '<button class="btc-del" title="Eliminar">🗑</button>' +
-            '<time>' + new Date(m.ts).toLocaleTimeString().slice(0, 5) + '</time></div>'; }
+            '<time>' + new Date(m.ts).toLocaleTimeString().slice(0, 5) +
+            (m.pending ? ' <i class="btc-wait" title="En espera">⏳</i>' : '') +
+            '</time></div>'; }
     function scrollEnd() { var el = $('btc-list'); el.scrollTop = el.scrollHeight; }
     function renderMsgs() {           // reconstruye todo (carga, borrar, limpiar)
         $('btc-list').innerHTML = msgs.map(bubbleHtml).join(''); scrollEnd(); }
@@ -305,6 +306,7 @@ window.TribalBtChat = (function () {
         msgs = msgs.filter(function (x) { if (x.id !== id) return true; mine = x.me; });
         if (window.TribalBtDb) TribalBtDb.del(id);
         renderMsgs(); $('btc-delsh').hidden = true;
+        if (window.TribalBtOutbox) TribalBtOutbox.del(id);   // si estaba en espera, sale del buzón
         if (everyone && mine) N.send(tag({ k: 'del', id: id })).catch(function () {}); }
     document.addEventListener('click', function (e) {  // 🗑 → hoja "para todos / para mí"
         var b = e.target.closest && e.target.closest('.btc-del'); if (!b) return;
@@ -328,12 +330,74 @@ window.TribalBtChat = (function () {
         m.id = mid(); m.ts = Date.now(); m.me = true;
         if (!$('btc-devices').hidden) showChat();
         msgs.push(m); if (window.TribalBtDb) TribalBtDb.put(m); appendMsg(m); return m; }
+    // marca ⏳ en la burbuja propia (persiste en el historial hasta entregarse)
+    function markWait(id, on) {
+        var m = msgs.filter(function (x) { return x.id === id; })[0];
+        if (!m) return;
+        m.pending = on ? 1 : 0;
+        if (window.TribalBtDb) TribalBtDb.put(m);
+        var el = $('btc-list').querySelector('[data-id="' + id + '"] time');
+        if (el) el.innerHTML = new Date(m.ts).toLocaleTimeString().slice(0, 5) +
+            (on ? ' <i class="btc-wait" title="En espera">⏳</i>' : ''); }
+    // sin peer conectado (o si el socket rechaza) → buzón persistente
+    function queuePkt(pkt, m) {
+        if (window.TribalBtOutbox)
+            TribalBtOutbox.put({ id: pkt.id, pkt: pkt, ts: Date.now() });
+        if (m) markWait(m.id, true);
+        toast('⏳ En espera — se entregará al conectar'); }
+    // media >CHUNK: mhead + mpart×n — si muere a mitad, se reenvía entera
+    function sendChunked(pkt, onFail, onDone) {
+        var id = pkt.id, n = Math.ceil(pkt.data.length / CHUNK);
+        N.send(tag({ k: 'mhead', id: id, mk: pkt.k, name: pkt.name,
+                mime: pkt.mime, tot: n, q: pkt.q }))
+         .then(function () {
+            var i = 0;
+            (function next() {
+                if (i >= n) { if (onDone) onDone(); return; }
+                N.send(tag({ k: 'mpart', id: id, i: i,
+                    s: pkt.data.slice(i * CHUNK, (i + 1) * CHUNK) }))
+                 .then(function () { i++; setTimeout(next, 25); })
+                 .catch(function () { if (onFail) onFail(); });
+            })(); })
+         .catch(function () { if (onFail) onFail(); }); }
+    // punto único de salida: directo si hay tribu, al buzón si no
+    function deliver(pkt, m) {
+        if (!nPeers()) return queuePkt(pkt, m);
+        var data = pkt.data;
+        if (!data || data.length <= CHUNK) {
+            N.send(pkt).catch(function () { queuePkt(pkt, m); });
+            return; }
+        sendChunked(pkt, function () { queuePkt(pkt, m); }); }
+    // al conectar alguien: drena el buzón en orden (texto directo,
+    // media re-troceada); si el socket cae se detiene hasta la próxima
+    function flushOutbox() {
+        var OB = window.TribalBtOutbox;
+        if (!OB || flushing) return;
+        OB.all(function (list) {
+            if (!list.length) return;
+            flushing = true;
+            var i = 0, sent = 0;
+            (function next() {
+                if (i >= list.length) {
+                    flushing = false;
+                    if (sent) sys('📦 ' + sent + ' mensaje(s) en espera entregado(s)');
+                    return; }
+                var e = list[i++], pkt = e.pkt;
+                var done = function (ok) {
+                    if (!ok) { flushing = false; return; }   // socket caído
+                    sent++; OB.del(e.id); markWait(e.id, false);
+                    setTimeout(next, 60); };
+                if (!pkt.data || pkt.data.length <= CHUNK)
+                    N.send(pkt).then(function () { done(true); })
+                     .catch(function () { done(false); });
+                else sendChunked(pkt, function () { done(false); },
+                                 function () { done(true); });
+            })(); }); }
     function sendText() {
         var t = $('btc-text'), v = t.value.trim();
         if (!v) return; t.value = ''; var q = takeQ();
         var m = push({ k: 'text', text: v, q: q });
-        var pkt = tag({ k: 'text', text: v, id: m.id, q: q });
-        N.send(pkt).catch(function () { outQueue.push(pkt); toast('En cola — se enviará al conectar'); }); }
+        deliver(tag({ k: 'text', text: v, id: m.id, q: q }), m); }
     function sendFile(f) {
         if (f.size > MAX_FILE) return toast('Máximo 8 MB por Bluetooth');
         // MIME del picker puede venir vacío → respaldo por extensión (gif, etc.)
@@ -350,26 +414,11 @@ window.TribalBtChat = (function () {
     // nativo ni fluye por RFCOMM; los trozos sí, y se reensamblan al llegar.
     function sendMedia(k, name, mime, data) {
         var q = takeQ(), m = push({ k: k, name: name, mime: mime, data: data, q: q });
-        var id = m.id, n = Math.ceil(data.length / CHUNK);
-        if (n <= 1) {
-            N.send(tag({ k: k, name: name, mime: mime, data: data, id: id, q: q }))
-             .catch(function () { toast('No se pudo enviar'); });
-            return; }
-        N.send(tag({ k: 'mhead', id: id, mk: k, name: name, mime: mime, tot: n, q: q }))
-         .then(function () {
-            var i = 0;
-            (function next() {
-                if (i >= n) return;
-                N.send(tag({ k: 'mpart', id: id, i: i,
-                    s: data.slice(i * CHUNK, (i + 1) * CHUNK) }))
-                 .then(function () { i++; setTimeout(next, 25); })  // respiro: no ahogar el socket
-                 .catch(function () { toast('Falló el envío de ' + name); });
-            })();
-         }).catch(function () { toast('No se pudo enviar'); }); }
+        deliver(tag({ k: k, name: name, mime: mime, data: data, id: m.id, q: q }), m); }
     function open(d) {
         deps = d || {}; build(); ov.hidden = false;
         if (window.TribalBtBadge) TribalBtBadge.clear();
-        if (open_) { N.listen().catch(function () {}); return; }  // sigue en escucha
+        if (open_) { N.listen().catch(function () {}); flushOutbox(); return; }  // sigue en escucha
         open_ = true;                            // historial persistente
         if (window.TribalBtDb) TribalBtDb.load(function (h) {
             msgs = h || []; if (!$('btc-list').hidden) renderMsgs(); });

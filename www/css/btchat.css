@@ -305,3 +305,4 @@
 .btclib-list { overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 .btclib-item small { display: block; opacity: .5; font-size: .62rem; }
 .btclib-item.big { opacity: .35; } .btclib-item.busy { opacity: .55; }
+.btc-wait { font-style: normal; font-size: .85em; opacity: .8; }
