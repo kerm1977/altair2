@@ -40,13 +40,13 @@ window.TribalNotepad = (function () {
 
     var LINE_HEIGHTS = ['-2', '-1.5', '-1.25', '1', '1.25', '1.5', '2'];
     var LH_CSS = {
-        '-2': '0.5',     // la mitad del texto de arriba se transpone con la de abajo
-        '-1.5': '0.8',   // bases totalmente pegadas
-        '-1.25': '0.95', // apenas respirando
-        '1': '1.08',     // unos pocos píxeles de aire
-        '1.25': '1.3',
-        '1.5': '1.5',
-        '2': '2'
+        '-2': '0.4',     // casi una línea entera debajo de la otra
+        '-1.5': '0.85',  // base inferior pegada a la base superior
+        '-1.25': '0.95', // apenas el grosor de una línea HR de aire
+        '1': '1.0',      // muy pocos píxeles
+        '1.25': '1.35',  // separación normal
+        '1.5': '1.65',   // un poco más
+        '2': '2.1'       // separación amplia
     };
     var LETTER_SPACINGS = ['0px', '1px', '2px', '4px'];
 
@@ -177,6 +177,22 @@ window.TribalNotepad = (function () {
         if (inner) {
             inner.style.transform = 'rotate(' + rot + 'deg) scale(' + fx + ', ' + fy + ')';
         }
+        ensureFooterSpace();
+    }
+
+    // Nada puede cubrir el pie de página: los elementos libres empujan el lienzo
+    function ensureFooterSpace() {
+        var canvas = ov && ov.querySelector('#np-canvas');
+        if (!canvas) return;
+        var max = 0;
+        canvas.querySelectorAll('.np-img-wrap.np-free').forEach(function (w) {
+            var hh = w.offsetHeight || 0, ww = w.offsetWidth || 0;
+            var rad = Math.abs(parseFloat(w.getAttribute('data-rot') || '0')) % 180 * Math.PI / 180;
+            var rh = hh * Math.cos(rad) + ww * Math.sin(rad); // alto real tras rotar
+            var bottom = (w.offsetTop || 0) + Math.max(hh, rh);
+            if (bottom > max) max = bottom;
+        });
+        canvas.style.minHeight = max ? Math.ceil(max + 60) + 'px' : '';
     }
 
     // Construye el HTML de la ventana completa del Bloc de Notas (sin <input> de texto)
@@ -413,6 +429,42 @@ window.TribalNotepad = (function () {
             '<!-- CHIP DE SUGERENCIA ORTOGRÁFICA JUNTO AL CURSOR -->' +
             '<button type="button" class="np-spell-hint" id="np-spell-hint" hidden></button>' +
 
+            '<!-- MENÚ CONTEXTUAL DE SELECCIÓN (long-press ~1s sobre texto marcado) -->' +
+            '<div class="np-selmenu" id="np-selmenu" hidden>' +
+                '<div class="np-sm-row">' +
+                    '<button type="button" data-sa="bold" class="np-smb" title="Negrita"><i class="bi bi-type-bold"></i></button>' +
+                    '<button type="button" data-sa="al:left" title="Izquierda"><i class="bi bi-text-left"></i></button>' +
+                    '<button type="button" data-sa="al:center" title="Centrar"><i class="bi bi-text-center"></i></button>' +
+                    '<button type="button" data-sa="al:right" title="Derecha"><i class="bi bi-text-right"></i></button>' +
+                    '<button type="button" data-sa="al:justify" title="Justificado"><i class="bi bi-justify"></i></button>' +
+                    '<button type="button" data-sa="case:upper" title="MAYÚSCULAS">AA</button>' +
+                    '<button type="button" data-sa="case:lower" title="minúsculas">aa</button>' +
+                    '<button type="button" data-sa="case:title" title="Title Case">Aa</button>' +
+                '</div>' +
+                '<div class="np-sm-row">' +
+                    '<select class="np-sm-dd" id="np-sm-block" title="Párrafo o Título">' +
+                        '<option value="">Párrafo / Título…</option>' +
+                        '<option value="P">Párrafo normal</option>' +
+                        '<option value="H1">Título H1</option>' +
+                        '<option value="H2">Título H2</option>' +
+                        '<option value="H3">Título H3</option>' +
+                        '<option value="H4">Título H4</option>' +
+                        '<option value="H5">Título H5</option>' +
+                        '<option value="H6">Título H6</option>' +
+                    '</select>' +
+                '</div>' +
+                '<div class="np-sm-row np-sm-lh" title="Interlineado">' +
+                    '<span class="np-sm-lbl">↕</span>' +
+                    '<button type="button" data-sa="lh:-2">-2</button>' +
+                    '<button type="button" data-sa="lh:-1.5">-1.5</button>' +
+                    '<button type="button" data-sa="lh:-1.25">-1.25</button>' +
+                    '<button type="button" data-sa="lh:1">1</button>' +
+                    '<button type="button" data-sa="lh:1.25">1.25</button>' +
+                    '<button type="button" data-sa="lh:1.5">1.5</button>' +
+                    '<button type="button" data-sa="lh:2">2</button>' +
+                '</div>' +
+            '</div>' +
+
             '<!-- MENÚ CONTEXTUAL LONG-PRESS DE DOCUMENTO GUARDADO -->' +
             '<div class="np-modal-bd" id="np-doc-menu" hidden>' +
                 '<div class="np-modal-card np-ctx-card">' +
@@ -522,7 +574,31 @@ window.TribalNotepad = (function () {
         function nPts() { return Object.keys(pts).length; }
         function interactive(e) {
             return !!(e.target && e.target.closest &&
-                e.target.closest('audio,video,iframe,button,.np-media-badge,.np-media-del-x'));
+                e.target.closest('audio,video,iframe,button,input,.np-media-badge,.np-media-del-x'));
+        }
+        // Barra de tamaño debajo de la imagen (solo visible al seleccionarla)
+        var sizeBar = wrap.querySelector('.np-size-bar');
+        if (!sizeBar) {
+            sizeBar = document.createElement('input');
+            sizeBar.type = 'range';
+            sizeBar.min = '15'; sizeBar.max = '100';
+            sizeBar.className = 'np-size-bar';
+            sizeBar.setAttribute('contenteditable', 'false');
+            sizeBar.title = 'Tamaño de la imagen';
+            wrap.appendChild(sizeBar);
+        }
+        if (!sizeBar._npBound) {
+            sizeBar._npBound = true;
+            sizeBar.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+            sizeBar.addEventListener('input', function (e) {
+                e.stopPropagation();
+                wrap.setAttribute('data-scale', this.value);
+                applyWrapTransform(wrap);
+                dirty = true;
+            });
+            sizeBar.addEventListener('change', function () {
+                if (dirty) { pushHistory(); scheduleLiveSave(); dirty = false; }
+            });
         }
         function ensureFree() {
             if (wrap.getAttribute('data-free') !== '1') {
@@ -551,6 +627,7 @@ window.TribalNotepad = (function () {
             }
             wrap.classList.add('np-sel');
             activeWrap = wrap;
+            sizeBar.value = wrap.getAttribute('data-scale') || '70';
             if (interactive(e)) return;
             pts[e.pointerId] = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY };
             try { wrap.setPointerCapture(e.pointerId); } catch (er) {}
@@ -658,6 +735,7 @@ window.TribalNotepad = (function () {
                 confirmDelete2Steps('este elemento multimedia (' + (wrap.getAttribute('data-kind') || 'media') + ')', function () {
                     if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
                     if (activeWrap === wrap) activeWrap = null;
+                    ensureFooterSpace();
                     pushHistory();
                     scheduleLiveSave();
                 });
@@ -963,7 +1041,12 @@ window.TribalNotepad = (function () {
                 canvas.querySelectorAll('p,h1,h2,h3,h4,h5,h6,li,blockquote')
             ).filter(function (b) { return r.intersectsNode(b); });
             if (blocks.length) {
-                blocks.forEach(function (b) { b.style.lineHeight = cssLh; });
+                var cssNum = parseFloat(cssLh);
+                blocks.forEach(function (b) {
+                    b.style.lineHeight = cssLh;
+                    // Con valores <1 los bloques se traslapen visualmente (margen negativo)
+                    b.style.marginTop = cssNum < 1 ? (cssNum - 1) + 'em' : '';
+                });
                 pushHistory();
                 scheduleLiveSave();
                 return;
@@ -1298,6 +1381,60 @@ window.TribalNotepad = (function () {
             });
         }
 
+        // Menú contextual de formato al mantener presionado texto seleccionado
+        var selMenu = ov.querySelector('#np-selmenu');
+        function hideSelMenu() { if (selMenu) selMenu.hidden = true; }
+        function openSelMenu() {
+            if (!selMenu) return;
+            var sel = window.getSelection && window.getSelection();
+            if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+            var r = sel.getRangeAt(0);
+            if (!canvas.contains(r.commonAncestorContainer)) return;
+            saveSelection();
+            selMenu.hidden = false;
+            var rc = r.getBoundingClientRect();
+            var mw = selMenu.offsetWidth || 280, mh = selMenu.offsetHeight || 120;
+            var left = Math.max(8, Math.min(rc.left + rc.width / 2 - mw / 2,
+                window.innerWidth - mw - 8));
+            var top = rc.top - mh - 10;
+            if (top < 8) top = Math.min(rc.bottom + 10, window.innerHeight - mh - 8);
+            selMenu.style.left = left + 'px';
+            selMenu.style.top = top + 'px';
+        }
+        if (selMenu) {
+            selMenu.addEventListener('pointerdown', function (e) {
+                if (!e.target.closest('select')) e.preventDefault();
+            });
+            selMenu.addEventListener('click', function (e) {
+                var b = e.target.closest('[data-sa]');
+                if (!b) return;
+                var v = b.getAttribute('data-sa');
+                if (v === 'bold') {
+                    canvas.focus(); restoreSelection();
+                    document.execCommand('bold', false, null);
+                    pushHistory(); scheduleLiveSave(); saveSelection();
+                } else if (v.indexOf('al:') === 0) {
+                    applyAlignment(v.slice(3));
+                } else if (v.indexOf('case:') === 0) {
+                    transformSelectedCase(v.slice(5));
+                } else if (v.indexOf('lh:') === 0) {
+                    applyLineHeight(v.slice(3));
+                }
+            });
+            var smBlock = selMenu.querySelector('#np-sm-block');
+            if (smBlock) smBlock.addEventListener('change', function () {
+                var v = this.value; this.value = '';
+                if (!v) return;
+                canvas.focus(); restoreSelection();
+                document.execCommand('formatBlock', false, '<' + v + '>');
+                pushHistory(); scheduleLiveSave(); saveSelection();
+            });
+            document.addEventListener('pointerdown', function (e) {
+                if (!selMenu.hidden && !selMenu.contains(e.target) &&
+                    !canvas.contains(e.target)) hideSelMenu();
+            });
+        }
+
         // Botón Volver y Texto completo
         onEl('#np-back', 'click', function () {
             if (!ov.querySelector('#np-edit-view').hidden && curNote) {
@@ -1354,6 +1491,7 @@ window.TribalNotepad = (function () {
         // Deseleccionar elemento multimedia al tocar texto + long-press sobre texto seleccionado → eliminar en 2 pasos
         var selLpT = null, selX0 = 0, selY0 = 0;
         canvas.addEventListener('pointerdown', function (e) {
+            hideSelMenu();
             if (!e.target.closest('.np-img-wrap')) {
                 ov.querySelectorAll('.np-img-wrap.np-sel').forEach(function (w) {
                     w.classList.remove('np-sel');
@@ -1367,9 +1505,9 @@ window.TribalNotepad = (function () {
                 if (sel && sel.rangeCount && !sel.isCollapsed &&
                     canvas.contains(sel.getRangeAt(0).commonAncestorContainer)) {
                     saveSelection();
-                    deleteSelectedDetail();
+                    openSelMenu();
                 }
-            }, 520);
+            }, 900);
         });
         canvas.addEventListener('pointermove', function (e) {
             if (selLpT && (Math.abs(e.clientX - selX0) > 10 || Math.abs(e.clientY - selY0) > 10)) {

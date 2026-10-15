@@ -290,7 +290,11 @@ window.TribalNotepadIO = (function () {
 
         var holder = document.createElement('div');
         holder.innerHTML = note.html || '';
-        var lhMult = parseFloat(note.lineHeight) || 1.5;
+        // El interlineado guardado es una CLAVE (-2…2): se traduce al factor visual
+        var LHMAP = { '-2': 0.4, '-1.5': 0.85, '-1.25': 0.95, '1': 1.0,
+            '1.25': 1.35, '1.5': 1.65, '2': 2.1 };
+        var lhMult = LHMAP[String(note.lineHeight)] || parseFloat(note.lineHeight);
+        if (!(lhMult > 0.2)) lhMult = 1.5;
 
         function drawWrappedText(c, text, x, startY, maxW, lineH, align) {
             var words = String(text || '').split(/\s+/);
@@ -366,6 +370,13 @@ window.TribalNotepadIO = (function () {
                         var dx = M + (W - M * 2 - drawW) / 2;
                         if (align === 'left') dx = M;
                         else if (align === 'right') dx = W - M - drawW;
+                        // Imagen libre: respeta su posición horizontal relativa al lienzo
+                        if (node.getAttribute('data-free') === '1') {
+                            var nx = parseFloat(node.getAttribute('data-x') || '0') || 0;
+                            var refW = Math.max(320, window.innerWidth || 360);
+                            var frac = Math.max(0, Math.min(1, nx / refW));
+                            dx = M + frac * (W - M * 2 - drawW);
+                        }
                         ctx.save();
                         ctx.translate(dx + drawW / 2, y + drawH / 2);
                         if (rot) ctx.rotate(rot * Math.PI / 180);
@@ -377,6 +388,8 @@ window.TribalNotepadIO = (function () {
                 }
 
                 var align = (node.style && node.style.textAlign) || 'left';
+                var lhN = parseFloat(node.style && node.style.lineHeight) || lhMult;
+                if (!(lhN > 0.2)) lhN = lhMult;
                 var sz = 28, bold = false, italic = false, code = false, quote = false;
                 if (tag === 'H1') { sz = 46; bold = true; }
                 else if (tag === 'H2') { sz = 40; bold = true; }
@@ -394,7 +407,7 @@ window.TribalNotepadIO = (function () {
                         ctx.fillStyle = '#1f1712';
                         ctx.font = '28px sans-serif';
                         drawWrappedText(ctx, prefix + (li.innerText || li.textContent || '').trim(),
-                            M + 28, y, W - M * 2 - 28, Math.round(28 * lhMult), align);
+                            M + 28, y, W - M * 2 - 28, Math.round(28 * lhN), align);
                         y += 6;
                     });
                     y += 10;
@@ -409,7 +422,7 @@ window.TribalNotepadIO = (function () {
                 var x0 = quote ? M + 32 : M;
                 var startY = y;
                 drawWrappedText(ctx, txt, x0, y, W - M * 2 - (quote ? 32 : 0),
-                    Math.round(sz * lhMult), align);
+                    Math.round(sz * lhN), align);
                 if (quote) {
                     ctx.fillStyle = '#e2602e';
                     ctx.fillRect(M, startY, 6, Math.max(24, y - startY));
