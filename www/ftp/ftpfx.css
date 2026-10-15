@@ -124,3 +124,41 @@
 .tp-modal-acts { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
 .tp-modal-card .tp-btn.danger { background: linear-gradient(135deg, #8f1d0e, #d43a1e); border-color: #d43a1e; color: #ffe9dc; }
 .tp-modal-card .tp-btn.ghost { background: transparent; color: var(--cream); border: 1px solid var(--line); }
+
+/* — multiselección: check en el tope del card + barra de acciones — */
+.tp-check {
+    width: 34px; height: 34px; flex: 0 0 34px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--muted); font-size: 1rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.15s ease;
+}
+
+.tp-card.sel {
+    border-color: var(--gold);
+    background: rgba(240, 180, 41, 0.1);
+    box-shadow: 0 0 14px rgba(240, 180, 41, 0.22);
+}
+
+.tp-card.sel .tp-check {
+    background: linear-gradient(135deg, var(--terra), var(--gold));
+    color: #160e07; border-color: var(--gold);
+}
+
+.tp-selbar {
+    position: sticky; top: 8px; z-index: 10;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: 8px;
+    margin: 0 20px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid var(--gold);
+    background: linear-gradient(180deg, #241408, #1c120b);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+
+.tp-selbar b { color: var(--gold); font-size: 0.85rem; margin-right: 4px; }
+
+.tp-selbar[hidden] { display: none; }

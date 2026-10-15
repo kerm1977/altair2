@@ -137,6 +137,12 @@ window.TribalFtp = (function () {
                     toast('🗑 «' + m.name + '» eliminado desde la web'); S.reload(); setTimeout(pushCat, 600); });
             }).catch(function () {});
         });
+        P.addListener('ftpRen', function (ev) {
+            var MS = window.MediaStore, id = ev && ev.id, nm = ev && ev.name;
+            if (!MS || !MS.rename || !id || !nm) return;
+            MS.rename(id, nm).then(function () {
+                toast('✎ Renombrado desde la web: «' + nm + '»'); S.reload(); setTimeout(pushCat, 600); });
+        });
         if (!isAuto()) return;
         pushCat().then(function () { return P.start(); })
             .then(function (r) { if (r) lastInfo = r; }).catch(function () {});

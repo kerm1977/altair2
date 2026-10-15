@@ -101,11 +101,13 @@
         pickChip(favDirs()[Number(fi)]);
     });
 
-    /* ---------------- lista con secciones por tipo ---------------- */
+    /* ---------------- lista con secciones por tipo + selección ---------------- */
+    var lastItems = [];
+    window.TpLink = { esc: esc, sz: sz, items: function () { return lastItems; }, load: load };
     function load() {
         fetch('/api/list').then(function (r) { return r.json(); })
             .then(function (data) {
-                var items = (data && data.items) || [];
+                var items = lastItems = (data && data.items) || [];
                 var srv = document.getElementById('tp-srv');
                 if (srv && data && data.name) srv.textContent = data.name + ' · tribu de archivos';
                 if (!items.length) {
@@ -118,53 +120,29 @@
                         return (it.k || 'other') === gk || (gk === 'other' && !ICO[it.k]); });
                     if (!rows.length) return;
                     html += '<div class="tp-sep"><span>' + g[1] + '</span></div>' + rows.map(function (it) {
-                        var del = it.ro ? '<span class="tp-btag">incluida</span>'
-                            : '<button class="tp-btn danger" data-deli="' + esc(it.i) + '" data-deln="' + esc(it.n) + '">🗑</button>';
-                        return '<div class="tp-card"><div class="tp-card-top">' +
+                        var extra = it.ro ? '<span class="tp-btag">incluida</span>'
+                            : '<button class="tp-btn ghost" data-reni="' + esc(it.i) + '" data-deln="' + esc(it.n) + '" title="Renombrar">✎</button>' +
+                              '<button class="tp-btn danger" data-deli="' + esc(it.i) + '" data-deln="' + esc(it.n) + '" title="Eliminar">🗑</button>';
+                        return '<div class="tp-card" data-card="' + esc(it.i) + '"><div class="tp-card-top">' +
                             '<span class="tp-ico">' + (ICO[it.k] || '◈') + '</span>' +
                             '<div class="tp-info"><b>' + esc(it.n) + '</b>' +
-                            '<small>' + esc(it.k || 'archivo') + ' · ' + sz(it.s) + '</small></div></div>' +
+                            '<small>' + esc(it.k || 'archivo') + ' · ' + sz(it.s) + '</small></div>' +
+                            (it.ro ? '' : '<button class="tp-check" data-sel="' + esc(it.i) + '" title="Seleccionar">○</button>') +
+                            '</div>' +
                             '<hr class="tp-hr"><div class="tp-acts">' +
                             '<a class="tp-btn" href="/dl?p=' + encodeURIComponent(it.p) +
-                            '&n=' + encodeURIComponent(it.n) + '" download>⬇ Descargar</a>' + del +
+                            '&n=' + encodeURIComponent(it.n) + '" download>⬇ Descargar</a>' + extra +
                             '</div></div>';
                     }).join('');
                 });
                 list.innerHTML = html;
+                if (window.TpSel) window.TpSel.refresh();
             }).catch(function () {
                 list.innerHTML = '<p class="tp-empty">No se pudo leer el catálogo — ¿sigue abierta la app en el teléfono?</p>';
             });
     }
 
-    /* ---------------- eliminar: modal de 3 pasos ---------------- */
-    var delId = '', delName = '', delStep = 0;
-    var T1 = $id('tpdel-t1'), T2 = $id('tpdel-t2'), NO = $id('tpdel-no'), YES = $id('tpdel-yes');
-    var STEPS = [
-        { t1: '¿Eliminar este archivo?', t2: '«%s» — paso 1 de 3', y: 'Continuar →' },
-        { t1: 'Se borrará del dispositivo', t2: 'No solo sale de la lista — el archivo se elimina del teléfono. Paso 2 de 3', y: 'Sí, continuar →' },
-        { t1: '⚠ Último paso — sin retorno', t2: '«%s» se eliminará definitivamente. ¿Estás realmente seguro?', y: '🗑 Eliminar para siempre' }];
-    function openDel(id, name) { delId = id; delName = name; delStep = 0; paintDel(); modal.hidden = false; }
-    function paintDel() { var s = STEPS[delStep];
-        T1.innerHTML = '<b>' + s.t1 + '</b>';
-        T2.textContent = s.t2.replace('%s', delName);
-        YES.innerHTML = s.y;
-        YES.className = 'tp-btn ' + (delStep === 2 ? 'danger' : ''); }
-    NO.onclick = function () { modal.hidden = true; };
-    YES.onclick = function () {
-        delStep++;
-        if (delStep < 3) return paintDel();
-        modal.hidden = true;
-        fetch('/del?i=' + encodeURIComponent(delId), { method: 'POST' })
-            .then(function () { prog.hidden = false; progBar.style.width = '100%';
-                progTxt.textContent = '🗑 «' + delName + '» eliminado de la tribu';
-                setTimeout(function () { prog.hidden = true; progBar.style.width = '0'; }, 2200);
-                setTimeout(load, 1000); })
-            .catch(function () {});
-    };
-    list.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-deli]');
-        if (b) openDel(b.getAttribute('data-deli'), b.getAttribute('data-deln'));
-    });
+    /* (selección múltiple, renombrar y borrado de 3 pasos: ftp/ftpsel.js) */
 
     /* ---------------- subida multi-archivo con progreso ---------------- */
     function upOne(f, ix, total, onDone) {

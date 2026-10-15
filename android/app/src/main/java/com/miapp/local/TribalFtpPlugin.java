@@ -115,7 +115,8 @@ public class TribalFtpPlugin extends Plugin {
             else if (path.equals("/api/list")) sendBytes(out, catalog.getBytes("UTF-8"), "application/json; charset=utf-8", 200);
             else if (path.equals("/dl")) sendFile(out, qs.get("p"), qs.get("n"));
             else if (path.equals("/up")) recvUpload(in, out, qs.get("n"), bodyLen);
-            else if (path.equals("/del")) delFile(out, qs.get("i"));
+            else if (path.equals("/del")) fireJs(out, "ftpDel", qs.get("i"), null);
+            else if (path.equals("/ren")) fireJs(out, "ftpRen", qs.get("i"), qs.get("n"));
             else sendBytes(out, "no encontrado".getBytes("UTF-8"), "text/plain; charset=utf-8", 404);
             s.close();
         } catch (Exception e) { try { s.close(); } catch (Exception ignored) {} }
@@ -175,10 +176,11 @@ public class TribalFtpPlugin extends Plugin {
         } catch (Exception e) { fail(out, 500); }
     }
 
-    // la app (JS) borra el índice + el archivo vía MediaStore.remove — aquí solo avisamos
-    private void delFile(OutputStream out, String id) {
-        JSObject ev = new JSObject(); ev.put("id", id == null ? "" : id);
-        notifyListeners("ftpDel", ev);
+    // la app (JS) borra/renombra índice+archivo vía MediaStore — aquí solo avisamos
+    private void fireJs(OutputStream out, String ev, String id, String name) {
+        JSObject j = new JSObject(); j.put("id", id == null ? "" : id);
+        if (name != null) j.put("name", name);
+        notifyListeners(ev, j);
         try { sendBytes(out, "{\"ok\":true}".getBytes("UTF-8"), "application/json", 200); } catch (Exception ignored) {}
     }
 
