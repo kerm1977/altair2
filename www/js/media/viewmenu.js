@@ -18,7 +18,26 @@ window.Sono.register('viewmenu', function (S) {
             mount: S.root, urlFor: S.urlFor, store: window.MediaStore,
             toast: S.showToast, confirm: S.confirm,
             play: S.playAudio, audio: S.audio, reload: S.reload,
-            onDeleted: S.reload, get items() { return S.items; }, sono: S
+            onDeleted: S.reload, get items() { return S.items; }, sono: S,
+            // al borde de un libro abierto (swipe/flecha) → doc vecino
+            nextDoc: function (d, cur) {
+                var list = (S.items || []).filter(function (x) {
+                    if (x.kind !== 'doc') return false;
+                    var e = (x.name || '').split('.').pop().toLowerCase();
+                    return ['pdf', 'epub', 'txt'].indexOf(e) >= 0 ||
+                        x.mime === 'application/pdf' ||
+                        x.mime === 'application/epub+zip' || x.mime === 'text/plain';
+                });
+                var i = -1;
+                list.forEach(function (x, j) { if (cur && x.id === cur.id) i = j; });
+                if (i < 0 || list.length < 2) return;
+                var nx = list[(i + d + list.length) % list.length];
+                if (nx && window.TribalReader) {
+                    window.TribalReader.close();
+                    S.openReader(nx);
+                    S.showToast('📖 ' + nx.name);
+                }
+            }
         };
     };
 

@@ -38,7 +38,8 @@ window.TribalReaderTxt = (function () {
                 }).filter(Boolean);
             }
             function show(n, dir) {
-                cur = Math.max(0, Math.min(pages.length - 1, n));
+                if (n < 0 || n > pages.length - 1) return false;  // borde → doc vecino
+                cur = n;
                 var pg = ui.el.querySelector('#tr-page');
                 if (window.TribalReaderSwipe)
                     window.TribalReaderSwipe.flip(pg,

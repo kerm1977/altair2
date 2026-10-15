@@ -45,7 +45,8 @@ window.TribalReaderPdf = (function () {
                     : '<i class="bi bi-file-earmark-pdf"></i> Ver como página';
             }
             function show(n, dir) {
-                cur = Math.max(0, Math.min(total - 1, n));
+                if (n < 0 || n > total - 1) return false;   // borde → doc vecino
+                cur = n;
                 var pg = ui.el.querySelector('#tr-page');
                 if (window.TribalReaderSwipe)
                     window.TribalReaderSwipe.flip(pg,

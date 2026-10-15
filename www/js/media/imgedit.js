@@ -3,9 +3,12 @@
 // RESPONSABILIDAD: editor de imágenes de TRIBALs — núcleo.
 //   - Pipeline canvas: recorte → rotación libre → flips → zoom → filtros
 //     (brillo/contraste/saturación/RGB/nitidez/blur) → blur-viñeta → viñeta
-//     movible → textos y stickers/emoji (se queman en la imagen al guardar)
+//     movible → capas de texto/emoji/imagen (rotables y volteables)
+//   - Capas: un solo array E.st.ovs (texto/emoji/imagen) con orden z,
+//     rotación, volteos y nombre — panel Capas en imgeditui.js
+//   - Deshacer/Rehacer (E.hist) + borrador persistente anti-cierre
+//     (localStorage, media/imgeditmem.js) → se restaura al reabrir
 //   - Guardar PNG/JPG en la tribu + compartir (hoja nativa)
-//   - UI en imgeditui.js · gestos (arrastre/crop/viñeta) en imgedittouch.js
 //   API: TribalImgEdit.open(meta, deps)
 //   deps = { mount, urlFor, store, toast, items, onSaved }
 // ============================================================================
@@ -21,6 +24,7 @@ window.TribalImgEdit = (function () {
     var FONTS = ['Georgia', 'Arial', 'Courier New', 'Comic Sans MS', 'Impact',
                  'Palatino Linotype', 'Trebuchet MS', 'Verdana', 'cursive',
                  'monospace'];
+    var MAX_LAYERS = 10;
 
     function open(meta, deps) {
         deps.urlFor(meta, function (u) {
@@ -31,18 +35,25 @@ window.TribalImgEdit = (function () {
         });
     }
 
-    function build(meta, deps, img) {
-        var E = {};                       // instancia del editor
-        E.img = img;
-        E.st = {                          // estado
+    function freshState() {
+        return {
             br: 100, co: 100, sa: 100, r: 100, g: 100, b: 100,
             sharp: 0, blur: 0, edgeBlur: 0,
             vig: 0, vx: 0.5, vy: 0.5,
             flipH: 0, flipV: 0, rot: 0, zoom: 100,
             crop: null,                   // {x,y,w,h} en px de la imagen
-            texts: [], sticks: [],        // overlays
-            sel: null                     // overlay seleccionado
+            ovs: [],                      // capas: {ty,str,img,iid,x,y,s,f,c,rot,fh,fv,name}
+            sel: null                     // capa seleccionada
         };
+    }
+
+    function build(meta, deps, img) {
+        var E = {};                       // instancia del editor
+        E.img = img;
+        E.imgSrc = 'orig';                // 'orig' | dataURL (tras hornear crop)
+        E.meta = meta; E.deps = deps;
+        E.st = freshState();
+        E.hist = { u: [], r: [] };
         var ov = document.createElement('div');
         ov.className = 'tribal-overlay tribal-ie-ov';
         ov.innerHTML =
@@ -50,16 +61,22 @@ window.TribalImgEdit = (function () {
                 '<div class="tribal-ie-bar">' +
                     '<button class="tribal-ctrl" id="ie-close"><i class="bi bi-x-lg"></i></button>' +
                     '<span class="tribal-reader-title">' + esc(meta.name) + '</span>' +
-                    '<button class="tribal-ctrl" id="ie-reset" title="Restablecer">' +
+                    '<button class="tribal-ctrl" id="ie-undo" title="Deshacer">' +
                         '<i class="bi bi-arrow-counterclockwise"></i></button>' +
+                    '<button class="tribal-ctrl" id="ie-redo" title="Rehacer">' +
+                        '<i class="bi bi-arrow-clockwise"></i></button>' +
+                    '<button class="tribal-ctrl" id="ie-reset" title="Restablecer todo">' +
+                        '<i class="bi bi-stars"></i></button>' +
                     '<button class="tribal-ctrl" id="ie-save" title="Guardar">' +
                         '<i class="bi bi-check-lg"></i></button>' +
                 '</div>' +
                 '<div class="tribal-ie-stage" id="ie-stage">' +
                     '<canvas id="ie-canvas"></canvas>' +
                     '<div class="ie-crop" id="ie-crop" hidden>' +
-                        '<i class="ie-ch" data-ch="nw"></i><i class="ie-ch" data-ch="ne"></i>' +
-                        '<i class="ie-ch" data-ch="sw"></i><i class="ie-ch" data-ch="se"></i>' +
+                        '<i class="ie-ch" data-ch="nw"></i><i class="ie-ch" data-ch="n"></i>' +
+                        '<i class="ie-ch" data-ch="ne"></i><i class="ie-ch" data-ch="w"></i>' +
+                        '<i class="ie-ch" data-ch="e"></i><i class="ie-ch" data-ch="sw"></i>' +
+                        '<i class="ie-ch" data-ch="s"></i><i class="ie-ch" data-ch="se"></i>' +
                     '</div></div>' +
                 '<div class="tribal-ie-tools" id="ie-tools"></div>' +
             '</div>' +
@@ -95,7 +112,7 @@ window.TribalImgEdit = (function () {
             if (s.br !== 100) f += 'brightness(' + s.br + '%) ';
             if (s.co !== 100) f += 'contrast(' + s.co + '%) ';
             if (s.sa !== 100) f += 'saturate(' + s.sa + '%) ';
-            if (s.blur > 0) f += 'blur(' + (s.blur / 10) + 'px) ';
+            if (s.blur > 0) f += 'blur(' + (s.blur / 4) + 'px) ';   // blur total agresivo
             return f + svgFx();
         }
         function drawBase(cx2) {
@@ -124,11 +141,11 @@ window.TribalImgEdit = (function () {
             var s = E.st, W = E.cv.width, H = E.cv.height;
             if (s.edgeBlur > 0) {
                 E.tmp.width = W; E.tmp.height = H;
-                E.tx.filter = 'blur(' + (s.edgeBlur / 8) + 'px)';
+                E.tx.filter = 'blur(' + (s.edgeBlur / 3) + 'px)';   // más agresivo
                 E.tx.drawImage(E.cv, 0, 0);
                 E.tx.globalCompositeOperation = 'destination-in';
-                var g0 = E.tx.createRadialGradient(s.vx * W, s.vy * H, Math.min(W, H) * .12,
-                                                 s.vx * W, s.vy * H, Math.max(W, H) * .75);
+                var g0 = E.tx.createRadialGradient(s.vx * W, s.vy * H, Math.min(W, H) * .08,
+                                                 s.vx * W, s.vy * H, Math.max(W, H) * .7);
                 g0.addColorStop(0, 'rgba(0,0,0,0)');
                 g0.addColorStop(1, 'rgba(0,0,0,1)');
                 E.tx.fillStyle = g0;
@@ -146,29 +163,37 @@ window.TribalImgEdit = (function () {
                 E.cx.fillRect(0, 0, W, H);
             }
         }
-        function drawOverlays() {
+        // cada capa se dibuja con su rotación y volteos propios
+        function drawLayer(o) {
             var W = E.cv.width, H = E.cv.height;
-            E.st.texts.forEach(function (t) {
-                E.cx.font = '700 ' + (t.s / 100 * H) + 'px ' + (t.f || 'Georgia');
+            E.cx.save();
+            E.cx.translate(o.x * W, o.y * H);
+            E.cx.rotate((o.rot || 0) * Math.PI / 180);
+            E.cx.scale(o.fh ? -1 : 1, o.fv ? -1 : 1);
+            if (o.ty === 't') {
+                E.cx.font = '700 ' + (o.s / 100 * H) + 'px ' + (o.f || 'Georgia');
                 E.cx.textAlign = 'center';
                 E.cx.textBaseline = 'middle';
-                E.cx.lineWidth = Math.max(2, t.s / 100 * H / 12);
+                E.cx.lineWidth = Math.max(2, o.s / 100 * H / 12);
                 E.cx.strokeStyle = 'rgba(0,0,0,.85)';
-                E.cx.strokeText(t.str, t.x * W, t.y * H);
-                E.cx.fillStyle = t.c || '#f0b429';
-                E.cx.fillText(t.str, t.x * W, t.y * H);
-            });
-            E.st.sticks.forEach(function (k) {
-                var w = k.s / 100 * W;
-                if (k.img) {
-                    E.cx.drawImage(k.img, k.x * W - w / 2, k.y * H - w / 2, w, w);
+                E.cx.strokeText(o.str, 0, 0);
+                E.cx.fillStyle = o.c || '#f0b429';
+                E.cx.fillText(o.str, 0, 0);
+            } else {
+                var w = o.s / 100 * W;
+                if (o.img) {
+                    E.cx.drawImage(o.img, -w / 2, -w / 2, w, w);
                 } else {
                     E.cx.font = w + 'px serif';
                     E.cx.textAlign = 'center';
                     E.cx.textBaseline = 'middle';
-                    E.cx.fillText(k.str, k.x * W, k.y * H);
+                    E.cx.fillText(o.str, 0, 0);
                 }
-            });
+            }
+            E.cx.restore();
+        }
+        function drawOverlays() {
+            E.st.ovs.forEach(drawLayer);
         }
         E.render = function () {
             drawBase(E.cx);
@@ -177,28 +202,36 @@ window.TribalImgEdit = (function () {
             if (E.sel) outlineSel();
         };
         function outlineSel() {
-            var o = E.sel, W = E.cv.width, H = E.cv.height;
-            var w = o.str ? measureSel(o) : o.s / 100 * W;
+            var o = E.sel, b = E.selBox(o);
             E.cx.strokeStyle = '#f0b429';
             E.cx.setLineDash([6, 4]);
-            E.cx.strokeRect(o.x * W - w / 2 - 6, o.y * H - w / 2 - 6, w + 12, w + 12);
+            E.cx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
             E.cx.setLineDash([]);
         }
         function measureSel(o) {
             if (!o.str) return 0;
             E.cx.font = (o.s / 100 * E.cv.height) + 'px serif';
-            if (o.f) E.cx.font = '700 ' + (o.s / 100 * E.cv.height) + 'px ' + o.f;
+            if (o.ty === 't') E.cx.font = '700 ' + (o.s / 100 * E.cv.height) + 'px ' + (o.f || 'Georgia');
             return E.cx.measureText(o.str).width;
         }
         E.selBox = function (o) {  // caja en px del canvas (para hit-test)
             var W = E.cv.width, H = E.cv.height;
-            var w = o.str ? measureSel(o) : o.s / 100 * W;
-            return { x: o.x * W - w / 2, y: o.y * H - w / 2, w: w, h: w };
+            var w = (o.ty === 't' && o.str) ? measureSel(o) : o.s / 100 * W;
+            var h = w;
+            if (o.ty === 't' && o.str) h = o.s / 100 * H * 1.3;
+            return { x: o.x * W - w / 2, y: o.y * H - h / 2, w: w, h: h };
+        };
+        // commit = registrar un paso (undo) + autoguardar el borrador
+        E.commit = function () {
+            if (window.TribalImgEditMem) {
+                window.TribalImgEditMem.push(E);
+                window.TribalImgEditMem.save(E);
+            }
         };
 
         // ---------- guardar / compartir ----------
         function toBlob(fmt, cb) {
-            var s = E.st; E.sel = null; E.render();
+            E.sel = null; E.render();
             var mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
             E.cv.toBlob(function (b) { cb(b); }, mime, 0.92);
         }
@@ -229,6 +262,7 @@ window.TribalImgEdit = (function () {
                     });
                 }
                 done.then(function (m2) {
+                    if (window.TribalImgEditMem) window.TribalImgEditMem.clear(meta.id);
                     if (deps.invalidate && savedId) deps.invalidate(savedId);
                     deps.toast('Imagen guardada en la tribu');
                     if (deps.onSaved) deps.onSaved();
@@ -242,14 +276,21 @@ window.TribalImgEdit = (function () {
         ov.querySelector('#ie-close').addEventListener('click', function () { ov.remove(); });
         ov.querySelector('#ie-reset').addEventListener('click', function () {
             var keep = E.st;
-            E.st = { br: 100, co: 100, sa: 100, r: 100, g: 100, b: 100,
-                     sharp: 0, blur: 0, edgeBlur: 0, vig: 0, vx: .5, vy: .5,
-                     flipH: 0, flipV: 0, rot: 0, zoom: 100, crop: null,
-                     texts: [], sticks: [], sel: null };
+            E.st = freshState();
             Object.keys(E.st).forEach(function (k) { keep[k] = E.st[k]; });
             E.st = keep;
+            E.imgSrc = 'orig'; E.img = img; E.sel = null;
+            E.cropBox = null; E.cropRatio = null;
+            if (window.TribalImgEditTouch) window.TribalImgEditTouch.placeCropDiv(E);
             if (window.TribalImgEditUI) window.TribalImgEditUI.sync(E);
+            E.commit();
             E.render();
+        });
+        ov.querySelector('#ie-undo').addEventListener('click', function () {
+            if (window.TribalImgEditMem) window.TribalImgEditMem.undo(E);
+        });
+        ov.querySelector('#ie-redo').addEventListener('click', function () {
+            if (window.TribalImgEditMem) window.TribalImgEditMem.redo(E);
         });
         ov.querySelector('#ie-save').addEventListener('click', function () {
             saveAs('png', false);
@@ -257,9 +298,21 @@ window.TribalImgEdit = (function () {
 
         E.saveAs = saveAs;
         E.fonts = FONTS;
+        E.maxLayers = MAX_LAYERS;
         window.TribalImgEditUI.build(E, deps);
         window.TribalImgEditTouch.bind(E);
         E.render();
+        // borrador de una sesión anterior (cierre/accidente) → restaurar
+        if (window.TribalImgEditMem) {
+            window.TribalImgEditMem.restore(E, function (had) {
+                if (had) {
+                    deps.toast('Edición restaurada — seguiste donde quedó');
+                    window.TribalImgEditUI.sync(E);
+                    E.render();
+                }
+                E.commit();           // estado base del historial
+            });
+        } else E.commit();
     }
 
     return { open: open, fonts: FONTS };

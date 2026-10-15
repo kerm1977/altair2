@@ -358,6 +358,34 @@ window.Sono.register('player', function (S) {
         restoreBtn.classList.remove('on');
         S.exitVideoFS();
     });
+
+    // ---- pasar con el dedo: imagen/video anterior-siguiente (como música) --
+    function stepItem(kind, dir) {
+        var list = (S.items || []).filter(function (x) { return x.kind === kind; });
+        if (list.length < 2) return;
+        var i = -1;
+        list.forEach(function (x, j) { if (x.id === S.activeItemId) i = j; });
+        if (i < 0) return;
+        S.openItem(list[(i + dir + list.length) % list.length]);
+    }
+    if (window.TribalSwipeNav) {
+        var imgBox = imageOv.querySelector('.tribal-viewer');
+        var vidBox = videoOv.querySelector('.tribal-viewer');
+        if (imgBox) window.TribalSwipeNav.attach(imageOv, imgBox,
+            function (d) { stepItem('image', d); },
+            function (e) { return !e.target.closest('button,input'); });
+        if (vidBox) window.TribalSwipeNav.attach(videoOv, vidBox,
+            function (d) { stepItem('video', d); },
+            function (e) {
+                if (document.fullscreenElement) return false;
+                if (e.target.closest('button,input,.vf-cutter,.vf-sticker,.vf-text,.tribal-rec')) return false;
+                if (e.target === videoEl) {   // zona de los controles nativos
+                    var r = videoEl.getBoundingClientRect();
+                    if (e.touches[0].clientY > r.bottom - 64) return false;
+                }
+                return true;
+            });
+    }
     // si el botón nativo de pantalla completa de los controles del video se
     // activa solo sobre el <video>, lo redirigimos al stage completo para que
     // sticker y texto sigan visibles dentro del fullscreen

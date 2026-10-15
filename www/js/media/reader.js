@@ -142,22 +142,30 @@ window.TribalReader = (function () {
             if (!ov.classList.contains('tr-clean')) armIdle();
         });
         armIdle();
-        return { el: ov, counter: counter };
+        return { el: ov, counter: counter, deps: deps, meta: meta };
     }
 
     function wireNav(ui, step) {
-        ui.navStep = step;   // epub lo usa dentro de su iframe
-        ui.el.querySelector('#tr-prev').addEventListener('click', function () { step(-1); });
-        ui.el.querySelector('#tr-next').addEventListener('click', function () { step(1); });
+        // si el paso quedó «al borde» (devuelve false: primera/última página)
+        // → pasar al documento anterior/siguiente de la tribu
+        var nav = function (d) {
+            var r = step(d);
+            if (r === false && ui.deps && ui.deps.nextDoc) {
+                ui.deps.nextDoc(d, ui.meta);
+            }
+        };
+        ui.navStep = nav;   // epub lo usa dentro de su iframe
+        ui.el.querySelector('#tr-prev').addEventListener('click', function () { nav(-1); });
+        ui.el.querySelector('#tr-next').addEventListener('click', function () { nav(1); });
         ui.el.addEventListener('keydown', function (e) {
-            if (e.key === 'ArrowLeft') step(-1);
-            if (e.key === 'ArrowRight') step(1);
+            if (e.key === 'ArrowLeft') nav(-1);
+            if (e.key === 'ArrowRight') nav(1);
         });
         ui.el.tabIndex = 0;
         ui.el.focus();
         // pasar hojas con el dedo + efecto "página viva" (readerswipe.js):
         // enganchado al overlay entero → sirve también con barras ocultas
-        if (window.TribalReaderSwipe) window.TribalReaderSwipe.bind(ui, step);
+        if (window.TribalReaderSwipe) window.TribalReaderSwipe.bind(ui, nav);
     }
 
     return {
