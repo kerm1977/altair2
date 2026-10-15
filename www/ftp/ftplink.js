@@ -3,14 +3,9 @@
 // · eliminar con confirmación de 3 pasos · carpetas favoritas por navegador.
 (function () {
     'use strict';
-    var list = document.getElementById('list');
-    var zone = document.getElementById('zone');
-    var fileIn = document.getElementById('file');
-    var favbar = document.getElementById('favbar');
-    var prog = document.getElementById('prog');
-    var progBar = document.getElementById('progbar');
-    var progTxt = document.getElementById('progtxt');
-    var modal = document.getElementById('tpdel');
+    var $id = function (x) { return document.getElementById(x); };
+    var list = $id('list'), zone = $id('zone'), fileIn = $id('file'), favbar = $id('favbar'),
+        prog = $id('prog'), progBar = $id('progbar'), progTxt = $id('progtxt'), modal = $id('tpdel');
     var CHIP_KEY = 'tp_favdirs';
 
     function esc(s) { return String(s == null ? '' : s)
@@ -25,33 +20,61 @@
         ['audio', '♪ Música'], ['video', '▶ Videos'], ['image', '❀ Imágenes'],
         ['doc', '✎ Documentos'], ['other', '◈ Otros']];
 
-    /* ---------------- carpetas favoritas / accesos directos ---------------- */
+    /* ---- carpetas reales del equipo: Documentos/Imágenes/Música/Videos ----
+       En Chrome/Edge de escritorio se abre la carpeta REAL (startIn).
+       En otros navegadores cae al selector con filtro de tipo. */
+    var BASE_CHIPS = [
+        { n: '📄 Documentos', si: 'documents', a: '.pdf,.doc,.docx,.txt,.epub,.xls,.xlsx,.ppt,.pptx' },
+        { n: '🖼 Imágenes', si: 'pictures', a: 'image/*' },
+        { n: '♪ Música', si: 'music', a: 'audio/*' },
+        { n: '▶ Videos', si: 'videos', a: 'video/*' },
+        { n: '⬇ Descargas', si: 'downloads' },
+        { n: '📂 Carpeta completa', d: 1 }];
     function favDirs() {
-        var base = [
-            { n: '📄 Documentos', a: '.pdf,.doc,.docx,.txt,.epub,.xls,.xlsx,.ppt,.pptx' },
-            { n: '🖼 Imágenes', a: 'image/*' },
-            { n: '♪ Música', a: 'audio/*' },
-            { n: '▶ Videos', a: 'video/*' },
-            { n: '📂 Carpeta completa', d: 1 }];
-        try { return base.concat(JSON.parse(localStorage.getItem(CHIP_KEY) || '[]')); }
-        catch (e) { return base; }
+        try { return BASE_CHIPS.concat(JSON.parse(localStorage.getItem(CHIP_KEY) || '[]')); }
+        catch (e) { return BASE_CHIPS.slice(); }
     }
     function saveCustom(arr) {
         try { localStorage.setItem(CHIP_KEY, JSON.stringify(arr)); } catch (e) {} }
     function paintFavs() {
-        var custom = [];
-        try { custom = JSON.parse(localStorage.getItem(CHIP_KEY) || '[]'); } catch (e) {}
         favbar.innerHTML = favDirs().map(function (c, ix) {
-            var isC = ix >= 5;   // los 5 primeros son fijos
-            return '<button class="tp-chip' + (c.add ? ' add' : '') + '" data-fi="' + ix + '">' +
-                esc(c.n) + (isC ? ' <span class="x" data-del="' + (ix - 5) + '" title="Quitar acceso">✕</span>' : '') +
+            var isC = ix >= BASE_CHIPS.length;
+            return '<button class="tp-chip" data-fi="' + ix + '">' + esc(c.n) +
+                (isC ? ' <span class="x" data-del="' + (ix - BASE_CHIPS.length) + '" title="Quitar acceso">✕</span>' : '') +
                 '</button>';
         }).join('') + '<button class="tp-chip add" data-fi="new">＋ Crear acceso</button>';
-        void custom;
+    }
+    function walkDir(dh, acc, done) {          // recorre una carpeta entera
+        acc = acc || [];
+        var it = dh.values();
+        (function step() {
+            it.next().then(function (r) {
+                if (r.done) return done(acc);
+                var h = r.value;
+                if (h.kind === 'file') h.getFile().then(function (f) { acc.push(f); step(); }).catch(step);
+                else walkDir(h, acc, function () { step(); });
+            }).catch(function () { done(acc); });
+        })();
     }
     function pickChip(c) {
+        if (c.d) {                             // carpeta completa del equipo
+            if (window.showDirectoryPicker) {
+                window.showDirectoryPicker().then(function (dh) {
+                    walkDir(dh, [], function (files) { upAll(files); });
+                }).catch(function () {});
+                return;
+            }
+            fileIn.removeAttribute('accept'); fileIn.setAttribute('webkitdirectory', '');
+            fileIn.click(); return;
+        }
+        if (window.showOpenFilePicker && c.si) {   // abre la carpeta real de la PC
+            window.showOpenFilePicker({ multiple: true, startIn: c.si })
+                .then(function (hs) {
+                    Promise.all(hs.map(function (h) { return h.getFile(); })).then(upAll);
+                }).catch(function () {});
+            return;
+        }
         fileIn.removeAttribute('webkitdirectory');
-        if (c.d) fileIn.setAttribute('webkitdirectory', '');
         if (c.a) fileIn.setAttribute('accept', c.a); else fileIn.removeAttribute('accept');
         fileIn.click();
     }
@@ -62,15 +85,16 @@
         var b = e.target.closest('[data-fi]'); if (!b) return;
         var fi = b.getAttribute('data-fi');
         if (fi === 'new') {
-            var n = window.prompt('Nombre del acceso directo (ej: Descargas, Trabajo):', '');
+            var n = window.prompt('Nombre del acceso directo (ej: Trabajo, Fotos del viaje):', '');
             if (!n) return;
-            var t = window.prompt('Tipo de archivos (imagenes / musica / videos / docs / carpeta / todo):', 'todo') || 'todo';
+            var t = window.prompt('¿Qué abre? (documentos / imagenes / musica / videos / descargas / carpeta / todo):', 'todo') || 'todo';
             var c = { n: n };
             if (/carpeta/.test(t)) c.d = 1;
-            else if (/imagen/.test(t)) c.a = 'image/*';
-            else if (/musica|audio/.test(t)) c.a = 'audio/*';
-            else if (/video/.test(t)) c.a = 'video/*';
-            else if (/doc/.test(t)) c.a = '.pdf,.doc,.docx,.txt,.epub,.xls,.xlsx,.ppt,.pptx';
+            else if (/imagen/.test(t)) { c.si = 'pictures'; c.a = 'image/*'; }
+            else if (/musica|audio/.test(t)) { c.si = 'music'; c.a = 'audio/*'; }
+            else if (/video/.test(t)) { c.si = 'videos'; c.a = 'video/*'; }
+            else if (/doc/.test(t)) { c.si = 'documents'; c.a = '.pdf,.doc,.docx,.txt,.epub,.xls,.xlsx,.ppt,.pptx'; }
+            else if (/descarga/.test(t)) c.si = 'downloads';
             var arr2 = []; try { arr2 = JSON.parse(localStorage.getItem(CHIP_KEY) || '[]'); } catch (e2) {}
             arr2.push(c); saveCustom(arr2); paintFavs(); pickChip(c); return;
         }
