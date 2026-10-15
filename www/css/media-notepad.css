@@ -312,6 +312,57 @@
     padding-right: 0;
 }
 
+/* Fila principal siempre visible + fila extra plegable */
+.np-tb-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.np-tb-extra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(240, 180, 41, 0.22);
+}
+
+.np-tb-more i {
+    transition: transform 0.2s ease;
+}
+
+.np-tb-more.np-open {
+    background: rgba(240, 180, 41, 0.22);
+    border-color: var(--tb-gold, #f0b429);
+}
+
+.np-tb-more.np-open i {
+    transform: rotate(180deg);
+}
+
+/* Chip de sugerencia ortográfica junto al cursor */
+.np-spell-hint {
+    position: fixed;
+    z-index: 130;
+    background: linear-gradient(135deg, #2a1a0c, #1a1009);
+    border: 1px solid var(--tb-terra, #e2602e);
+    border-radius: 999px;
+    color: var(--tb-gold, #f0b429);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 0 10px rgba(226, 96, 46, 0.35);
+    cursor: pointer;
+    max-width: 70vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .np-tbtn {
     background: rgba(255, 255, 255, 0.05);
     color: var(--tb-cream, #f3e6cf);
@@ -443,6 +494,7 @@
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
     user-select: none;
     -webkit-user-select: none;
+    touch-action: none; /* gestos directos: arrastrar / pellizcar manipulan la imagen */
 }
 
 .np-img-wrap.np-sel {

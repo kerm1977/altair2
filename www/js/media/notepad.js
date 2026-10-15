@@ -40,11 +40,11 @@ window.TribalNotepad = (function () {
 
     var LINE_HEIGHTS = ['-2', '-1.5', '-1.25', '1', '1.25', '1.5', '2'];
     var LH_CSS = {
-        '-2': '0.78',
-        '-1.5': '0.86',
-        '-1.25': '0.93',
-        '1': '1',
-        '1.25': '1.25',
+        '-2': '0.5',     // la mitad del texto de arriba se transpone con la de abajo
+        '-1.5': '0.8',   // bases totalmente pegadas
+        '-1.25': '0.95', // apenas respirando
+        '1': '1.08',     // unos pocos píxeles de aire
+        '1.25': '1.3',
         '1.5': '1.5',
         '2': '2'
     };
@@ -219,6 +219,7 @@ window.TribalNotepad = (function () {
             '<!-- VISTA 2: EDITOR WYSIWYG EN VIVO AL AIRE (ARCHIVO COMPLETO SIN CARD) -->' +
             '<section class="np-edit-view" id="np-edit-view" hidden>' +
                 '<nav class="np-toolbar" id="np-toolbar">' +
+                    '<div class="np-tb-main">' +
                     '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn np-disk-btn" data-act="save-disk" title="Guardar nota"><i class="bi bi-floppy-fill"></i></button>' +
                         '<button type="button" class="np-tbtn" id="np-fav-btn" data-act="fav-note" title="Favorito (fijar siempre arriba)"><i class="bi bi-star"></i></button>' +
@@ -230,13 +231,24 @@ window.TribalNotepad = (function () {
                         '<button type="button" class="np-tbtn" data-cmd="bold" title="Negrita"><i class="bi bi-type-bold"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="italic" title="Itálica"><i class="bi bi-type-italic"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="underline" title="Subrayado"><i class="bi bi-type-underline"></i></button>' +
+                        '<button type="button" class="np-tbtn" data-act="quote" title="Cita"><i class="bi bi-chat-quote"></i></button>' +
+                        '<select class="np-dd" id="np-dd-align" title="Alinear elementos seleccionados">' +
+                            '<option value="">Alinear…</option>' +
+                            '<option value="left">Izquierda</option>' +
+                            '<option value="center">Centrar</option>' +
+                            '<option value="right">Derecha</option>' +
+                            '<option value="justify">Justificado</option>' +
+                        '</select>' +
+                        '<button type="button" class="np-tbtn np-tb-more" id="np-tb-more" ' +
+                            'title="Más herramientas"><i class="bi bi-chevron-down"></i></button>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="np-tb-extra" id="np-tb-extra" hidden>' +
+                    '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn" data-cmd="strikeThrough" title="Tachado"><i class="bi bi-type-strikethrough"></i></button>' +
                         '<button type="button" class="np-tbtn" data-act="code" title="Código"><i class="bi bi-code-slash"></i></button>' +
-                        '<button type="button" class="np-tbtn" data-act="quote" title="Cita"><i class="bi bi-chat-quote"></i></button>' +
                         '<button type="button" class="np-tbtn" data-act="link" title="Agregar hipervínculo"><i class="bi bi-link-45deg"></i></button>' +
                         '<button type="button" class="np-tbtn" data-act="hr" title="Línea horizontal"><i class="bi bi-hr"></i></button>' +
-                    '</div>' +
-                    '<div class="np-tb-group">' +
                         '<select class="np-dd" id="np-dd-block" title="Títulos y formato de bloque">' +
                             '<option value="">Título / Bloque…</option>' +
                             '<option value="P">Párrafo normal (P)</option>' +
@@ -246,13 +258,6 @@ window.TribalNotepad = (function () {
                             '<option value="H4">Título H4</option>' +
                             '<option value="H5">Título H5</option>' +
                             '<option value="H6">Título H6</option>' +
-                        '</select>' +
-                        '<select class="np-dd" id="np-dd-align" title="Alinear elementos seleccionados">' +
-                            '<option value="">Alinear selección…</option>' +
-                            '<option value="left">Izquierda</option>' +
-                            '<option value="center">Centrar</option>' +
-                            '<option value="right">Derecha</option>' +
-                            '<option value="justify">Justificado</option>' +
                         '</select>' +
                         '<select class="np-dd" id="np-dd-case" title="Cambiar mayúsculas/minúsculas">' +
                             '<option value="">Mayús / Minús…</option>' +
@@ -284,11 +289,10 @@ window.TribalNotepad = (function () {
                         '<button type="button" class="np-tbtn" data-act="aud-dev" title="Audio del dispositivo"><i class="bi bi-file-earmark-music"></i></button>' +
                         '<button type="button" class="np-tbtn" data-act="vid-dev" title="Video del dispositivo"><i class="bi bi-camera-video"></i></button>' +
                         '<button type="button" class="np-tbtn" data-act="vid-net" title="Video/Audio de YouTube o Facebook"><i class="bi bi-youtube"></i></button>' +
-                    '</div>' +
-                    '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn" data-exp="pdf" title="Exportar a PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</button>' +
                         '<button type="button" class="np-tbtn" data-exp="txt" title="Exportar a TXT"><i class="bi bi-filetype-txt"></i> TXT</button>' +
                         '<button type="button" class="np-tbtn" data-exp="wa" title="Enviar a WhatsApp"><i class="bi bi-whatsapp"></i></button>' +
+                    '</div>' +
                     '</div>' +
                 '</nav>' +
 
@@ -406,6 +410,9 @@ window.TribalNotepad = (function () {
                 '</div>' +
             '</div>' +
 
+            '<!-- CHIP DE SUGERENCIA ORTOGRÁFICA JUNTO AL CURSOR -->' +
+            '<button type="button" class="np-spell-hint" id="np-spell-hint" hidden></button>' +
+
             '<!-- MENÚ CONTEXTUAL LONG-PRESS DE DOCUMENTO GUARDADO -->' +
             '<div class="np-modal-bd" id="np-doc-menu" hidden>' +
                 '<div class="np-modal-card np-ctx-card">' +
@@ -510,7 +517,30 @@ window.TribalNotepad = (function () {
     function bindWrapEvents(wrap) {
         if (wrap._npBound) return;
         wrap._npBound = true;
-        var lpT = null, startX = 0, startY = 0, dragging = false, origX = 0, origY = 0;
+        var lpT = null, pts = {}, mv = null, pinch = null, dirty = false;
+
+        function nPts() { return Object.keys(pts).length; }
+        function interactive(e) {
+            return !!(e.target && e.target.closest &&
+                e.target.closest('audio,video,iframe,button,.np-media-badge,.np-media-del-x'));
+        }
+        function ensureFree() {
+            if (wrap.getAttribute('data-free') !== '1') {
+                wrap.setAttribute('data-free', '1');
+                wrap.setAttribute('data-x', String(wrap.offsetLeft));
+                wrap.setAttribute('data-y', String(wrap.offsetTop));
+                applyWrapTransform(wrap);
+            }
+        }
+        function pairInfo() {
+            var ks = Object.keys(pts), a = pts[ks[0]], b = pts[ks[1]];
+            return {
+                d: Math.max(12, Math.hypot(a.x - b.x, a.y - b.y)),
+                ang: Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI,
+                mx: (a.x + b.x) / 2,
+                my: (a.y + b.y) / 2
+            };
+        }
 
         wrap.addEventListener('pointerdown', function (e) {
             e.stopPropagation();
@@ -521,46 +551,89 @@ window.TribalNotepad = (function () {
             }
             wrap.classList.add('np-sel');
             activeWrap = wrap;
-            startX = e.clientX;
-            startY = e.clientY;
-            dragging = false;
+            if (interactive(e)) return;
+            pts[e.pointerId] = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY };
+            try { wrap.setPointerCapture(e.pointerId); } catch (er) {}
 
-            if (wrap.getAttribute('data-free') === '1' && !e.target.closest('audio,video,iframe')) {
-                origX = parseFloat(wrap.getAttribute('data-x') || wrap.offsetLeft || '16') || 16;
-                origY = parseFloat(wrap.getAttribute('data-y') || wrap.offsetTop || '16') || 16;
-                dragging = true;
-                try { wrap.setPointerCapture(e.pointerId); } catch (er) {}
+            if (nPts() === 1) {
+                // Un dedo arrastra la imagen libremente (el scroll va sobre el texto)
+                mv = {
+                    x: e.clientX, y: e.clientY,
+                    ox: parseFloat(wrap.getAttribute('data-x') || wrap.offsetLeft || '16') || 16,
+                    oy: parseFloat(wrap.getAttribute('data-y') || wrap.offsetTop || '16') || 16,
+                    moved: false
+                };
+                clearTimeout(lpT);
+                lpT = setTimeout(function () {
+                    lpT = null;
+                    openMediaMenu(wrap);
+                }, 520);
+            } else if (nPts() === 2) {
+                clearTimeout(lpT); lpT = null; mv = null;
+                ensureFree();
+                var pi = pairInfo();
+                pinch = {
+                    d: pi.d, ang: pi.ang, mx: pi.mx, my: pi.my,
+                    s: parseFloat(wrap.getAttribute('data-scale') || '70') || 70,
+                    r: parseFloat(wrap.getAttribute('data-rot') || '0') || 0,
+                    x: parseFloat(wrap.getAttribute('data-x') || wrap.offsetLeft || '16') || 16,
+                    y: parseFloat(wrap.getAttribute('data-y') || wrap.offsetTop || '16') || 16
+                };
             }
-
-            clearTimeout(lpT);
-            lpT = setTimeout(function () {
-                lpT = null;
-                dragging = false;
-                openMediaMenu(wrap);
-            }, 460);
         });
 
         wrap.addEventListener('pointermove', function (e) {
-            if (lpT && (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10)) {
-                clearTimeout(lpT);
-                lpT = null;
+            var p = pts[e.pointerId];
+            if (!p) return;
+            p.x = e.clientX; p.y = e.clientY;
+            if (pinch && nPts() === 2) {
+                var pi = pairInfo();
+                var ns = Math.max(15, Math.min(100, pinch.s * (pi.d / pinch.d)));
+                wrap.setAttribute('data-scale', String(Math.round(ns)));
+                wrap.setAttribute('data-rot',
+                    String(Math.round(pinch.r + (pi.ang - pinch.ang))));
+                wrap.setAttribute('data-x',
+                    String(Math.round(pinch.x + pi.mx - pinch.mx)));
+                wrap.setAttribute('data-y',
+                    String(Math.round(pinch.y + pi.my - pinch.my)));
+                applyWrapTransform(wrap);
+                dirty = true;
+                return;
             }
-            if (dragging && wrap.getAttribute('data-free') === '1') {
-                var nx = Math.max(0, origX + (e.clientX - startX));
-                var ny = Math.max(0, origY + (e.clientY - startY));
-                wrap.setAttribute('data-x', String(Math.round(nx)));
-                wrap.setAttribute('data-y', String(Math.round(ny)));
-                wrap.style.left = Math.round(nx) + 'px';
-                wrap.style.top = Math.round(ny) + 'px';
+            if (mv && (mv.moved ||
+                Math.abs(e.clientX - mv.x) > 8 || Math.abs(e.clientY - mv.y) > 8)) {
+                clearTimeout(lpT); lpT = null;
+                ensureFree();
+                mv.moved = true;
+                wrap.setAttribute('data-x',
+                    String(Math.round(Math.max(-40, mv.ox + (e.clientX - mv.x)))));
+                wrap.setAttribute('data-y',
+                    String(Math.round(Math.max(-40, mv.oy + (e.clientY - mv.y)))));
+                applyWrapTransform(wrap);
+                dirty = true;
+            } else if (lpT &&
+                (Math.abs(e.clientX - p.x0) > 10 || Math.abs(e.clientY - p.y0) > 10)) {
+                clearTimeout(lpT); lpT = null;
             }
         });
 
-        function endPtr() {
-            clearTimeout(lpT);
-            lpT = null;
-            if (dragging) {
-                dragging = false;
-                scheduleLiveSave();
+        function endPtr(e) {
+            if (e && e.pointerId in pts) delete pts[e.pointerId];
+            if (nPts() < 2) pinch = null;
+            if (nPts() === 1) {
+                // queda un dedo tras el pellizco → re-anclar arrastre
+                var id = Object.keys(pts)[0];
+                mv = {
+                    x: pts[id].x, y: pts[id].y,
+                    ox: parseFloat(wrap.getAttribute('data-x') || '16') || 16,
+                    oy: parseFloat(wrap.getAttribute('data-y') || '16') || 16,
+                    moved: true
+                };
+            }
+            if (nPts() === 0) {
+                clearTimeout(lpT); lpT = null;
+                if (dirty || (mv && mv.moved)) { pushHistory(); scheduleLiveSave(); }
+                mv = null; dirty = false;
             }
         }
         wrap.addEventListener('pointerup', endPtr);
@@ -1138,7 +1211,9 @@ window.TribalNotepad = (function () {
         });
         titleEl.addEventListener('input', scheduleLiveSave);
         canvas.addEventListener('keydown', function (e) {
-            if ((e.key === ' ' || e.key === 'Enter' || e.key === ',' || e.key === '.') &&
+            if ((e.key === ' ' || e.key === 'Enter' || e.key === ',' || e.key === '.' ||
+                e.key === ';' || e.key === ':' || e.key === '!' || e.key === '?' ||
+                e.key === ')' || e.key === '(' || e.key === '"' || e.key === 'Tab') &&
                 window.TribalNotepadWords) {
                 var sel = window.getSelection && window.getSelection();
                 if (sel && sel.rangeCount && sel.isCollapsed) {
@@ -1170,6 +1245,59 @@ window.TribalNotepad = (function () {
             scheduleLiveSave();
         });
 
+        // Ortografía en vivo: chip «✏ sugerencia» flotante junto al cursor
+        var spellHint = ov.querySelector('#np-spell-hint');
+        var shT = null, shWord = null, shFix = null, shNode = null, shStart = 0, shEnd = 0;
+        function hideSpellHint() { if (spellHint) spellHint.hidden = true; shWord = null; }
+        function scheduleSpellHint() {
+            if (!spellHint || !window.TribalNotepadWords) return;
+            clearTimeout(shT);
+            shT = setTimeout(showSpellHint, 320);
+        }
+        function showSpellHint() {
+            var sel = window.getSelection && window.getSelection();
+            if (!sel || !sel.rangeCount || !sel.isCollapsed) return hideSpellHint();
+            var r = sel.getRangeAt(0), nd = r.startContainer;
+            if (!nd || nd.nodeType !== 3 ||
+                !(canvas.contains(nd) || titleEl.contains(nd))) return hideSpellHint();
+            var before = (nd.nodeValue || '').slice(0, r.startOffset);
+            var m = /([A-Za-zÁÉÍÓÚáéíóúñÑüÜ]{2,})$/.exec(before);
+            if (!m) return hideSpellHint();
+            var fix = window.TribalNotepadWords.autocorrectWord(m[1]);
+            if (!fix || fix === m[1]) return hideSpellHint();
+            shWord = m[1]; shFix = fix; shNode = nd;
+            shStart = r.startOffset - m[1].length; shEnd = r.startOffset;
+            var wr = document.createRange();
+            wr.setStart(nd, shStart); wr.setEnd(nd, shEnd);
+            var rc = wr.getBoundingClientRect();
+            spellHint.textContent = '✏ ' + fix;
+            spellHint.style.left = Math.max(8, Math.min(rc.left, window.innerWidth - 140)) + 'px';
+            spellHint.style.top = (rc.bottom + 6) + 'px';
+            spellHint.hidden = false;
+        }
+        if (spellHint) {
+            spellHint.addEventListener('pointerdown', function (e) {
+                e.preventDefault(); e.stopPropagation();
+                if (!shNode || !shNode.parentNode || !shFix) return hideSpellHint();
+                var txt = shNode.nodeValue || '';
+                if (txt.slice(shStart, shEnd) === shWord) {
+                    shNode.nodeValue = txt.slice(0, shStart) + shFix + txt.slice(shEnd);
+                    pushHistory(); scheduleLiveSave();
+                }
+                hideSpellHint();
+            });
+            canvas.addEventListener('input', scheduleSpellHint);
+            titleEl.addEventListener('input', scheduleSpellHint);
+            document.addEventListener('selectionchange', function () {
+                if (!ov || ov.hidden) return;
+                var sel = window.getSelection && window.getSelection();
+                if (!sel || !sel.rangeCount) return hideSpellHint();
+                var nd = sel.getRangeAt(0).startContainer;
+                if (nd && (canvas.contains(nd) || titleEl.contains(nd))) scheduleSpellHint();
+                else hideSpellHint();
+            });
+        }
+
         // Botón Volver y Texto completo
         onEl('#np-back', 'click', function () {
             if (!ov.querySelector('#np-edit-view').hidden && curNote) {
@@ -1187,6 +1315,11 @@ window.TribalNotepad = (function () {
         });
         onEl('#np-new-btn', 'click', function () {
             openNoteEditor(null);
+        });
+        onEl('#np-tb-more', 'click', function () {
+            var ex = ov.querySelector('#np-tb-extra');
+            ex.hidden = !ex.hidden;
+            this.classList.toggle('np-open', !ex.hidden);
         });
 
         // Buscador en vivo de notas y paginación cada 10 notas
