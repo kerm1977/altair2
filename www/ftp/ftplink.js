@@ -138,8 +138,7 @@
 
     /* ---------------- eliminar: modal de 3 pasos ---------------- */
     var delId = '', delName = '', delStep = 0;
-    var T1 = document.getElementById('tpdel-t1'), T2 = document.getElementById('tpdel-t2'),
-        NO = document.getElementById('tpdel-no'), YES = document.getElementById('tpdel-yes');
+    var T1 = $id('tpdel-t1'), T2 = $id('tpdel-t2'), NO = $id('tpdel-no'), YES = $id('tpdel-yes');
     var STEPS = [
         { t1: '¿Eliminar este archivo?', t2: '«%s» — paso 1 de 3', y: 'Continuar →' },
         { t1: 'Se borrará del dispositivo', t2: 'No solo sale de la lista — el archivo se elimina del teléfono. Paso 2 de 3', y: 'Sí, continuar →' },
@@ -195,7 +194,7 @@
     fileIn.addEventListener('change', function () { upAll(fileIn.files); fileIn.value = ''; });
     zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('over'); });
     zone.addEventListener('dragleave', function () { zone.classList.remove('over'); });
-    zone.addEventListener('drop', function (e) { e.preventDefault(); zone.classList.remove('over'); upAll(e.dataTransfer.files); });
+    zone.addEventListener('drop', function (e) { e.preventDefault(); zone.classList.remove('over'); upAll(e.dataTransfer && e.dataTransfer.files); });
 
     paintFavs(); load(); setInterval(load, 20000);   // refresco suave: la tribu cambia
 })();
