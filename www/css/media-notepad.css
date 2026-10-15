@@ -1015,15 +1015,35 @@
 }
 
 .rc-page .btm-status-bar {
+    order: 0;
     flex-shrink: 0;
 }
 
+.rc-page .rc-dev-actions {
+    order: 1;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: rgba(18, 11, 6, 0.94);
+    padding: 4px 0;
+}
+
 .rc-page .btm-list {
+    order: 2;
     flex: 0 0 auto;
+    margin-top: 16px;
 }
 
 .rc-page .btm-row {
     flex-shrink: 0;
+}
+
+/* Separación ~26px bajo los botones de acción (gap 14px + margen) */
+#btw-list,
+#btm-list {
+    margin-top: 12px;
+    flex: 0 0 auto;
 }
 
 #rc-vis.on {

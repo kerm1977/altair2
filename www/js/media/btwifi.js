@@ -102,12 +102,12 @@ window.TribalBtWifi = (function () {
                     '<button type="button" class="btm-cat" data-t="wifi"><i class="bi bi-wifi"></i><span>Redes Wi-Fi</span></button>' +
                     '<button type="button" class="btm-cat" data-t="hotspot"><i class="bi bi-broadcast-pin"></i><span>Hotspot / Red local</span></button></div>' +
                 '<p class="btm-status-bar" id="btw-status">Analizando…</p>' +
-                '<div id="btw-list" class="btm-list"></div>' +
                 '<div class="btm-grid-tiles">' +
                     '<button class="btm-tile" id="btw-wset"><i class="bi bi-gear-fill"></i><span>Ajustes Wi-Fi</span></button>' +
                     '<button class="btm-tile" id="btw-hset"><i class="bi bi-broadcast-pin"></i><span>Ajustes Hotspot</span></button>' +
                     '<button class="btm-tile" id="btw-mgr"><i class="bi bi-bluetooth"></i><span>Administrador BT</span></button>' +
                     '<button class="btm-tile" id="btw-rc"><i class="bi bi-controller"></i><span>Control remoto</span></button></div>' +
+                '<div id="btw-list" class="btm-list"></div>' +
             '</div></div>';
         (deps.mount || document.body).appendChild(ov);
         ov.querySelector('#btw-back').onclick = close;
