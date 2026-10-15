@@ -7,14 +7,11 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
 
-/**
- * TribalFtp — mini servidor HTTP en la LAN (estilo FTP web tribal).
- *   GET  /            → interfaz tribal (assets public/ftp/index.html)
- *   GET  /ftp/x       → css/js de esa interfaz
- *   GET  /api/list    → catálogo JSON que la app empuja con setCatalog()
- *   GET  /dl?p=…&n=…  → descarga un archivo (builtin asset o tribu_media)
- *   POST /up?n=…      → sube un archivo a files/tribu_inbox → evento tribalInbox
- */
+/** TribalFtp — mini servidor HTTP LAN (estilo FTP web tribal).
+ *  GET / → interfaz tribal (assets public/ftp/) · /ftp/x → su css/js
+ *  GET /api/list → catálogo JSON (setCatalog) · /dl?p=&n= → descarga
+ *  POST /up?n= → sube a files/tribu_inbox → evento tribalInbox
+ *  GET /del?i= → avisa al JS para eliminar (3 pasos desde la web) */
 @CapacitorPlugin(name = "TribalFtp")
 public class TribalFtpPlugin extends Plugin {
     private static final int PORT = 8765;
@@ -22,8 +19,7 @@ public class TribalFtpPlugin extends Plugin {
     private ExecutorService pool;
     private volatile String catalog = "[]";
 
-    @PluginMethod
-    public void start(PluginCall c) {
+    @PluginMethod public void start(PluginCall c) {
         try {
             if (srv == null || srv.isClosed()) {
                 srv = new ServerSocket();
@@ -36,8 +32,7 @@ public class TribalFtpPlugin extends Plugin {
         } catch (Exception e) { c.reject("ftp start: " + e.getMessage()); }
     }
 
-    @PluginMethod
-    public void stop(PluginCall c) {
+    @PluginMethod public void stop(PluginCall c) {
         try { if (srv != null) srv.close(); } catch (Exception ignored) {}
         srv = null;
         if (pool != null) pool.shutdownNow();
@@ -46,8 +41,7 @@ public class TribalFtpPlugin extends Plugin {
 
     @PluginMethod public void status(PluginCall c) { c.resolve(info()); }
 
-    @PluginMethod
-    public void setCatalog(PluginCall c) {
+    @PluginMethod public void setCatalog(PluginCall c) {
         String j = c.getString("json");
         if (j != null) catalog = j;
         c.resolve();
@@ -56,18 +50,30 @@ public class TribalFtpPlugin extends Plugin {
     private JSObject info() {
         JSObject r = new JSObject();
         r.put("running", srv != null && !srv.isClosed());
-        r.put("url", "http://" + lanIp() + ":" + PORT);
-        return r;
-    }
-
-    private String lanIp() {
+        JSArray urls = new JSArray();
+        String first = "http://127.0.0.1:" + PORT;
         try {
-            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces()))
-                for (InetAddress a : Collections.list(ni.getInetAddresses()))
-                    if (!a.isLoopbackAddress() && a instanceof Inet4Address)
-                        return a.getHostAddress();
+            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                boolean hot = ni.getName().matches("(?i)ap|ap0|swlan|rndis|wlan1.*|.*ap.*");
+                for (InetAddress a : Collections.list(ni.getInetAddresses())) {
+                    if (a.isLoopbackAddress() || !(a instanceof Inet4Address)) continue;
+                    String u = "http://" + a.getHostAddress() + ":" + PORT;
+                    if (first.contains("127.0.0.1")) first = u;
+                    JSObject j = new JSObject(); j.put("u", u); j.put("hot", hot); urls.put(j);
+                }
+            }
         } catch (Exception ignored) {}
-        return "127.0.0.1";
+        String host = "";
+        try {
+            host = android.provider.Settings.Global.getString(
+                getContext().getContentResolver(), "device_name");
+            if (host == null || host.isEmpty()) host = android.os.Build.MODEL;
+            host = host.replaceAll("[^A-Za-z0-9-]", "-").replaceAll("-+", "-")
+                       .replaceAll("^-|-$", "").toLowerCase();
+        } catch (Exception ignored) {}
+        r.put("url", first); r.put("urls", urls);
+        r.put("host", host.isEmpty() ? null : "http://" + host + ":" + PORT);
+        return r;
     }
 
     private void acceptLoop() {
@@ -76,8 +82,7 @@ public class TribalFtpPlugin extends Plugin {
                 final Socket s = srv.accept();
                 pool.execute(new Runnable() { public void run() { handle(s); } });
             }
-        } catch (Exception ignored) {}
-    }
+        } catch (Exception ignored) {} }
 
     private void handle(Socket s) {
         try {
@@ -112,6 +117,7 @@ public class TribalFtpPlugin extends Plugin {
             else if (path.equals("/api/list")) sendBytes(out, catalog.getBytes("UTF-8"), "application/json; charset=utf-8", 200);
             else if (path.equals("/dl")) sendFile(out, qs.get("p"), qs.get("n"));
             else if (path.equals("/up")) recvUpload(in, out, qs.get("n"), bodyLen);
+            else if (path.equals("/del")) delFile(out, qs.get("i"));
             else sendBytes(out, "no encontrado".getBytes("UTF-8"), "text/plain; charset=utf-8", 404);
             s.close();
         } catch (Exception e) { try { s.close(); } catch (Exception ignored) {} }
@@ -169,6 +175,13 @@ public class TribalFtpPlugin extends Plugin {
             getBridge().triggerWindowJSEvent("tribalInbox");   // inbox.js lo indexa en la tribu
             sendBytes(out, ("{\"ok\":true,\"name\":\"" + safe + "\"}").getBytes("UTF-8"), "application/json", 200);
         } catch (Exception e) { fail(out, 500); }
+    }
+
+    // la app (JS) borra el índice + el archivo vía MediaStore.remove — aquí solo avisamos
+    private void delFile(OutputStream out, String id) {
+        JSObject ev = new JSObject(); ev.put("id", id == null ? "" : id);
+        notifyListeners("ftpDel", ev);
+        try { sendBytes(out, "{\"ok\":true}".getBytes("UTF-8"), "application/json", 200); } catch (Exception ignored) {}
     }
 
     private void fail(OutputStream out, int code) {

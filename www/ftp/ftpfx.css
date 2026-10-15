@@ -1,0 +1,126 @@
+/* ftpfx.css — efectos tribales: sol giratorio, título, secciones, chips, modal */
+
+/* — sol giratorio idéntico al de la app (tribal-spin 40 s + halo dorado) — */
+.tp-sunwrap { flex-shrink: 0; }
+.tp-sun {
+    width: 64px; height: 64px;
+    filter: drop-shadow(0 0 14px rgba(240, 180, 41, 0.45));
+    animation: tp-spin 40s linear infinite;
+}
+@keyframes tp-spin { to { transform: rotate(360deg); } }
+
+/* — título TRIBALs con las mismas letras/acentos de la app — */
+.tp-logo-t {
+    margin: 0;
+    font-size: 1.9rem; font-weight: 900;
+    letter-spacing: 0.1em; line-height: 1;
+    color: var(--cream);
+    text-shadow: 0 2px 0 rgba(160, 50, 20, 0.9), 0 6px 18px rgba(224, 96, 46, 0.35);
+}
+.tp-logo-t .tr-sm { font-size: 0.55em; }
+.tp-logo-t .tr-b { font-size: 1.3em; color: var(--terra); }
+.tp-logo-t .tr-accent { color: var(--gold); }
+.tp-sub {
+    margin: 6px 0 0; font-size: 0.78rem;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted);
+}
+
+/* — banda difuminada viento/halo como la cabecera de la app — */
+.tp-band { height: 18px; margin: 10px 0 0; overflow: hidden; position: relative; }
+.tp-halo {
+    position: absolute; top: 6px; bottom: 0; width: 200%;
+    background: linear-gradient(90deg,
+        transparent 0%, #e2602e 12%, #f0b429 26%, #2a9d8f 38%,
+        #f0b429 50%, #e2602e 62%, #2a9d8f 74%, #f0b429 86%, transparent 100%);
+    background-size: 50% 100%;
+    filter: blur(7px); opacity: 0.85;
+    animation: tp-wind 11s linear infinite;
+}
+@keyframes tp-wind { to { transform: translateX(-25%); } }
+
+/* — carpetas favoritas / accesos directos — */
+.tp-favs {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 12px 20px 2px;
+    max-width: 720px; width: 100%; margin: 0 auto;
+}
+.tp-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 20px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--cream); font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; transition: all 0.18s ease;
+}
+.tp-chip:hover { border-color: var(--gold); background: rgba(240, 180, 41, 0.1); }
+.tp-chip:active { transform: scale(0.95); }
+.tp-chip .x {
+    margin-left: 2px; color: var(--muted);
+    font-weight: 700; padding: 0 2px;
+}
+.tp-chip .x:hover { color: var(--terra); }
+.tp-chip.add { border-style: dashed; color: var(--gold); }
+
+/* — separadores por tipo, como «Música / Videos / …» en la app — */
+.tp-sep {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 10px;
+    margin: 8px 0 2px; user-select: none;
+}
+.tp-sep::before, .tp-sep::after {
+    content: ''; flex: 1; height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, transparent, #e2602e, transparent);
+}
+.tp-sep::after { background: linear-gradient(90deg, transparent, #e2602e, transparent); transform: scaleX(-1); }
+.tp-sep span {
+    color: var(--terra); font-size: 0.72rem;
+    letter-spacing: 2px; text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+
+/* — botón eliminar en el card — */
+.tp-acts .tp-btn.ghost {
+    background: transparent; color: var(--cream);
+    border: 1px solid var(--line);
+}
+.tp-acts .tp-btn.danger {
+    background: linear-gradient(135deg, #8f1d0e, #d43a1e);
+    border-color: #d43a1e; color: #ffe9dc;
+}
+.tp-btag {
+    font-size: 0.68rem; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 2px 8px;
+}
+
+/* — modal de eliminación en 3 pasos — */
+.tp-modal {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    background: rgba(12, 7, 4, 0.78);
+    backdrop-filter: blur(8px);
+}
+.tp-modal[hidden] { display: none; }
+.tp-modal-card {
+    width: min(420px, 94vw);
+    background: var(--card);
+    border: 1px solid rgba(240, 180, 41, 0.38);
+    border-radius: 18px; padding: 20px;
+    display: flex; flex-direction: column; gap: 12px;
+    text-align: center;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
+}
+.tp-modal-sun {
+    width: 44px; height: 44px; margin: 0 auto;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; color: #160e07;
+    background: linear-gradient(135deg, var(--terra), var(--gold));
+    animation: tp-spin 6s linear infinite;
+}
+.tp-modal-sub { color: var(--muted); font-size: 0.82rem; }
+.tp-modal-acts { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.tp-modal-card .tp-btn.danger { background: linear-gradient(135deg, #8f1d0e, #d43a1e); border-color: #d43a1e; color: #ffe9dc; }
+.tp-modal-card .tp-btn.ghost { background: transparent; color: var(--cream); border: 1px solid var(--line); }

@@ -5,31 +5,60 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TRIBALs · Tribu de archivos</title>
 <link rel="stylesheet" href="/ftp/ftplink.css">
+<link rel="stylesheet" href="/ftp/ftpfx.css">
 </head>
 <body>
 <header class="tp-head">
-  <div class="tp-logo">◈</div>
+  <div class="tp-sunwrap">
+    <svg class="tp-sun" viewBox="0 0 64 64" aria-hidden="true">
+      <g fill="#f0b429">
+        <polygon points="32,0 36,10 28,10"/>
+        <polygon points="32,0 36,10 28,10" transform="rotate(45 32 32)"/>
+        <polygon points="32,0 36,10 28,10" transform="rotate(90 32 32)"/>
+        <polygon points="32,0 36,10 28,10" transform="rotate(135 32 32)"/>
+        <polygon points="32,0 36,10 28,10" transform="rotate(180 32 32)"/>
+        <polygon points="32,0 36,10 28,10" transform="rotate(225 32 32)"/>
+        <polygon points="32,0 36,10 28,10" transform="rotate(270 32 32)"/>
+        <polygon points="32,0 36,10 28,10" transform="rotate(315 32 32)"/>
+      </g>
+      <circle cx="32" cy="32" r="15" fill="#e2602e" stroke="#f0b429" stroke-width="2"/>
+      <circle cx="32" cy="32" r="7" fill="none" stroke="#f3e6cf" stroke-width="2" stroke-dasharray="3 3"/>
+    </svg>
+  </div>
   <div class="tp-title">
-    <h1>TRIBALs</h1>
-    <p>Tribu de archivos · servidor local</p>
+    <h1 class="tp-logo-t">T<span class="tr-sm">R</span>I<span class="tr-b">B</span>AL<span class="tr-accent">s</span></h1>
+    <p class="tp-sub" id="tp-srv">Tribu de archivos · servidor local</p>
   </div>
 </header>
+<div class="tp-band"><div class="tp-halo"></div></div>
+
+<nav class="tp-favs" id="favbar" aria-label="Carpetas favoritas"></nav>
 
 <section class="tp-up">
-  <label class="tp-zone" id="zone">
+  <div class="tp-zone" id="zone" role="button" tabindex="0">
     <input type="file" id="file" multiple hidden>
     <strong>⬆ Subir archivos a la tribu</strong>
-    <span>Toca para elegir o arrastra aquí — entran directo a la biblioteca</span>
-  </label>
+    <span>Toca para elegir, arrastra aquí o usa tus carpetas favoritas</span>
+  </div>
   <div class="tp-prog" id="prog" hidden>
     <div class="tp-prog-track"><div class="tp-prog-bar" id="progbar"></div></div>
     <span id="progtxt"></span>
   </div>
 </section>
 
-<main class="tp-list" id="list">
-  <p class="tp-empty">Cargando la tribu…</p>
-</main>
+<main class="tp-list" id="list"><p class="tp-empty">Cargando la tribu…</p></main>
+
+<div class="tp-modal" id="tpdel" hidden>
+  <div class="tp-modal-card">
+    <div class="tp-modal-sun">◈</div>
+    <p id="tpdel-t1"><b>¿Eliminar este archivo?</b></p>
+    <p id="tpdel-t2" class="tp-modal-sub"></p>
+    <div class="tp-modal-acts">
+      <button class="tp-btn ghost" id="tpdel-no">Cancelar</button>
+      <button class="tp-btn danger" id="tpdel-yes">Continuar</button>
+    </div>
+  </div>
+</div>
 
 <footer class="tp-foot">
   TRIBALs · servidor LAN interno — solo visible para equipos de tu misma red

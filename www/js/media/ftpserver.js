@@ -1,77 +1,75 @@
 // === media/ftpserver.js (<=200): Servidor de archivos LAN (FTP tribal) ===
 // Panel ⋮ «Servidor de archivos»: inicia/detiene el mini servidor HTTP
-// nativo (TribalFtpPlugin, puerto 8765), muestra el enlace compartible,
-// y auto-arranca al abrir la app salvo que el usuario lo apague.
+// nativo (TribalFtpPlugin, puerto 8765), muestra enlaces compartibles
+// (LAN + hotspot + nombre), y auto-arranca al abrir la app salvo apagado.
 window.TribalFtp = (function () {
     'use strict';
-    var AUTO_KEY = 'tribu_ftp_auto';
-    var ov = null, deps = {}, lastUrl = '';
+    var AUTO_KEY = 'tribu_ftp_auto', NAME_KEY = 'tribu_ftp_name';
+    var ov = null, deps = {}, lastInfo = null, S0 = null;
     function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-    function toast(m) { if (deps && deps.toast) deps.toast(m); }
-    function plug() {
-        var C = window.Capacitor;
-        return (C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.TribalFtp) || null;
-    }
+    function toast(m) { if (deps && deps.toast) deps.toast(m); else if (S0 && S0.showToast) S0.showToast(m); }
+    function plug() { var C = window.Capacitor;
+        return (C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.TribalFtp) || null; }
     function isAuto() { return localStorage.getItem(AUTO_KEY) !== '0'; }
+    function srvName() { return localStorage.getItem(NAME_KEY) || 'Mi tribu'; }
 
-    // catálogo: {n: nombre, s: tamaño, k: kind, p: 'builtin/…' | 'tribu_media/…'}
+    // catálogo: {name, items:[{i,n,s,k,p,ro}]} — p: 'builtin/…' | 'tribu_media/…'
     function catalog() {
         var MS = window.MediaStore;
-        if (!MS || !MS.list) return Promise.resolve('[]');
+        if (!MS || !MS.list) return Promise.resolve('{"items":[]}');
         return MS.list().then(function (items) {
             var arr = items.filter(function (m) { return m && (m.path || m.builtin); })
-                .map(function (m) { return { n: m.name, s: m.size || 0, k: m.kind || 'other', p: m.builtin || m.path }; });
-            return JSON.stringify(arr);
-        }).catch(function () { return '[]'; });
+                .map(function (m) { return { i: m.id, n: m.name, s: m.size || 0,
+                    k: m.kind || 'other', p: m.builtin || m.path, ro: m.builtin ? 1 : 0 }; });
+            return JSON.stringify({ name: srvName(), items: arr });
+        }).catch(function () { return '{"items":[]}'; });
     }
-    function pushCat() {
-        var P = plug(); if (!P) return Promise.resolve();
-        return catalog().then(function (j) { return P.setCatalog({ json: j }); }).catch(function () {});
-    }
+    function pushCat() { var P = plug(); if (!P) return Promise.resolve();
+        return catalog().then(function (j) { return P.setCatalog({ json: j }); }).catch(function () {}); }
 
     function paint(r) {
-        if (!ov) return;
-        var on = !!(r && r.running);
-        if (r && r.url) lastUrl = r.url;
+        if (!ov || !r) return; lastInfo = r;
+        var on = !!r.running;
         var st = ov.querySelector('#ftp-state'), url = ov.querySelector('#ftp-url'),
-            pw = ov.querySelector('#ftp-power'), cnt = ov.querySelector('#ftp-count');
-        if (st) st.innerHTML = on
-            ? '● <b>Servidor activo</b> — comparte el enlace con equipos de tu red'
-            : '○ Servidor detenido — inícialo para compartir archivos';
-        if (st) st.className = 'btm-status-bar' + (on ? ' ftp-live' : '');
-        if (url) { url.textContent = on ? lastUrl : '—'; url.classList.toggle('ftp-url-on', on); }
+            pw = ov.querySelector('#ftp-power'), cnt = ov.querySelector('#ftp-count'),
+            alts = ov.querySelector('#ftp-alts'), nm = ov.querySelector('#ftp-name');
+        if (st) { st.innerHTML = on ? '● <b>Servidor activo</b> — comparte el enlace con equipos de tu red' : '○ Servidor detenido — inícialo para compartir archivos';
+            st.className = 'btm-status-bar' + (on ? ' ftp-live' : ''); }
+        if (url) { url.textContent = on ? r.url : '—'; url.classList.toggle('ftp-url-on', on); }
         if (pw) pw.classList.toggle('on', on);
-        catalog().then(function (j) {
-            try { if (cnt) cnt.textContent = JSON.parse(j).length + ' archivos visibles en la tribu'; } catch (e) {}
-        });
+        if (nm && document.activeElement !== nm) nm.value = srvName();
+        if (alts) {
+            var links = [];
+            ((r.urls) || []).forEach(function (u) { if (u.u !== r.url) links.push('<b>' + esc(u.u) + '</b>' + (u.hot ? ' 📡 hotspot' : '')); });
+            if (r.host) links.push('<b>' + esc(r.host) + '</b> (nombre)');
+            alts.innerHTML = links.length ? 'También responde en: ' + links.join(' · ')
+                : 'Con tu hotspot el enlace casi siempre es estable (192.168.x.1) — ideal para compartir por WhatsApp';
+        }
+        catalog().then(function (j) { try { var d = JSON.parse(j);
+            if (cnt) cnt.textContent = (d.items || []).length + ' archivos visibles en la tribu'; } catch (e) {} });
     }
 
-    function refresh() {
-        var P = plug(); if (!P) return;
-        pushCat().then(function () { return P.status(); }).then(paint).catch(function () {});
-    }
-
-    function toggleSrv() {
-        var P = plug(); if (!P) return toast('Solo disponible en el APK');
+    function refresh() { var P = plug(); if (!P) return;
+        pushCat().then(function () { return P.status(); }).then(paint).catch(function () {}); }
+    function toggleSrv() { var P = plug(); if (!P) return toast('Solo disponible en el APK');
         P.status().then(function (r) {
             if (r && r.running) return P.stop().then(function (s) { toast('Servidor detenido — ya no es visible en la red'); paint(s); });
             return pushCat().then(function () { return P.start(); })
                 .then(function (s) { toast('📡 Servidor activo en tu red'); paint(s); });
-        }).catch(function (e) { toast('Servidor: ' + e); });
-    }
+        }).catch(function (e) { toast('Servidor: ' + e); }); }
 
-    function copyLink() {
-        if (!lastUrl) return toast('Inicia el servidor primero');
+    function shareTxt() {
+        var u = lastInfo && lastInfo.url || 'http://…:8765';
+        return '🔥 ' + srvName() + ' — abre este enlace estando en mi misma red (o conéctate a mi hotspot): ' + u; }
+    function copyLink() { if (!lastInfo || !lastInfo.running) return toast('Inicia el servidor primero');
         var done = function () { toast('Enlace copiado — pégalo en el navegador del otro equipo'); };
-        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(lastUrl).then(done, done);
-        else done();
-    }
-    function shareLink() {
-        if (!lastUrl) return toast('Inicia el servidor primero');
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(lastInfo.url).then(done, done); else done(); }
+    function shareLink() { if (!lastInfo || !lastInfo.running) return toast('Inicia el servidor primero');
         var C = window.Capacitor, Sh = C && C.Plugins && C.Plugins.Share;
-        if (Sh && Sh.share) Sh.share({ title: 'TRIBALs · servidor de archivos', text: 'Abre este enlace en la misma red: ' + lastUrl, url: lastUrl }).catch(function () {});
-        else copyLink();
-    }
+        if (Sh && Sh.share) Sh.share({ title: srvName() + ' · servidor de archivos', text: shareTxt(), url: lastInfo.url }).catch(function () {});
+        else copyLink(); }
+    function shareWA() { if (!lastInfo || !lastInfo.running) return toast('Inicia el servidor primero');
+        window.open('https://wa.me/?text=' + encodeURIComponent(shareTxt()), '_blank'); }
 
     function open(d) {
         deps = d || {};
@@ -85,14 +83,19 @@ window.TribalFtp = (function () {
                 '<p class="btm-status-bar" id="ftp-state">Comprobando…</p>' +
                 '<div class="ftp-urlbox"><span>Enlace para compartir</span><b id="ftp-url">—</b>' +
                     '<div class="ftp-urlacts"><button class="tribal-btn tribal-btn-xs" id="ftp-copy"><i class="bi bi-clipboard"></i> Copiar</button>' +
-                    '<button class="tribal-btn tribal-btn-xs" id="ftp-share"><i class="bi bi-share"></i> Compartir</button></div></div>' +
+                    '<button class="tribal-btn tribal-btn-xs" id="ftp-share"><i class="bi bi-share"></i> Compartir</button>' +
+                    '<button class="tribal-btn tribal-btn-xs" id="ftp-wa"><i class="bi bi-whatsapp"></i> WhatsApp</button></div>' +
+                    '<p class="ftp-note" id="ftp-alts"></p></div>' +
+                '<label class="ftp-auto"><span>🏷</span><input type="text" id="ftp-name" maxlength="30" placeholder="Nombre del servidor">' +
+                    '<span><small>Nombre que verán en la página (enmascara el número)</small></span></label>' +
                 '<div class="btm-grid-tiles">' +
                     '<button class="btm-tile" id="ftp-power"><i class="bi bi-power"></i><span>Encender / Apagar</span></button>' +
-                    '<button class="btm-tile" id="ftp-refresh"><i class="bi bi-arrow-clockwise"></i><span>Actualizar</span></button></div>' +
+                    '<button class="btm-tile" id="ftp-refresh"><i class="bi bi-arrow-clockwise"></i><span>Actualizar</span></button>' +
+                    '<button class="btm-tile" id="ftp-hs"><i class="bi bi-broadcast-pin"></i><span>Mi Hotspot</span></button></div>' +
                 '<label class="ftp-auto"><input type="checkbox" id="ftp-auto"' + (isAuto() ? ' checked' : '') + '>' +
                     '<span>Auto-encender al abrir la app<br><small>Visible siempre en casa salvo que lo apagues aquí</small></span></label>' +
                 '<p class="btm-status-bar" id="ftp-count"></p>' +
-                '<p class="ftp-note">Los archivos que suban aparecen solos en tu biblioteca — caen por la bandeja de entrada.</p>' +
+                '<p class="ftp-note">Sin límite de tamaño: las subidas caen en tu biblioteca solas; desde la página también pueden borrar (con triple confirmación) y se borra del dispositivo.</p>' +
             '</div></div>';
         (deps.mount || document.body).appendChild(ov);
         ov.querySelector('#ftp-back').onclick = close;
@@ -100,22 +103,37 @@ window.TribalFtp = (function () {
         ov.querySelector('#ftp-refresh').onclick = refresh;
         ov.querySelector('#ftp-copy').onclick = copyLink;
         ov.querySelector('#ftp-share').onclick = shareLink;
+        ov.querySelector('#ftp-wa').onclick = shareWA;
+        ov.querySelector('#ftp-hs').onclick = function () { var n = window.TribalBtNet;
+            if (n && n.openHotspotSettings) n.openHotspotSettings(); else toast('Enciende tu hotspot en Ajustes de Android'); };
+        ov.querySelector('#ftp-name').onchange = function (e) {
+            var v = String(e.target.value || '').trim() || 'Mi tribu';
+            localStorage.setItem(NAME_KEY, v); pushCat(); toast('El servidor se llama «' + v + '»'); };
         ov.querySelector('#ftp-auto').onchange = function (e) {
             localStorage.setItem(AUTO_KEY, e.target.checked ? '1' : '0');
-            toast(e.target.checked ? 'El servidor se encenderá solo al abrir TRIBALs' : 'Auto-encendido apagado');
-        };
+            toast(e.target.checked ? 'El servidor se encenderá solo al abrir TRIBALs' : 'Auto-encendido apagado'); };
         if (!plug()) { var st = ov.querySelector('#ftp-state'); if (st) st.textContent = 'Disponible solo en el APK instalado'; }
         refresh();
     }
     function close() { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
 
-    // auto-arranque al abrir la app (salvo apagado explícito del usuario)
+    // auto-arranque + borrados que llegan desde la web (ya pasaron 3 pasos allá)
     window.Sono.register('ftpserver', function (S) {
-        var P = plug(); if (!P || !isAuto()) return;
+        S0 = S;
+        var P = plug(); if (!P) return;
+        P.addListener('ftpDel', function (ev) {
+            var MS = window.MediaStore, id = ev && ev.id;
+            if (!MS || !MS.list || !id) return;
+            MS.list().then(function (items) {
+                var m = items.filter(function (x) { return x.id === id; })[0];
+                if (!m || m.builtin) return;   // la música semilla no se borra por FTP
+                return MS.remove(id).then(function () {
+                    toast('🗑 «' + m.name + '» eliminado desde la web'); S.reload(); setTimeout(pushCat, 600); });
+            }).catch(function () {});
+        });
+        if (!isAuto()) return;
         pushCat().then(function () { return P.start(); })
-            .then(function (r) { if (r && r.url) lastUrl = r.url; })
-            .catch(function () {});
-        // el catálogo se refresca cuando entran archivos nuevos por la bandeja
+            .then(function (r) { if (r) lastInfo = r; }).catch(function () {});
         window.addEventListener('tribalInbox', function () { setTimeout(pushCat, 1800); });
     });
     return { open: open, close: close };
