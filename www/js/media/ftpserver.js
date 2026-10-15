@@ -35,15 +35,16 @@ window.TribalFtp = (function () {
             alts = ov.querySelector('#ftp-alts'), nm = ov.querySelector('#ftp-name');
         if (st) { st.innerHTML = on ? '● <b>Servidor activo</b> — comparte el enlace con equipos de tu red' : '○ Servidor detenido — inícialo para compartir archivos';
             st.className = 'btm-status-bar' + (on ? ' ftp-live' : ''); }
-        if (url) { url.textContent = on ? r.url : '—'; url.classList.toggle('ftp-url-on', on); }
+        var main = on ? (r.host || r.url) : '—';
+        if (url) { url.textContent = main; url.classList.toggle('ftp-url-on', on); }
         if (pw) pw.classList.toggle('on', on);
         if (nm && document.activeElement !== nm) nm.value = srvName();
         if (alts) {
             var links = [];
-            ((r.urls) || []).forEach(function (u) { if (u.u !== r.url) links.push('<b>' + esc(u.u) + '</b>' + (u.hot ? ' 📡 hotspot' : '')); });
-            if (r.host) links.push('<b>' + esc(r.host) + '</b> (nombre)');
-            alts.innerHTML = links.length ? 'También responde en: ' + links.join(' · ')
-                : 'Con tu hotspot el enlace casi siempre es estable (192.168.x.1) — ideal para compartir por WhatsApp';
+            ((r.urls) || []).forEach(function (u) { links.push('<b>' + esc(u.u) + '</b>' + (u.hot ? ' 📡 hotspot' : '')); });
+            alts.innerHTML = links.length
+                ? 'Si el nombre no abre, usa el número: ' + links.join(' · ')
+                : 'Sin red detectada — enciende Wi-Fi o tu Hotspot';
         }
         catalog().then(function (j) { try { var d = JSON.parse(j);
             if (cnt) cnt.textContent = (d.items || []).length + ' archivos visibles en la tribu'; } catch (e) {} });
@@ -58,15 +59,15 @@ window.TribalFtp = (function () {
                 .then(function (s) { toast('📡 Servidor activo en tu red'); paint(s); });
         }).catch(function (e) { toast('Servidor: ' + e); }); }
 
+    function mainUrl() { return (lastInfo && lastInfo.host) || (lastInfo && lastInfo.url) || 'http://…:8765'; }
     function shareTxt() {
-        var u = lastInfo && lastInfo.url || 'http://…:8765';
-        return '🔥 ' + srvName() + ' — abre este enlace estando en mi misma red (o conéctate a mi hotspot): ' + u; }
+        return '🔥 ' + srvName() + ' — abre este enlace en mi misma red (o conéctate a mi hotspot): ' + mainUrl(); }
     function copyLink() { if (!lastInfo || !lastInfo.running) return toast('Inicia el servidor primero');
         var done = function () { toast('Enlace copiado — pégalo en el navegador del otro equipo'); };
-        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(lastInfo.url).then(done, done); else done(); }
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(mainUrl()).then(done, done); else done(); }
     function shareLink() { if (!lastInfo || !lastInfo.running) return toast('Inicia el servidor primero');
         var C = window.Capacitor, Sh = C && C.Plugins && C.Plugins.Share;
-        if (Sh && Sh.share) Sh.share({ title: srvName() + ' · servidor de archivos', text: shareTxt(), url: lastInfo.url }).catch(function () {});
+        if (Sh && Sh.share) Sh.share({ title: srvName() + ' · servidor de archivos', text: shareTxt(), url: mainUrl() }).catch(function () {});
         else copyLink(); }
     function shareWA() { if (!lastInfo || !lastInfo.running) return toast('Inicia el servidor primero');
         window.open('https://wa.me/?text=' + encodeURIComponent(shareTxt()), '_blank'); }
@@ -86,8 +87,13 @@ window.TribalFtp = (function () {
                     '<button class="tribal-btn tribal-btn-xs" id="ftp-share"><i class="bi bi-share"></i> Compartir</button>' +
                     '<button class="tribal-btn tribal-btn-xs" id="ftp-wa"><i class="bi bi-whatsapp"></i> WhatsApp</button></div>' +
                     '<p class="ftp-note" id="ftp-alts"></p></div>' +
-                '<label class="ftp-auto"><span>🏷</span><input type="text" id="ftp-name" maxlength="30" placeholder="Nombre del servidor">' +
-                    '<span><small>Nombre que verán en la página (enmascara el número)</small></span></label>' +
+                '<div class="ftp-namebox"><span>🏷 Nombre de tu servidor — es lo que ven en la página en vez del número</span>' +
+                    '<input type="text" id="ftp-name" maxlength="30" placeholder="Mi tribu"></div>' +
+                '<details class="ftp-help"><summary><i class="bi bi-question-circle"></i> ¿Cómo conectar otro equipo?</summary>' +
+                    '<ol><li><b>Misma casa/oficina:</b> ambos en el mismo Wi-Fi → abren el enlace.</li>' +
+                    '<li><b>Sin Wi-Fi (solo datos):</b> toca «Mi Hotspot», enciéndelo; en el otro equipo conéctate a la red Wi-Fi portátil de tu teléfono y abre el enlace — no gasta datos, es directo.</li>' +
+                    '<li><b>Compartir:</b> Copiar, Compartir o WhatsApp envían el enlace listo.</li>' +
+                    '<li><b>En la página:</b> suben archivos o carpetas (caen solos en tu biblioteca), descargan los tuyos y pueden borrar (pide 3 confirmaciones).</li></ol></details>' +
                 '<div class="btm-grid-tiles">' +
                     '<button class="btm-tile" id="ftp-power"><i class="bi bi-power"></i><span>Encender / Apagar</span></button>' +
                     '<button class="btm-tile" id="ftp-refresh"><i class="bi bi-arrow-clockwise"></i><span>Actualizar</span></button>' +

@@ -64,10 +64,8 @@ public class TribalFtpPlugin extends Plugin {
             }
         } catch (Exception ignored) {}
         String host = "";
-        try {
-            host = android.provider.Settings.Global.getString(
-                getContext().getContentResolver(), "device_name");
-            if (host == null || host.isEmpty()) host = android.os.Build.MODEL;
+        try {   // solo el modelo (SM-A037M → sm-a037m) — nunca el nombre personal
+            host = android.os.Build.MODEL;
             host = host.replaceAll("[^A-Za-z0-9-]", "-").replaceAll("-+", "-")
                        .replaceAll("^-|-$", "").toLowerCase();
         } catch (Exception ignored) {}

@@ -1035,6 +1035,70 @@
     flex-shrink: 0;
 }
 
+/* nombre del servidor: etiqueta arriba, campo aparte a ancho completo */
+.ftp-namebox {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(240, 180, 41, 0.22);
+    flex-shrink: 0;
+}
+
+.ftp-namebox span { font-size: 0.8rem; color: var(--tb-muted, #b99b82); }
+
+.ftp-namebox input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(240, 180, 41, 0.35);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--tb-cream, #f3e6cf);
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.ftp-namebox input:focus { border-color: var(--tb-gold, #f0b429); }
+
+/* ayuda colapsable «¿Cómo conectar otro equipo?» */
+.ftp-help {
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(240, 180, 41, 0.22);
+    padding: 12px 14px;
+    flex-shrink: 0;
+}
+
+.ftp-help summary {
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--tb-gold, #f0b429);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ftp-help summary::-webkit-details-marker { display: none; }
+.ftp-help[open] summary { margin-bottom: 8px; }
+
+.ftp-help ol {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--tb-cream, #f3e6cf);
+    line-height: 1.45;
+}
+
+.ftp-help b { color: var(--tb-gold, #f0b429); }
+
 .btm-row.on {
     border-color: var(--tb-gold, #f0b429);
     background: rgba(240, 180, 41, 0.1);
