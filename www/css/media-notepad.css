@@ -900,12 +900,139 @@
 
 .btm-row {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 14px;
+    flex-direction: column;
+    gap: 0;
+    padding: 12px 14px 10px;
     border-radius: 14px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(240, 180, 41, 0.2);
+}
+
+/* tope del card: ícono + nombre centrado + estrella a la par del nombre */
+.btm-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 10px;
+}
+
+.btm-row .btm-info {
+    align-items: center;
+    text-align: center;
+}
+
+.btm-hr {
+    width: 100%;
+    border: none;
+    border-top: 1px solid rgba(240, 180, 41, 0.22);
+    margin: 0 0 10px;
+}
+
+.btm-row .btm-row-acts {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* botón power: apagado = oscuro; encendido = degradado tribal + halo */
+.btm-power {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(240, 180, 41, 0.35);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--tb-muted, #b99b82);
+    font-size: 1.15rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.btm-power.on {
+    background: linear-gradient(135deg, var(--tb-terra, #e2602e), var(--tb-gold, #f0b429));
+    color: #160e07;
+    border-color: var(--tb-gold, #f0b429);
+    box-shadow: 0 0 16px rgba(240, 180, 41, 0.55);
+}
+
+/* tile con estado encendido (power del servidor FTP, etc.) */
+.btm-tile.on {
+    border-color: var(--tb-gold, #f0b429);
+    background: rgba(240, 180, 41, 0.14);
+    box-shadow: 0 0 14px rgba(240, 180, 41, 0.3);
+}
+
+.btm-modal-sub { color: var(--tb-muted, #b99b82); font-size: 0.82rem; }
+
+/* --- Servidor de archivos LAN (FTP tribal) --- */
+.ftp-urlbox {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(240, 180, 41, 0.28);
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.ftp-urlbox span {
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--tb-muted, #b99b82);
+}
+
+.ftp-urlbox b {
+    font-size: 1.05rem;
+    color: var(--tb-muted, #b99b82);
+    word-break: break-all;
+    transition: color 0.2s ease;
+}
+
+.ftp-urlbox b.ftp-url-on {
+    color: var(--tb-gold, #f0b429);
+    text-shadow: 0 0 14px rgba(240, 180, 41, 0.5);
+}
+
+.ftp-urlacts {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.ftp-live { color: var(--tb-gold, #f0b429); }
+
+.ftp-auto {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(240, 180, 41, 0.22);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.ftp-auto input {
+    width: 20px; height: 20px;
+    accent-color: var(--tb-gold, #f0b429);
+    flex-shrink: 0;
+}
+
+.ftp-auto span { font-size: 0.85rem; }
+.ftp-auto small { color: var(--tb-muted, #b99b82); font-size: 0.72rem; }
+
+.ftp-note {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--tb-muted, #b99b82);
+    text-align: center;
+    flex-shrink: 0;
 }
 
 .btm-row.on {

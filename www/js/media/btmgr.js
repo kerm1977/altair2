@@ -75,14 +75,30 @@ window.TribalBtMgr = (function () {
     function rowHtml(it) { var n = net();
         var isConn = !!connected[it.addr], fav = n && n.isFav(it.addr), m = KIND_META[it.kind] || KIND_META.bt;
         var stTxt = (fav ? '★ Favorito auto · ' : '') + (isConn ? 'Conectado' : (it.near ? 'Cercano' : (it.bonded ? 'Emparejado' : 'Guardado')));
-        return '<div class="btm-row' + (isConn ? ' on' : '') + '"><div class="btm-ico-wrap"><i class="bi ' + m.ico + ' btm-ico"></i></div>' +
-            '<div class="btm-info"><b>' + esc(it.name || it.addr) + '</b><small>' + m.lbl + ' · ' + stTxt + '</small></div><div class="btm-row-acts">' +
-            '<button class="tribal-ctrl np-doc-fav' + (fav ? ' on' : '') + '" data-act="fav" data-addr="' + esc(it.addr) + '" data-name="' + esc(it.name || it.addr) + '" data-kind="' + esc(it.kind) + '" title="Favorito"><i class="bi ' + (fav ? 'bi-star-fill' : 'bi-star') + '"></i></button>' +
-            (isConn ? '<button class="tribal-btn tribal-btn-xs" data-act="chat"><i class="bi bi-chat-dots-fill"></i></button>' +
-                '<button class="tribal-btn tribal-btn-xs" data-act="rc"><i class="bi bi-controller"></i></button>' +
-                '<button class="tribal-btn tribal-btn-xs danger" data-act="disc" data-addr="' + esc(it.addr) + '"><i class="bi bi-x-circle"></i></button>'
-            : '<button class="tribal-btn tribal-btn-xs primary" data-act="conn" data-addr="' + esc(it.addr) + '" data-name="' + esc(it.name || it.addr) + '" data-kind="' + esc(it.kind) + '">Conectar</button>') +
-            '<button class="tribal-btn tribal-btn-xs" data-act="forget" data-addr="' + esc(it.addr) + '"><i class="bi bi-trash3"></i></button></div></div>'; }
+        return '<div class="btm-row' + (isConn ? ' on' : '') + '"><div class="btm-top"><div class="btm-ico-wrap"><i class="bi ' + m.ico + ' btm-ico"></i></div>' +
+            '<div class="btm-info"><b>' + esc(it.name || it.addr) + '</b><small>' + m.lbl + ' · ' + stTxt + '</small></div>' +
+            '<button class="tribal-ctrl np-doc-fav' + (fav ? ' on' : '') + '" data-act="fav" data-addr="' + esc(it.addr) + '" data-name="' + esc(it.name || it.addr) + '" data-kind="' + esc(it.kind) + '" title="Favorito"><i class="bi ' + (fav ? 'bi-star-fill' : 'bi-star') + '"></i></button></div>' +
+            '<hr class="btm-hr"><div class="btm-row-acts">' +
+            '<button class="btm-power' + (isConn ? ' on' : '') + '" data-act="pow" data-addr="' + esc(it.addr) + '" data-name="' + esc(it.name || it.addr) + '" data-kind="' + esc(it.kind) + '" title="' + (isConn ? 'Desconectar' : 'Conectar') + '"><i class="bi bi-power"></i></button>' +
+            (isConn ? '<button class="tribal-btn tribal-btn-xs" data-act="chat"><i class="bi bi-chat-dots-fill"></i> Chat</button>' +
+                '<button class="tribal-btn tribal-btn-xs" data-act="rc"><i class="bi bi-controller"></i> Control</button>' : '') +
+            '<button class="tribal-btn tribal-btn-xs danger" data-act="forget" data-addr="' + esc(it.addr) + '" data-name="' + esc(it.name || it.addr) + '"><i class="bi bi-trash3"></i></button></div></div>'; }
+
+    // modal de eliminación en dos pasos: «Eliminar» → «¿Seguro? confirmar»
+    function confirmDel(addr, name) {
+        if (!ov) return;
+        var bd = document.createElement('div'); bd.className = 'np-modal-bd';
+        bd.innerHTML = '<div class="np-modal-card"><p style="margin:0 0 6px"><i class="bi bi-exclamation-triangle-fill"></i> <b>¿Eliminar «' + esc(name || addr) + '»?</b></p>' +
+            '<p class="btm-modal-sub" style="margin:0 0 12px">El dispositivo se quitará de la tribu.</p>' +
+            '<div class="np-modal-acts"><button class="tribal-btn tribal-btn-xs" id="cfd-no">Cancelar</button>' +
+            '<button class="tribal-btn tribal-btn-xs danger" id="cfd-yes">Eliminar</button></div></div>';
+        ov.appendChild(bd);
+        var step = 0, yes = bd.querySelector('#cfd-yes');
+        bd.querySelector('#cfd-no').onclick = function () { bd.remove(); };
+        yes.onclick = function () { step++;
+            if (step === 1) { yes.innerHTML = '¿Realmente seguro? Confirmar'; return; }
+            bd.remove(); forgetDevice(addr); };
+    }
     function render() { if (!ov) return;
         var all = Object.keys(devs).map(function (a) { return devs[a]; }), lan = Object.keys(lanDevs).map(function (i) { return lanDevs[i]; });
         var counts = { all: all.length + lan.length, audio: 0, input: 0, phone: 0 };
@@ -95,7 +111,8 @@ window.TribalBtMgr = (function () {
             return fb !== fa ? fb - fa : (connected[b.addr] ? 1 : 0) - (connected[a.addr] ? 1 : 0); });
         var html = all.filter(function (it) { return kFilter === 'all' || catOf(it.kind) === kFilter; }).map(rowHtml).join('');
         if (kFilter === 'all') lan.forEach(function (wd) {
-            html += '<div class="btm-row on"><div class="btm-ico-wrap"><i class="bi bi-router-fill btm-ico"></i></div><div class="btm-info"><b>' + esc(wd.name) + '</b><small>Equipo TRIBALs en tu Wi-Fi/Hotspot (' + esc(wd.ip) + ')</small></div><div class="btm-row-acts"><button class="tribal-btn tribal-btn-xs primary" data-act="rc">Control remoto</button></div></div>'; });
+            html += '<div class="btm-row on"><div class="btm-top"><div class="btm-ico-wrap"><i class="bi bi-router-fill btm-ico"></i></div><div class="btm-info"><b>' + esc(wd.name) + '</b><small>Equipo TRIBALs en tu Wi-Fi/Hotspot (' + esc(wd.ip) + ')</small></div></div>' +
+                '<hr class="btm-hr"><div class="btm-row-acts"><button class="tribal-btn tribal-btn-xs primary" data-act="rc"><i class="bi bi-controller"></i> Control remoto</button></div></div>'; });
         ov.querySelector('#btm-list').innerHTML = html || '<div class="btm-empty"><i class="bi bi-bluetooth"></i><p>Sin dispositivos en esta categoría.</p><small>Toca «Buscar cercanos».</small></div>'; }
 
     function open(d) { deps = d || {}; if (!N) N = window.TribalBtNet;
@@ -137,9 +154,10 @@ window.TribalBtMgr = (function () {
             var b = e.target.closest('[data-act]'); if (!b) return; var n = net();
             var act = b.getAttribute('data-act'), addr = b.getAttribute('data-addr'), nm = b.getAttribute('data-name'), kd = b.getAttribute('data-kind');
             if (act === 'fav' && n) { var on = n.toggleFav(addr, nm, kd); toast(on ? '★ Guardado en Favoritos (se conectará solo)' : 'Quitado de Favoritos'); render(); }
-            else if (act === 'conn' && n) { saveDevice(addr, nm, kd, true); toast('Conectando con ' + (nm || addr) + '…'); n.connect(addr).catch(function () {}); }
-            else if (act === 'disc' && n) n.close().then(function () { delete connected[addr]; render(); });
-            else if (act === 'forget') forgetDevice(addr);
+            else if (act === 'pow' && n) {
+                if (connected[addr]) { n.close().then(function () { delete connected[addr]; render(); }); }
+                else { saveDevice(addr, nm, kd, true); toast('Conectando con ' + (nm || addr) + '…'); n.connect(addr).catch(function () {}); } }
+            else if (act === 'forget') confirmDel(addr, nm);
             else if (act === 'chat') { close(); if (window.TribalBtChat) window.TribalBtChat.open(deps); }
             else if (act === 'rc') { close(); if (window.TribalRemote) window.TribalRemote.open(deps); }
         };

@@ -4,8 +4,7 @@ window.TribalRemote = (function () {
     var N = null;
     function net() { if (!N) N = window.TribalBtNet; return N; }
     var ov = null, deps = {}, tab = 'pad', targetIp = '', visibleUntil = 0;
-    var btDevs = {}, btPeers = {}, wifiNets = [], wifiDevs = {}, wifiInfo = {};
-    var curEl = null, curX = 180, curY = 260, hideCurT = null;
+    var btDevs = {}, btPeers = {}, wifiNets = [], wifiDevs = {}, wifiInfo = {}, curEl = null, curX = 180, curY = 260, hideCurT = null;
     function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
     function toast(m) { if (deps && deps.toast) deps.toast(m); }
     function activeMedia() { var S = (deps && deps.sono) || window.Sono;
@@ -17,9 +16,9 @@ window.TribalRemote = (function () {
         hideCurT = setTimeout(function () { curEl.classList.remove('on'); }, 3500); }
     function clickAtCursor(btnType) {
         if (btnType === 'mclick') return execLocal('toggle');
-        var target = document.elementFromPoint(curX, curY);
-        if (!target) return execLocal(btnType === 'rclick' ? 'next' : 'toggle');
-        if (btnType === 'rclick') target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: curX, clientY: curY })); else target.click(); }
+        var t = document.elementFromPoint(curX, curY);
+        if (!t) return execLocal(btnType === 'rclick' ? 'next' : 'toggle');
+        if (btnType === 'rclick') t.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: curX, clientY: curY })); else t.click(); }
     function execLocal(cmd, data) {
         if (cmd === 'move' && data) return moveVirtualCursor(data.dx || 0, data.dy || 0);
         if (cmd === 'lclick' || cmd === 'mclick' || cmd === 'rclick') return clickAtCursor(cmd);
@@ -48,16 +47,14 @@ window.TribalRemote = (function () {
         if (N && targetIp && N.wifiSend) return void N.wifiSend(pkt, targetIp).catch(function () {});
         if (N && Object.keys(btPeers).length) return void N.send(pkt).catch(function () {});
         execLocal(pkt.cmd, pkt); }
-    function syncBtnStates() {
-        if (!ov) return;
+    function syncBtnStates() { if (!ov) return;
         var S = (deps && deps.sono) || window.Sono, el = activeMedia();
         var muteB = ov.querySelector('[data-c="mute"]'), repB = ov.querySelector('[data-c="rep"]'), shufB = ov.querySelector('[data-c="shuf"]');
         if (muteB) muteB.classList.toggle('is-on', !!(el && el.muted));
         if (repB) repB.classList.toggle('is-on', !!(S && S.prefs && S.prefs.repeat && S.prefs.repeat !== 'off'));
         if (shufB) shufB.classList.toggle('is-on', !!(S && S.prefs && S.prefs.shuffle)); }
 
-    function onNetEvt(d) {
-        if (!d || !d.type) return;
+    function onNetEvt(d) { if (!d || !d.type) return;
         if (d.type === 'msg') { try { var m = JSON.parse(d.msg); if (m && m.k === 'rc') execLocal(m.cmd, m); } catch (e) {} }
         else if (d.type === 'device' && d.addr) { btDevs[d.addr] = { addr: d.addr, name: d.name || d.addr, kind: d.kind || 'bt' }; if (d.connected) btPeers[d.addr] = d.name || d.addr; renderDevs(); }
         else if (d.type === 'wifiDevice' && d.ip) { wifiDevs[d.ip] = { ip: d.ip, name: d.name || d.ip }; if (!targetIp) targetIp = d.ip; renderDevs(); }
@@ -86,9 +83,8 @@ window.TribalRemote = (function () {
             return N.scan(!!fromUser);
         }).catch(function () { renderDevs(); });
         N.wifiScan().then(function (w) { wifiInfo = w || {}; wifiNets = (w && w.networks) || []; renderDevs(); }).catch(function () {}); }
-    function renderDevs() {
-        if (!ov) return;
-        var pCount = Object.keys(btPeers).length, wCount = Object.keys(wifiDevs).length;
+    function renderDevs() { if (!ov) return;
+        var pCount = Object.keys(btPeers).length;
         var route = targetIp ? ('Wi-Fi · ' + targetIp) : (pCount ? ('Bluetooth · ' + pCount + ' disp.') : 'Local');
         var rb = ov.querySelector('#rc-route');
         if (rb) rb.innerHTML = '<i class="bi bi-broadcast-pin"></i> Mando inteligente: <b>' + esc(route) + '</b>' +
@@ -100,23 +96,26 @@ window.TribalRemote = (function () {
         var html = '';
         Object.keys(btDevs).forEach(function (a) {
             var d = btDevs[a], isC = !!btPeers[a], fav = N && N.isFav(a);
-            html += '<div class="btm-row' + (isC ? ' on' : '') + '"><div class="btm-ico-wrap"><i class="bi bi-bluetooth btm-ico"></i></div><div class="btm-info"><b>' + esc(d.name || a) + '</b><small>' + (fav ? '★ Auto · ' : '') + (isC ? 'Conectado' : 'Disponible') + '</small></div><div class="btm-row-acts"><button class="tribal-ctrl np-doc-fav' + (fav ? ' on' : '') + '" data-rfav="' + esc(a) + '" data-rname="' + esc(d.name || a) + '"><i class="bi ' + (fav ? 'bi-star-fill' : 'bi-star') + '"></i></button><button class="tribal-btn tribal-btn-xs ' + (isC ? '' : 'primary') + '" data-rconn="' + esc(a) + '" data-rname="' + esc(d.name || a) + '">' + (isC ? 'Activo' : 'Conectar') + '</button></div></div>';
+            html += '<div class="btm-row' + (isC ? ' on' : '') + '"><div class="btm-top"><div class="btm-ico-wrap"><i class="bi bi-bluetooth btm-ico"></i></div><div class="btm-info"><b>' + esc(d.name || a) + '</b><small>' + (fav ? '★ Auto · ' : '') + (isC ? 'Conectado' : 'Disponible') + '</small></div>' +
+                '<button class="tribal-ctrl np-doc-fav' + (fav ? ' on' : '') + '" data-rfav="' + esc(a) + '" data-rname="' + esc(d.name || a) + '"><i class="bi ' + (fav ? 'bi-star-fill' : 'bi-star') + '"></i></button></div>' +
+                '<hr class="btm-hr"><div class="btm-row-acts"><button class="btm-power' + (isC ? ' on' : '') + '" data-rconn="' + esc(a) + '" data-rname="' + esc(d.name || a) + '" title="' + (isC ? 'Desconectar' : 'Conectar') + '"><i class="bi bi-power"></i></button></div></div>';
         });
         Object.keys(wifiDevs).forEach(function (ip) {
             var wd = wifiDevs[ip], on = targetIp === ip;
-            html += '<div class="btm-row' + (on ? ' on' : '') + '"><div class="btm-ico-wrap"><i class="bi bi-router-fill btm-ico"></i></div><div class="btm-info"><b>' + esc(wd.name) + '</b><small>Equipo Wi-Fi / Hotspot · ' + esc(ip) + '</small></div><div class="btm-row-acts"><button class="tribal-btn tribal-btn-xs ' + (on ? '' : 'primary') + '" data-rip="' + esc(ip) + '">' + (on ? 'Activo' : 'Usar IP') + '</button></div></div>';
+            html += '<div class="btm-row' + (on ? ' on' : '') + '"><div class="btm-top"><div class="btm-ico-wrap"><i class="bi bi-router-fill btm-ico"></i></div><div class="btm-info"><b>' + esc(wd.name) + '</b><small>Equipo Wi-Fi / Hotspot · ' + esc(ip) + '</small></div></div>' +
+                '<hr class="btm-hr"><div class="btm-row-acts"><button class="btm-power' + (on ? ' on' : '') + '" data-rip="' + esc(ip) + '" title="' + (on ? 'Activo' : 'Usar esta IP') + '"><i class="bi bi-power"></i></button></div></div>';
         });
         wifiNets.slice(0, 10).forEach(function (w) {
             if (!w.ssid) return;
-            html += '<div class="btm-row' + (w.connected ? ' on' : '') + '"><div class="btm-ico-wrap"><i class="bi ' + (w.hotspot ? 'bi-broadcast-pin' : 'bi-wifi') + ' btm-ico"></i></div><div class="btm-info"><b>' + esc(w.ssid) + '</b><small>' + (w.hotspot ? 'Hotspot' : 'Wi-Fi') + ' · ' + (w.level || 0) + '%' + (w.connected ? ' · Conectada' : '') + '</small></div><div class="btm-row-acts"><button class="tribal-btn tribal-btn-xs" data-rwifi="' + esc(w.ssid) + '">' + (w.connected ? 'Activa' : 'Conectar') + '</button></div></div>';
+            html += '<div class="btm-row' + (w.connected ? ' on' : '') + '"><div class="btm-top"><div class="btm-ico-wrap"><i class="bi ' + (w.hotspot ? 'bi-broadcast-pin' : 'bi-wifi') + ' btm-ico"></i></div><div class="btm-info"><b>' + esc(w.ssid) + '</b><small>' + (w.hotspot ? 'Hotspot' : 'Wi-Fi') + ' · ' + (w.level || 0) + '%' + (w.connected ? ' · Conectada' : '') + '</small></div></div>' +
+                '<hr class="btm-hr"><div class="btm-row-acts"><button class="btm-power' + (w.connected ? ' on' : '') + '" data-rwifi="' + esc(w.ssid) + '" title="' + (w.connected ? 'Activa' : 'Conectar') + '"><i class="bi bi-power"></i></button></div></div>';
         });
         box.innerHTML = html || '<div class="btm-empty"><i class="bi bi-radar"></i><p>Sin dispositivos detectados</p><small>Toca «Buscar cercanos» para un escaneo profundo de BT y Wi-Fi.</small></div>'; }
     function ringSvg() { var rays = '';
         for (var i = 0; i < 8; i++) rays += '<polygon points="100,2 104,13 96,13" transform="rotate(' + (i * 45) + ' 100 100)"/>';
         return '<svg class="rc-wheel-ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="none" stroke="#f0b429" stroke-width="2" stroke-dasharray="6 6"/><circle cx="100" cy="100" r="88" fill="none" stroke="#e2602e" stroke-width="1.5" stroke-dasharray="3 8"/><g fill="#e2602e">' + rays + '</g></svg>'; }
     function initListener(sono) { if (sono) deps.sono = sono; var n = net(); if (n) n.init(onNetEvt); }
-    function open(d) {
-        deps = d || deps || {}; initListener(deps.sono);
+    function open(d) { deps = d || deps || {}; initListener(deps.sono);
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = document.createElement('div');
         ov.className = 'tribal-overlay tribal-p2p-ov';
@@ -154,9 +153,11 @@ window.TribalRemote = (function () {
             var fv = e.target.closest('[data-rfav]');
             if (fv && N) { var on = N.toggleFav(fv.getAttribute('data-rfav'), fv.getAttribute('data-rname'), 'bt'); toast(on ? '★ Favorito auto-conectable' : 'Quitado de favoritos'); renderDevs(); return; }
             var cn = e.target.closest('[data-rconn]');
-            if (cn && N) { var ad = cn.getAttribute('data-rconn'), nm = cn.getAttribute('data-rname'); N.setFav(ad, nm, 'bt', true); toast('Conectando con ' + nm + '…'); N.connect(ad); renderDevs(); return; }
+            if (cn && N) { var ad = cn.getAttribute('data-rconn'), nm = cn.getAttribute('data-rname');
+                if (btPeers[ad]) { N.close().then(function () { delete btPeers[ad]; renderDevs(); }); toast('Desconectando ' + nm + '…'); }
+                else { N.setFav(ad, nm, 'bt', true); toast('Conectando con ' + nm + '…'); N.connect(ad); } renderDevs(); return; }
             var ipB = e.target.closest('[data-rip]');
-            if (ipB) { targetIp = ipB.getAttribute('data-rip'); toast('Conectado a Wi-Fi IP ' + targetIp); renderDevs(); return; }
+            if (ipB) { var nip = ipB.getAttribute('data-rip'); targetIp = targetIp === nip ? '' : nip; toast(targetIp ? 'Conectado a Wi-Fi IP ' + targetIp : 'IP liberada'); renderDevs(); return; }
             if (e.target.closest('[data-rwifi]')) { close(); if (window.TribalBtWifi) window.TribalBtWifi.open(deps, 'wifi'); }
         };
         ov.querySelector('#rc-tabs').onclick = function (e) {
@@ -196,5 +197,4 @@ window.TribalRemote = (function () {
         function up() { if (!down) return; down = false; dot.classList.remove('on'); if (!moved && Date.now() - t0 < 280) sendPkt({ cmd: 'lclick' }); }
         surf.addEventListener('pointerup', up); surf.addEventListener('pointercancel', up); }
     function close() { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
-    return { open: open, close: close, initListener: initListener, execLocal: execLocal };
-})();
+    return { open: open, close: close, initListener: initListener, execLocal: execLocal }; })();

@@ -8,11 +8,14 @@ window.TribalBtWifi = (function () {
     var N = null, FAV_KEY = 'tribu_btfavs';
     function net() { if (!N) N = window.TribalBtNet; return N; }
     var ov = null, deps = {}, nets = [], info = {}, lanDevs = {}, tab = 'wifi', busy = false;
+    var HIDE_KEY = 'tribu_wifi_hidden';
     function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
     function toast(m) { if (deps && deps.toast) deps.toast(m); }
     function status(t) { if (ov) { var el = ov.querySelector('#btw-status'); if (el) el.textContent = t; } }
     function favs() { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '{}'); } catch (e) { return {}; } }
     function wFav(ssid) { var f = favs()[ssid]; return (f && f.kind === 'wifi' && f.fav !== false) ? f : null; }
+    function hiddenSet() { try { return JSON.parse(localStorage.getItem(HIDE_KEY) || '[]'); } catch (e) { return []; } }
+    function setHidden(h) { try { localStorage.setItem(HIDE_KEY, JSON.stringify(h)); } catch (e) {} }
 
     // eventos del motor: 'wifiNets' (broadcast SCAN_RESULTS_AVAILABLE) y 'wifiDevice' (UDP)
     function onEvt(d) { if (!d || !d.type || !ov) return;
@@ -59,31 +62,34 @@ window.TribalBtWifi = (function () {
         var tag = (w.hotspot ? '📡 Hotspot móvil' : 'Red Wi-Fi') + ' · ' + (w.level || 0) + '%' +
             (w.secure ? ' · 🔒' : ' · abierta') + (w.connected ? ' · Conectada' : '') +
             (fv ? ' · ★ «' + esc(fv.label || 'recordada') + '»' : '');
-        return '<div class="btm-row' + (w.connected ? ' on' : '') + '"><div class="btm-ico-wrap"><i class="bi ' + sigIco(w.level || 0) + ' btm-ico"></i></div>' +
+        return '<div class="btm-row' + (w.connected ? ' on' : '') + '"><div class="btm-top"><div class="btm-ico-wrap"><i class="bi ' + sigIco(w.level || 0) + ' btm-ico"></i></div>' +
             '<div class="btm-info"><b>' + esc(fv && fv.label ? fv.label : w.ssid) + '</b><small>' + tag + '</small></div>' +
-            '<div class="btm-row-acts"><button class="tribal-ctrl np-doc-fav' + (fv ? ' on' : '') + '" data-act="wrem" data-ssid="' + esc(w.ssid) + '" data-sec="' + (w.secure ? 1 : 0) + '" title="Recordar red"><i class="bi ' + (fv ? 'bi-star-fill' : 'bi-star') + '"></i></button>' +
-            '<button class="tribal-btn tribal-btn-xs ' + (w.connected ? '' : 'primary') + '" data-act="wconn" data-ssid="' + esc(w.ssid) + '" data-sec="' + (w.secure ? 1 : 0) + '">' + (w.connected ? 'Activa' : 'Conectar') + '</button></div></div>'; }
+            '<button class="tribal-ctrl np-doc-fav' + (fv ? ' on' : '') + '" data-act="wrem" data-ssid="' + esc(w.ssid) + '" data-sec="' + (w.secure ? 1 : 0) + '" title="Recordar red"><i class="bi ' + (fv ? 'bi-star-fill' : 'bi-star') + '"></i></button></div>' +
+            '<hr class="btm-hr"><div class="btm-row-acts">' +
+            '<button class="btm-power' + (w.connected ? ' on' : '') + '" data-act="wconn" data-ssid="' + esc(w.ssid) + '" data-sec="' + (w.secure ? 1 : 0) + '" title="Encender / apagar red"><i class="bi bi-power"></i></button>' +
+            '<button class="tribal-btn tribal-btn-xs" data-act="whide" data-ssid="' + esc(w.ssid) + '"><i class="bi bi-eye-slash"></i> Ocultar</button></div></div>'; }
     function render() { if (!ov) return;
         ov.querySelectorAll('#btw-tabs button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-t') === tab); });
-        var html = '';
+        var html = '', hid = hiddenSet();
         if (tab === 'wifi') {
             var wf = favs();
             Object.keys(wf).forEach(function (ssid) { var f = wf[ssid]; if (!f || f.kind !== 'wifi' || f.fav === false) return;
                 if (nets.some(function (x) { return x.ssid === ssid; })) return;
-                html += '<div class="btm-row"><div class="btm-ico-wrap"><i class="bi bi-wifi-off btm-ico"></i></div><div class="btm-info"><b>★ ' + esc(f.label || ssid) + '</b><small>Red recordada (' + esc(ssid) + ') · fuera de rango ahora</small></div>' +
-                    '<div class="btm-row-acts"><button class="tribal-ctrl np-doc-fav on" data-act="wrem" data-ssid="' + esc(ssid) + '" data-sec="1"><i class="bi bi-star-fill"></i></button></div></div>'; });
-            html += nets.map(rowWifi).join('');
+                html += '<div class="btm-row"><div class="btm-top"><div class="btm-ico-wrap"><i class="bi bi-wifi-off btm-ico"></i></div><div class="btm-info"><b>★ ' + esc(f.label || ssid) + '</b><small>Red recordada (' + esc(ssid) + ') · fuera de rango ahora</small></div>' +
+                    '<button class="tribal-ctrl np-doc-fav on" data-act="wrem" data-ssid="' + esc(ssid) + '" data-sec="1"><i class="bi bi-star-fill"></i></button></div></div>'; });
+            html += nets.filter(function (w) { return hid.indexOf(w.ssid) < 0; }).map(rowWifi).join('');
+            if (hid.length) html += '<button class="tribal-btn tribal-btn-xs" data-act="wunhide" style="align-self:center"><i class="bi bi-eye"></i> Mostrar ' + hid.length + ' red(es) oculta(s)</button>';
             if (!html) html = '<div class="btm-empty"><i class="bi bi-wifi"></i><p>' + (busy ? 'Analizando…' : 'Sin redes detectadas.') + '</p><small>Toca «Analizar» para un escaneo nuevo.</small></div>';
         } else {
             var hs = info.hotspotOn ? 'ACTIVO — tu teléfono comparte internet' : 'Apagado';
-            html = '<div class="btm-row' + (info.hotspotOn ? ' on' : '') + '"><div class="btm-ico-wrap"><i class="bi bi-broadcast-pin btm-ico"></i></div>' +
-                '<div class="btm-info"><b>Tu Hotspot: ' + hs + '</b><small>IP local: ' + esc(info.ip || '0.0.0.0') + (info.currentSsid ? ' · En red «' + esc(info.currentSsid) + '»' : '') + '</small></div>' +
-                '<div class="btm-row-acts"><button class="tribal-btn tribal-btn-xs" data-act="hset"><i class="bi bi-gear-fill"></i> Ajustes</button></div></div>';
+            html = '<div class="btm-row' + (info.hotspotOn ? ' on' : '') + '"><div class="btm-top"><div class="btm-ico-wrap"><i class="bi bi-broadcast-pin btm-ico"></i></div>' +
+                '<div class="btm-info"><b>Tu Hotspot: ' + hs + '</b><small>IP local: ' + esc(info.ip || '0.0.0.0') + (info.currentSsid ? ' · En red «' + esc(info.currentSsid) + '»' : '') + '</small></div></div>' +
+                '<hr class="btm-hr"><div class="btm-row-acts"><button class="tribal-btn tribal-btn-xs" data-act="hset"><i class="bi bi-gear-fill"></i> Ajustes</button></div></div>';
             var lan = Object.keys(lanDevs);
             if (lan.length) html += '<p class="btm-status-bar">Equipos TRIBALs en tu red (' + lan.length + '):</p>' +
                 lan.map(function (ip) { var wd = lanDevs[ip];
-                    return '<div class="btm-row on"><div class="btm-ico-wrap"><i class="bi bi-router-fill btm-ico"></i></div><div class="btm-info"><b>' + esc(wd.name) + '</b><small>Wi-Fi / Hotspot · ' + esc(ip) + '</small></div>' +
-                        '<div class="btm-row-acts"><button class="tribal-btn tribal-btn-xs primary" data-act="rc">Control remoto</button></div></div>'; }).join('');
+                    return '<div class="btm-row on"><div class="btm-top"><div class="btm-ico-wrap"><i class="bi bi-router-fill btm-ico"></i></div><div class="btm-info"><b>' + esc(wd.name) + '</b><small>Wi-Fi / Hotspot · ' + esc(ip) + '</small></div></div>' +
+                        '<hr class="btm-hr"><div class="btm-row-acts"><button class="tribal-btn tribal-btn-xs primary" data-act="rc"><i class="bi bi-controller"></i> Control remoto</button></div></div>'; }).join('');
             else html += '<div class="btm-empty"><i class="bi bi-broadcast-pin"></i><p>Ningún equipo TRIBALs detectado en la red.</p><small>Otro teléfono con TRIBALs en el mismo Wi-Fi/Hotspot aparece aquí solo.</small></div>';
         }
         ov.querySelector('#btw-list').innerHTML = html; }
@@ -122,6 +128,8 @@ window.TribalBtWifi = (function () {
             var act = b.getAttribute('data-act'), ssid = b.getAttribute('data-ssid'), sec = b.getAttribute('data-sec') === '1';
             if (act === 'wconn' && ssid) connect(ssid, sec);
             else if (act === 'wrem' && ssid) remember(ssid, sec);
+            else if (act === 'whide' && ssid) { var h = hiddenSet(); if (h.indexOf(ssid) < 0) h.push(ssid); setHidden(h); toast('«' + ssid + '» oculta de la lista'); render(); }
+            else if (act === 'wunhide') { setHidden([]); toast('Redes ocultas restauradas'); render(); }
             else if (act === 'hset') { var n = net(); if (n && n.openHotspotSettings) n.openHotspotSettings(); }
             else if (act === 'rc') { close(); if (window.TribalRemote) window.TribalRemote.open(deps); }
         };

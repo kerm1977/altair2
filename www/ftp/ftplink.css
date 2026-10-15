@@ -1,0 +1,169 @@
+/* ftplink.css — interfaz tribal del servidor de archivos LAN (para el otro equipo) */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --gold: #f0b429;
+    --terra: #e2602e;
+    --cream: #f3e6cf;
+    --muted: #b99b82;
+    --bg: #160e07;
+    --card: #1c120b;
+    --line: rgba(240, 180, 41, 0.25);
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: system-ui, 'Segoe UI', sans-serif;
+    color: var(--cream);
+    background:
+        radial-gradient(1200px 500px at 50% -10%, rgba(226, 96, 46, 0.18), transparent 60%),
+        radial-gradient(800px 400px at 50% 110%, rgba(240, 180, 41, 0.10), transparent 60%),
+        var(--bg);
+}
+
+.tp-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 22px 20px 14px;
+    border-bottom: 2px solid var(--line);
+    background: linear-gradient(180deg, rgba(226, 96, 46, 0.12), transparent);
+}
+
+.tp-logo {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; color: #160e07;
+    background: linear-gradient(135deg, var(--terra), var(--gold));
+    box-shadow: 0 0 20px rgba(240, 180, 41, 0.45);
+}
+
+.tp-title h1 {
+    font-size: 1.5rem;
+    letter-spacing: 0.12em;
+    background: linear-gradient(90deg, var(--gold), var(--terra));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.tp-title p { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+
+.tp-up { padding: 18px 20px 8px; display: flex; flex-direction: column; gap: 10px; }
+
+.tp-zone {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 22px 16px;
+    border: 2px dashed var(--line);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tp-zone.over, .tp-zone:hover {
+    border-color: var(--gold);
+    background: rgba(240, 180, 41, 0.08);
+    box-shadow: 0 0 18px rgba(240, 180, 41, 0.25);
+}
+
+.tp-zone strong { color: var(--gold); font-size: 1rem; }
+.tp-zone span { color: var(--muted); font-size: 0.8rem; }
+
+.tp-prog { display: flex; flex-direction: column; gap: 4px; }
+
+.tp-prog-track {
+    height: 10px; border-radius: 8px; overflow: hidden;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--line);
+}
+
+.tp-prog-bar {
+    height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--terra), var(--gold));
+    transition: width 0.15s ease;
+}
+
+#progtxt { font-size: 0.78rem; color: var(--muted); text-align: center; }
+
+.tp-list {
+    flex: 1;
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 14px 20px 20px;
+    max-width: 720px; width: 100%;
+    margin: 0 auto;
+}
+
+.tp-empty {
+    text-align: center; color: var(--muted);
+    padding: 40px 0; font-size: 0.95rem;
+}
+
+.tp-card {
+    display: flex; flex-direction: column;
+    padding: 12px 14px 10px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line);
+}
+
+.tp-card-top {
+    display: flex; align-items: center; gap: 10px;
+    padding-bottom: 10px;
+}
+
+.tp-ico {
+    width: 40px; height: 40px; flex: 0 0 40px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.15rem;
+    background: rgba(240, 180, 41, 0.12);
+    border: 1px solid var(--line);
+}
+
+.tp-info { flex: 1; min-width: 0; text-align: center; }
+
+.tp-info b {
+    display: block; font-size: 0.95rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.tp-info small { color: var(--muted); font-size: 0.78rem; }
+
+.tp-hr {
+    width: 100%; border: none;
+    border-top: 1px solid var(--line);
+    margin: 0 0 10px;
+}
+
+.tp-acts { display: flex; justify-content: center; }
+
+.tp-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 1px solid var(--gold);
+    background: linear-gradient(135deg, var(--terra), var(--gold));
+    color: #160e07;
+    font-weight: 700; font-size: 0.85rem;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.tp-btn:active { transform: scale(0.96); }
+
+.tp-foot {
+    padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+    text-align: center;
+    color: var(--muted); font-size: 0.75rem;
+    border-top: 1px solid var(--line);
+}
+
+@media (min-width: 640px) {
+    .tp-list { display: grid; grid-template-columns: 1fr 1fr; align-content: start; }
+    .tp-empty { grid-column: 1 / -1; }
+}

@@ -53,6 +53,15 @@ window.Sono.register('viewmenu', function (S) {
             else S.showToast('Control remoto no disponible');
         });
     }
+
+    // Servidor de archivos LAN (FTP tribal) — media/ftpserver.js
+    if ($('vm-ftp')) {
+        $('vm-ftp').addEventListener('click', function () {
+            viewMenu.hidden = true;
+            if (window.TribalFtp) window.TribalFtp.open(S.extDeps());
+            else S.showToast('Servidor de archivos no disponible');
+        });
+    }
     if (window.TribalRemote && window.TribalRemote.initListener) {
         window.TribalRemote.initListener(S);
     }
