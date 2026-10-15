@@ -1000,14 +1000,16 @@
     gap: 6px;
 }
 
-/* Página propia «Dispositivos» del mando: lista limpia, sin apelotar */
+/* Página propia «Dispositivos» del mando: flujo flex puro — NADA se superpone.
+   La página no scrollea: los botones quedan fijos arriba en flujo normal y
+   solo la lista de dispositivos tiene scroll propio, ~26px más abajo. */
 .rc-page {
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 .rc-page[hidden] {
@@ -1022,20 +1024,26 @@
 .rc-page .rc-dev-actions {
     order: 1;
     flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    z-index: 4;
-    background: rgba(18, 11, 6, 0.94);
     padding: 4px 0;
 }
 
 .rc-page .btm-list {
     order: 2;
-    flex: 0 0 auto;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     margin-top: 16px;
 }
 
 .rc-page .btm-row {
+    flex-shrink: 0;
+}
+
+/* Anti-superposición en Administrador BT y analizador Wi-Fi/Hotspot:
+   ningún hijo se comprime bajo su contenido — si algo excede, el cuerpo
+   entero scrollea y los elementos jamás se pintan uno encima de otro. */
+.btm-body > *,
+.btm-list > * {
     flex-shrink: 0;
 }
 
