@@ -951,12 +951,14 @@ window.TribalNotepad = (function () {
     function transformSelectedCase(mode) {
         var canvas = ov.querySelector('#np-canvas');
         canvas.focus();
+        restoreSelection();
         var sel = window.getSelection && window.getSelection();
         if (!sel || !sel.rangeCount || sel.isCollapsed) {
             if (deps && deps.toast) deps.toast('Selecciona primero el texto a transformar');
             return;
         }
-        var txt = sel.toString();
+        var r = sel.getRangeAt(0);
+        var txt = r.toString();
         if (!txt) return;
         var out = txt;
         if (mode === 'upper') out = txt.toUpperCase();
@@ -966,7 +968,14 @@ window.TribalNotepad = (function () {
                 return c.toUpperCase();
             });
         }
-        document.execCommand('insertText', false, out);
+        r.deleteContents();
+        var tn = document.createTextNode(out);
+        r.insertNode(tn);
+        var nr = document.createRange();
+        nr.selectNode(tn);
+        sel.removeAllRanges();
+        sel.addRange(nr);
+        saveSelection();
         pushHistory();
         scheduleLiveSave();
     }
@@ -1618,6 +1627,27 @@ window.TribalNotepad = (function () {
             if (act === 'quote') {
                 canvas.focus();
                 restoreSelection();
+                var qSel = window.getSelection && window.getSelection();
+                var qR = qSel && qSel.rangeCount && qSel.getRangeAt(0);
+                var bqs = qR ? Array.prototype.slice.call(
+                    canvas.querySelectorAll('blockquote')
+                ).filter(function (bq) {
+                    try { return qR.intersectsNode(bq); } catch (er) { return false; }
+                }) : [];
+                if (bqs.length) {
+                    // TOGGLE OFF: quitar la cita — desenvolver como párrafo normal
+                    bqs.forEach(function (bq) {
+                        var p = document.createElement('p');
+                        if (bq.style.lineHeight) p.style.lineHeight = bq.style.lineHeight;
+                        if (bq.style.textAlign) p.style.textAlign = bq.style.textAlign;
+                        if (bq.style.marginTop) p.style.marginTop = bq.style.marginTop;
+                        p.innerHTML = bq.innerHTML;
+                        bq.parentNode.replaceChild(p, bq);
+                    });
+                    pushHistory();
+                    scheduleLiveSave();
+                    return;
+                }
                 document.execCommand('formatBlock', false, '<blockquote>');
                 // La cita no puede aplastar el texto: conserva el interlineado vigente
                 var qs = window.getSelection && window.getSelection();
