@@ -1327,6 +1327,15 @@ window.TribalNotepad = (function () {
             pushHistory();
             scheduleLiveSave();
         });
+        // Tocar un enlace lo abre (los <a> en contenteditable no navegan solos)
+        canvas.addEventListener('click', function (e) {
+            var a = e.target && e.target.closest && e.target.closest('a[href]');
+            if (a && canvas.contains(a)) {
+                e.preventDefault();
+                var href = a.getAttribute('href');
+                if (href) window.open(href, '_blank', 'noopener');
+            }
+        });
 
         // Ortografía en vivo: chip «✏ sugerencia» flotante junto al cursor
         var spellHint = ov.querySelector('#np-spell-hint');
@@ -1610,6 +1619,21 @@ window.TribalNotepad = (function () {
                 canvas.focus();
                 restoreSelection();
                 document.execCommand('formatBlock', false, '<blockquote>');
+                // La cita no puede aplastar el texto: conserva el interlineado vigente
+                var qs = window.getSelection && window.getSelection();
+                if (qs && qs.rangeCount) {
+                    var qr = qs.getRangeAt(0);
+                    var curLh = canvas.style.lineHeight ||
+                        LH_CSS[curNote && curNote.lineHeight] || '1.5';
+                    canvas.querySelectorAll('blockquote').forEach(function (bq) {
+                        try {
+                            if (qr.intersectsNode(bq)) {
+                                bq.style.lineHeight = curLh;
+                                if (parseFloat(curLh) >= 1) bq.style.marginTop = '';
+                            }
+                        } catch (er) {}
+                    });
+                }
                 pushHistory();
                 scheduleLiveSave();
                 return;
@@ -1621,11 +1645,22 @@ window.TribalNotepad = (function () {
                 return;
             }
             if (act === 'link') {
+                var selPre = window.getSelection && window.getSelection();
+                var selTxt = (selPre && selPre.rangeCount && !selPre.isCollapsed)
+                    ? selPre.toString() : '';
                 askAirUrl('Agregar hipervínculo', 'https://', function (url) {
                     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+                    canvas.focus();
+                    restoreSelection();
                     var sel = window.getSelection && window.getSelection();
-                    if (sel && !sel.isCollapsed) {
+                    if (sel && sel.rangeCount && !sel.isCollapsed) {
+                        // El texto sigue seleccionado: se convierte en enlace y conserva su formato
                         document.execCommand('createLink', false, url);
+                    } else if (selTxt) {
+                        // La selección se perdió en el prompt: reinsertar el MISMO texto como enlace
+                        document.execCommand('insertHTML', false,
+                            '<a href="' + esc(url) + '" target="_blank" rel="noopener">' +
+                            esc(selTxt) + '</a>');
                     } else {
                         var a = document.createElement('a');
                         a.href = url;
