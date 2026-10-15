@@ -322,6 +322,7 @@
         <button id="menu-cover"><i class="bi bi-image"></i>Buscar portada</button>
         <button id="menu-imgedit"><i class="bi bi-brush"></i>Editar imagen</button>
         <button id="menu-share"><i class="bi bi-share"></i>Compartir</button>
+        <button id="menu-dl"><i class="bi bi-download"></i>Descargar</button>
         <button id="menu-ftp"><i class="bi bi-hdd-network"></i>Enviar al servidor</button>
         <button id="menu-bt"><i class="bi bi-bluetooth"></i>Compartir por Bluetooth</button>
         <button id="menu-cast"><i class="bi bi-cast"></i>Transmitir (Cast)</button>
@@ -581,6 +582,19 @@
         </div>
     </div>
 
+    <!-- Diálogo: descargar archivo en formato elegido -->
+    <div class="tribal-overlay" id="dl-overlay" hidden>
+        <div class="tribal-dialog">
+            <h4>Descargar archivo</h4>
+            <p id="dl-name"></p>
+            <div class="tribal-col-list" id="dl-list"></div>
+            <p class="tribal-batch-preview" id="dl-status"></p>
+            <div class="tribal-dialog-actions">
+                <button class="tribal-btn" id="dl-cancel">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Diálogo: convertir audio -->
     <div class="tribal-overlay" id="conv-overlay" hidden>
         <div class="tribal-dialog">
@@ -648,6 +662,7 @@
 <script src="js/media/export.js"></script>
 <script src="js/media/cutter.js"></script>
 <script src="js/media/multisel.js"></script>
+<script src="js/media/downld.js"></script>
 <script src="js/media/menus.js"></script>
 <script src="js/media/viewmenu.js"></script>
 <script src="js/media/tabfavs.js"></script>

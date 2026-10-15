@@ -324,6 +324,42 @@ window.Sono.register('menus', function (S) {
     });
     $('conv-cancel').addEventListener('click', function () { convOv.hidden = true; });
 
+    // descargar archivo → elige formato según tipo y guarda en Descargas
+    var dlOv = $('dl-overlay'), dlList = $('dl-list'),
+        dlStatus = $('dl-status'), dlItem = null;
+    $('menu-dl').addEventListener('click', function () {
+        if (!S.menuItem) return closeMenu();
+        dlItem = S.menuItem;
+        closeMenu();
+        $('dl-name').textContent = dlItem.name;
+        dlStatus.textContent = '';
+        dlList.innerHTML = window.TribalDownld.formatsFor(dlItem).map(function (f) {
+            return '<button class="tribal-col-check" data-fmt="' + f.id + '">' +
+                '<i class="bi bi-circle"></i><span>' + S.esc(f.label) + '</span></button>';
+        }).join('');
+        dlOv.hidden = false;
+    });
+    dlList.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-fmt]');
+        if (!b || !dlItem) return;
+        var fmt = b.dataset.fmt;
+        dlStatus.textContent = 'Preparando…';
+        window.TribalDownld.produce(dlItem, fmt, function (t) {
+            dlStatus.textContent = t;
+        }).then(function (out) {
+            var name = dlItem.name.replace(/\.[^.]+$/, '') + out.ext;
+            dlStatus.textContent = 'Guardando en Descargas…';
+            return window.TribalDownld.saveToDevice(out.blob, name);
+        }).then(function () {
+            dlStatus.textContent = '';
+            dlOv.hidden = true;
+            S.showToast('⬇ Guardado en Descargas');
+        }).catch(function (err) {
+            dlStatus.textContent = (err && err.message) || 'No se pudo descargar';
+        });
+    });
+    $('dl-cancel').addEventListener('click', function () { dlOv.hidden = true; });
+
     // ------------------------------------------------------------------ CRUD
     $('rename-cancel').addEventListener('click', function () { S.renOv.hidden = true; });
     $('rename-ok').addEventListener('click', function () {

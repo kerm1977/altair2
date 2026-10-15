@@ -140,6 +140,56 @@ public class TribalNativePlugin extends Plugin {
         }
     }
 
+    // Descarga: copia un archivo del caché (ruta relativa) a Descargas/TRIBALs
+    // en el almacenamiento público. API 29+ vía MediaStore.Downloads; abajo,
+    // escritura directa + MediaScanner para que aparezca al instante.
+    @PluginMethod
+    public void saveToDownloads(PluginCall call) {
+        String rel = call.getString("path");
+        String name = call.getString("name", "archivo");
+        String mime = call.getString("mime", "application/octet-stream");
+        if (rel == null) { call.reject("sin ruta"); return; }
+        try {
+            File src = new File(getContext().getCacheDir(), rel);
+            if (!src.exists()) { call.reject("no existe " + rel); return; }
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                android.content.ContentValues cv = new android.content.ContentValues();
+                cv.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, name);
+                cv.put(android.provider.MediaStore.Downloads.MIME_TYPE, mime);
+                cv.put(android.provider.MediaStore.Downloads.RELATIVE_PATH,
+                    android.os.Environment.DIRECTORY_DOWNLOADS + "/TRIBALs");
+                Uri uri = getContext().getContentResolver().insert(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                if (uri == null) { call.reject("MediaStore rechazó"); return; }
+                java.io.OutputStream out = getContext().getContentResolver()
+                    .openOutputStream(uri);
+                copyFile(src, out);
+            } else {
+                File dir = new File(android.os.Environment
+                    .getExternalStoragePublicDirectory(
+                        android.os.Environment.DIRECTORY_DOWNLOADS), "TRIBALs");
+                if (!dir.exists()) dir.mkdirs();
+                File dst = new File(dir, name);
+                copyFile(src, new java.io.FileOutputStream(dst));
+                android.media.MediaScannerConnection.scanFile(getContext(),
+                    new String[]{ dst.getAbsolutePath() },
+                    new String[]{ mime }, null);
+            }
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("dl_error", e.getMessage(), e);
+        }
+    }
+
+    private void copyFile(File src, java.io.OutputStream out) throws java.io.IOException {
+        java.io.FileInputStream in = new java.io.FileInputStream(src);
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        in.close();
+        out.close();
+    }
+
     // Devuelve el ResolveInfo del manejador Bluetooth de ACTION_SEND, o null.
     private ResolveInfo findBluetoothTarget(Intent send) {
         PackageManager pm = getContext().getPackageManager();
