@@ -24,7 +24,9 @@ window.TribalBtChat = (function () {
     function myName() { try { var n = localStorage.getItem('tribu_btname'); if (n) return n;
         n = 'Tribu ' + Math.random().toString(36).slice(2, 6); localStorage.setItem('tribu_btname', n); return n;
         } catch (e) { return 'Tribu'; } }
-    function tag(o) { o.n = myName(); if (groupOn) o.g = 1; return o; }
+    function tag(o) { o.n = myName(); o.tribal = 1;
+        if (N.tribalId) o.tid = N.tribalId();
+        if (groupOn) o.g = 1; return o; }
     function nPeers() { return Object.keys(peers).length; }
     function nColor(n) { var h = 0, pal = ['#f0b429', '#2a9d8f', '#e06a2e', '#a3b18a', '#e76f51', '#c77dff', '#5e8c61', '#d4a373'];
         for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; return pal[h % pal.length]; }
@@ -187,11 +189,12 @@ window.TribalBtChat = (function () {
         $('btc-devices').hidden = true; $('btc-list').hidden = false;
         if (name) $('btc-title').textContent = name; renderMsgs(); }
     function devHtml(d, st, btn) {
-        return '<div class="btc-dev ' + st + '"><i class="bi bi-bluetooth"></i><span>' +
+        return '<div class="btc-dev ' + st + '"><i class="bi ' +
+            (d.kind === 'wifi' ? 'bi-wifi' : 'bi-bluetooth') + '"></i><span>' +
             esc(d.name || d.addr) + '</span>' +
             (st === 'on' ? '<small class="btc-on">en línea</small>'
                 : '<button class="tribal-btn sm btc-conn" data-addr="' + esc(d.addr) +
-                  '">' + btn + '</button>') + '</div>'; }
+                  '" data-kind="' + esc(d.kind || 'bt') + '">' + btn + '</button>') + '</div>'; }
     function renderDevs() {
         var seen = {}, on = Object.keys(peers), fav = favs(), html = '';
         if (on.length) {                              // EN LÍNEA (conectados)
@@ -203,13 +206,33 @@ window.TribalBtChat = (function () {
         near.forEach(function (d) { seen[d.addr] = 1; });
         var off = Object.keys(fav).filter(function (a) { return !seen[a]; });
         if (near.length) html += '<div class="btchat-count">' + near.length + ' cerca</div>' +   // CERCA (descubiertos)
-            near.map(function (d) { return devHtml(d, 'near', 'Conectar'); }).join('');
+            near.map(function (d) {
+                return devHtml(d, 'near', d.kind === 'wifi' ? 'Invitar' : 'Conectar'); }).join('');
         if (off.length) html += '<div class="btchat-count">Guardados · desconectados</div>' +     // FAVORITOS offline
             off.map(function (a) { return devHtml({ name: fav[a].name, addr: a }, 'off', 'Conectar'); }).join('');
         $('btc-devices').innerHTML = html || '<p class="btc-empty">Nadie cerca aún — ⋮ → "Buscar cerca"</p>'; }
+    // me invitan por Wi-Fi → confirmo → acepto por UDP + abro el canal TCP
+    function handleInvite(m, fromIp) {
+        var who = m.n || fromIp || 'La tribu';
+        var yes = function () {
+            if (N.wifiAccept) N.wifiAccept(fromIp, m.id).catch(function () {});
+            toast('Aceptaste — abriendo canal Wi-Fi…');
+            if (fromIp) N.connect(fromIp).catch(function () {}); };
+        if (deps.confirm) deps.confirm('Invitación tribal 📡',
+            who + ' te invita a conversar por Wi-Fi. ¿Aceptar?', 'Aceptar', yes);
+        else yes(); }
+    // invitación Wi-Fi: UDP al equipo → él acepta → su TCP llega a mi oído
+    function inviteWifi(ip, name) {
+        if (!N.wifiInvite) return;
+        status('invitando a ' + (name || ip) + '…');
+        N.wifiInvite(ip).then(function () {
+            toast('📡 Invitación enviada a ' + (name || ip));
+        }).catch(function () { toast('No se pudo invitar'); }); }
     document.addEventListener('click', function (e) {
         var b = e.target.closest && e.target.closest('.btc-conn');
-        if (b) { status('conectando…'); N.connect(b.dataset.addr); } });
+        if (!b) return;
+        if (b.dataset.kind === 'wifi') { inviteWifi(b.dataset.addr, null); return; }
+        status('conectando…'); N.connect(b.dataset.addr); });
     function doScan() { if (paused) { status('escucha en pausa'); return; }
         devs = {}; renderDevs(); status('escaneando…');
         N.scan().catch(function (e) { status('error'); toast(String(e)); }); }
@@ -232,6 +255,12 @@ window.TribalBtChat = (function () {
             status(Object.keys(devs).length + ' cerca · escuchando');
             autoConnect(d.addr); }
         else if (d.type === 'scanDone') { status(Object.keys(devs).length + ' cerca · escuchando'); }
+        else if (d.type === 'wifiDevice' && d.ip) {   // TRIBALs visto en la LAN/hotspot
+            devs[d.ip] = { name: d.name || d.ip, addr: d.ip, kind: 'wifi' };
+            if (!$('btc-devices').hidden) renderDevs();
+            status(Object.keys(devs).length + ' cerca · escuchando'); }
+        else if (d.type === 'hotspot') {   // mi red tribal cambió de estado
+            status(d.state === 'on' ? '📡 Red tribal activa — comparte los datos' : peersLabel()); }
         else if (d.type === 'peer') {
             if (d.state === 'open') { peers[d.addr || d.name || 'peer'] = d.name || 'la tribu';
                 saveFav(d.addr, d.name); connModal(d.name);
@@ -248,7 +277,12 @@ window.TribalBtChat = (function () {
                 N.listen().catch(function () {}); } }
         else if (d.type === 'msg') {
             var m; try { m = JSON.parse(d.msg); } catch (e) { return; } m.me = false;
+            var fromIp = d.from && String(d.from).indexOf('.') > 0 ? d.from : '';
+            if (fromIp && !m.tribal) return;        // blindaje: solo paquetes TRIBALs por Wi-Fi
             if (m.k === 'rc') return;                 // comando de control remoto multimedia
+            if (m.k === 'winvite') { handleInvite(m, fromIp); return; }
+            if (m.k === 'waccept') { toast('📡 ' + (m.n || 'La tribu') + ' aceptó — conectando…'); return; }
+            if (m.k === 'wdecline') { toast((m.n || 'La tribu') + ' rechazó la invitación'); return; }
             if (m.k === 'mhead') {                    // cabecera de media troceada
                 parts[m.id] = { k: m.mk, name: m.name, mime: m.mime, tot: m.tot,
                     q: m.q, who: m.n, got: 0, p: [], t: Date.now() };
@@ -426,6 +460,10 @@ window.TribalBtChat = (function () {
             var lb = $('btc-onoff-lb'), off = localStorage.getItem(ON_KEY) === '0';
             if (lb) lb.textContent = off ? 'Encender chat' : 'Apagar chat';
             if (off) { status('apagado'); renderDevs(); return; }
+            // invitación recibida con el chat cerrado (la guardó la insignia)
+            var inv = window.__btcInv;
+            if (inv && Date.now() - inv.at < 90000) {
+                window.__btcInv = null; handleInvite(inv.m, inv.from); }
             status(peersLabel()); N.listen().catch(function () {}); doScan();
             N.devices().then(function (r) {
                 (r.bonded || []).forEach(function (x) { devs[x.addr] = x; autoConnect(x.addr); }); renderDevs();

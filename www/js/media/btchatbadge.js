@@ -68,6 +68,10 @@ window.TribalBtBadge = (function () {
         try { m = JSON.parse(d.msg); } catch (e) { return; }
         var ping = m.k === 'ping';
         if (chatOpen()) return;                    // el chat ya lo está viendo
+        if (m.k === 'winvite') {                   // invitación Wi-Fi → abrir chat
+            window.__btcInv = { m: m, from: d.from, at: Date.now() };
+            buzz([0, 250, 120, 250, 120, 500]);
+            openChat(); return; }
         n++; paint();
         buzz(ping ? [0, 200, 120, 200, 120, 400] : [0, 180, 90, 180]);
     }

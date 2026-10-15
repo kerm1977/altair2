@@ -26,6 +26,10 @@ import java.net.DatagramSocket;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.ServerSocket;
+import java.net.Socket;
+import android.os.Handler;
+import android.os.Looper;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -79,6 +83,7 @@ public class TribalBtPlugin extends Plugin {
     @Override public void load() {
         inst = this;
         startWifiUdpServer();
+        startChatServer();          // el oído TCP del chat vive con el plugin
     }
     private void emit(JSObject d) { notifyListeners("bt", d, true); }
     private boolean markSeen(String m) {         // true = nuevo
@@ -852,6 +857,197 @@ public class TribalBtPlugin extends Plugin {
             openWifiSettings(call);
         }
     }
+
+    // =========================================================================
+    // RED TRIBAL DIRECTA: Hotspot local (estilo drone) + CHAT TCP (PUERTO 47779)
+    // Un teléfono levanta un AP local; los demás se unen a esa red y hablan
+    // por sockets TCP length-prefixed (mismo formato que RFCOMM). El saludo
+    // TRIBALCHAT/1 blinda el canal: quien no lo envíe es desconectado.
+    // =========================================================================
+    private static final int CHAT_PORT = 47779;
+    private static final String CHAT_MAGIC = "TRIBALCHAT/1";
+    private ServerSocket chatSrv;
+    private final Map<String, Sock> lan = new HashMap<>();   // ip → socket TCP
+    private String chatName = "TRIBALs", chatId = "";
+    private WifiManager.LocalOnlyHotspotReservation hsRes;
+
+    private static final class Sock {
+        final Socket s; final DataOutputStream out;
+        Sock(Socket x) throws Exception {
+            s = x; out = new DataOutputStream(x.getOutputStream()); } }
+
+    @PluginMethod
+    public void chatHello(PluginCall call) {   // nombre + id tribal para el saludo
+        chatName = call.getString("name", chatName);
+        chatId = call.getString("id", chatId);
+        startChatServer();
+        call.resolve(); }
+
+    private void lanEvt(String ip, String name, String st) {
+        JSObject d = new JSObject();
+        d.put("type", "peer"); d.put("state", st); d.put("addr", ip);
+        d.put("kind", "wifi");
+        if (name != null) d.put("name", name); emit(d); }
+
+    // handshake: TRIBALCHAT/1|<nombre>|<id> — responde el propio; quien no
+    // hable el protocolo queda colgado fuera (blindaje: solo TRIBALs entra)
+    private void chatShake(Socket s) throws Exception {
+        s.setSoTimeout(10000);
+        DataInputStream in = new DataInputStream(s.getInputStream());
+        DataOutputStream out = new DataOutputStream(s.getOutputStream());
+        out.writeUTF(CHAT_MAGIC + "|" + chatName + "|" + chatId);
+        out.flush();
+        String hello = in.readUTF();
+        s.setSoTimeout(0);
+        if (hello == null || !hello.startsWith(CHAT_MAGIC)) {
+            s.close(); throw new Exception("no-tribal"); }
+        String[] p = hello.split("\\|");
+        String nm = p.length > 1 && !p[1].isEmpty() ? p[1] : s.getInetAddress().getHostAddress();
+        final Sock w = new Sock(s);
+        final String ip = s.getInetAddress().getHostAddress();
+        synchronized (lan) { lan.put(ip, w); }
+        lanEvt(ip, nm, "open");
+        chatReadLoop(s, in, ip); }
+
+    private void chatReadLoop(Socket s, DataInputStream in, final String ip) {
+        try {
+            while (true) {
+                int n = in.readInt();
+                if (n <= 0 || n > 32 * 1024 * 1024) break;
+                byte[] b = new byte[n]; in.readFully(b);
+                final String m = new String(b, StandardCharsets.UTF_8);
+                if (!m.contains("\"tribal\"")) continue;   // sin marca → fuera
+                JSObject d = new JSObject();
+                d.put("type", "msg"); d.put("msg", m); d.put("from", ip);
+                emit(d);
+                lanRelay(m, ip);                            // hub Wi-Fi→otros
+            }
+        } catch (Exception ignored) {}
+        synchronized (lan) { lan.remove(ip); }
+        try { s.close(); } catch (Exception ignored) {}
+        lanEvt(ip, null, "closed"); }
+
+    private void lanRelay(String msg, String fromIp) {
+        if (!markSeen(msg)) return;
+        byte[] b = msg.getBytes(StandardCharsets.UTF_8);
+        List<Map.Entry<String, Sock>> list;
+        synchronized (lan) { list = new ArrayList<>(lan.entrySet()); }
+        for (Map.Entry<String, Sock> e : list) {
+            if (e.getKey().equals(fromIp)) continue;
+            try { synchronized (e.getValue().out) {
+                e.getValue().out.writeInt(b.length);
+                e.getValue().out.write(b); e.getValue().out.flush(); }
+            } catch (Exception ignored) {} } }
+
+    private void startChatServer() {
+        if (chatSrv != null) return;
+        new Thread(new Runnable() { public void run() {
+            try {
+                chatSrv = new ServerSocket(CHAT_PORT);
+                while (chatSrv != null && !chatSrv.isClosed()) {
+                    try {
+                        final Socket s = chatSrv.accept();
+                        new Thread(new Runnable() { public void run() {
+                            try { chatShake(s); } catch (Exception ignored) {} }
+                        }).start();
+                    } catch (Exception e) { break; }
+                }
+            } catch (Throwable ignored) {}
+        }}).start(); }
+
+    @PluginMethod
+    public void chatConnect(final PluginCall call) {
+        final String ip = call.getString("ip", "");
+        if (ip.isEmpty()) { call.reject("sin ip"); return; }
+        startChatServer();
+        new Thread(new Runnable() { public void run() {
+            try { chatShake(new Socket(ip, CHAT_PORT)); call.resolve(); }
+            catch (Exception e) {
+                lanEvt(ip, null, "error");
+                call.reject("no conecta: " + e.getMessage()); } }
+        }).start(); }
+
+    @PluginMethod
+    public void chatSend(final PluginCall call) {
+        final String msg = call.getString("msg");
+        if (msg == null) { call.reject("sin mensaje"); return; }
+        markSeen(msg); final byte[] b = msg.getBytes(StandardCharsets.UTF_8);
+        final List<Sock> list;
+        synchronized (lan) { list = new ArrayList<>(lan.values()); }
+        if (list.isEmpty()) { call.reject("sin chat wi-fi"); return; }
+        new Thread(new Runnable() { public void run() {
+            int sent = 0;
+            for (Sock w : list) try {
+                synchronized (w.out) {
+                    w.out.writeInt(b.length); w.out.write(b); w.out.flush(); }
+                sent++;
+            } catch (Exception ignored) {}
+            if (sent == 0) { call.reject("sin conexión"); return; }
+            call.resolve(); }}).start(); }
+
+    @PluginMethod
+    public void chatClose(PluginCall call) {
+        List<String> ips;
+        synchronized (lan) { ips = new ArrayList<>(lan.keySet()); }
+        for (String ip : ips) {
+            Sock w; synchronized (lan) { w = lan.remove(ip); }
+            if (w != null) try { w.s.close(); } catch (Exception ignored) {} }
+        call.resolve(); }
+
+    // -- Hotspot automático (AP local sin internet — estilo drone) -----------
+    @PluginMethod
+    public void hotspotStart(PluginCall call) {
+        try {
+            WifiManager wm = (WifiManager) getContext().getApplicationContext()
+                .getSystemService(Context.WIFI_SERVICE);
+            if (wm == null) { call.reject("sin wifi"); return; }
+            if (hsRes != null) { call.resolve(hotspotData()); return; }
+            if (Build.VERSION.SDK_INT < 26) { call.reject("android_viejo"); return; }
+            wm.startLocalOnlyHotspot(new WifiManager.LocalOnlyHotspotCallback() {
+                @Override public void onStarted(WifiManager.LocalOnlyHotspotReservation r) {
+                    hsRes = r;
+                    JSObject d = hotspotData();
+                    d.put("type", "hotspot"); d.put("state", "on"); emit(d); }
+                @Override public void onStopped() {
+                    hsRes = null;
+                    JSObject d = new JSObject();
+                    d.put("type", "hotspot"); d.put("state", "off"); emit(d); }
+                @Override public void onFailed(int reason) {}
+            }, new Handler(Looper.getMainLooper()));
+            // el SSID/clave llegan un instante después: resolvemos con lo que haya
+            call.resolve(hotspotData());
+        } catch (SecurityException e) { call.reject("permiso_ubicacion"); }
+          catch (Exception e) { call.reject("hotspot: " + e.getMessage()); } }
+
+    private JSObject hotspotData() {
+        JSObject r = new JSObject();
+        r.put("ip", localIp());
+        try {
+            if (hsRes != null && Build.VERSION.SDK_INT >= 30) {
+                WifiConfiguration c = hsRes.getWifiConfiguration();
+                if (c != null) {
+                    r.put("ssid", c.SSID);
+                    r.put("pass", c.preSharedKey != null ? c.preSharedKey : "");
+                    r.put("on", true);
+                    return r; } }
+            if (hsRes != null) {
+                WifiConfiguration c = hsRes.getWifiConfiguration();  // API 26-29 también la da
+                if (c != null) {
+                    r.put("ssid", c.SSID);
+                    r.put("pass", c.preSharedKey != null ? c.preSharedKey : "");
+                    r.put("on", true); } }
+        } catch (Throwable ignored) {}
+        r.put("on", hsRes != null);
+        return r; }
+
+    @PluginMethod
+    public void hotspotInfo(PluginCall call) { call.resolve(hotspotData()); }
+
+    @PluginMethod
+    public void hotspotStop(PluginCall call) {
+        try { if (hsRes != null) { hsRes.close(); hsRes = null; } }
+        catch (Exception ignored) {}
+        call.resolve(); }
 
     private void closeAll() {
         try {

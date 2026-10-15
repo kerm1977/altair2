@@ -11,6 +11,19 @@ window.TribalBtNet = (function () {
 
     function emit(d) { cbs.forEach(function (f) { try { f(d); } catch (e) {} }); }
     function isNative() { return nativeOn; }
+    // identidad tribal persistente: nombre + id viajan en el saludo TCP/UDP
+    function tribalId() {
+        try {
+            var t = localStorage.getItem('tribu_tid');
+            if (t) return t;
+            t = 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+            localStorage.setItem('tribu_tid', t); return t;
+        } catch (e) { return 't' + tabId; }
+    }
+    function tribalName() {
+        try { return localStorage.getItem('tribu_btname') || 'Tribu'; }
+        catch (e) { return 'Tribu'; }
+    }
     function favs() { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '{}'); } catch (e) { return {}; } }
     function saveFavs(map) { try { localStorage.setItem(FAV_KEY, JSON.stringify(map || {})); } catch (e) {} }
     function isFav(addr) { var f = favs(); return !!(addr && f[addr] && f[addr].fav !== false); }
@@ -50,6 +63,9 @@ window.TribalBtNet = (function () {
                     emit(d);
                 });
                 listen().catch(function () {});
+                if (BT.chatHello) BT.chatHello({
+                    name: tribalName(), id: tribalId()
+                }).catch(function () {});
             }
             return Promise.resolve();
         }
@@ -137,7 +153,11 @@ window.TribalBtNet = (function () {
     function enable() { return (nativeOn && BT.requestEnable) ? BT.requestEnable() : Promise.resolve(); }
 
     function connect(addr) {
-        if (nativeOn) return BT.connect({ addr: addr });
+        if (nativeOn) {
+            if (addr && addr.indexOf('.') > 0 && BT.chatConnect)
+                return BT.chatConnect({ ip: addr });   // peer Wi-Fi por IP
+            return BT.connect({ addr: addr });
+        }
         var nm = (fakePeers[addr] && fakePeers[addr].name) || (favs()[addr] && favs()[addr].name) || addr;
         emit({ type: 'peer', state: 'open', name: nm, addr: addr });
         post({ type: 'peer', state: 'open', name: 'Tribu ' + tabId.slice(-4) });
@@ -145,11 +165,22 @@ window.TribalBtNet = (function () {
     }
 
     function setOn(on) { return (nativeOn && BT.setOn) ? BT.setOn({ on: !!on }) : Promise.resolve(); }
+    // envío dual: el mensaje sale por Bluetooth y por el chat TCP Wi-Fi;
+    // basta que UN transporte lo entregue para considerarse enviado
     function send(obj) {
         var s = JSON.stringify(obj);
-        if (nativeOn) return BT.send({ msg: s });
-        post({ type: 'msg', msg: s });
-        return Promise.resolve();
+        if (!nativeOn) { post({ type: 'msg', msg: s }); return Promise.resolve(); }
+        var jobs = [];
+        if (BT.send) jobs.push(BT.send({ msg: s }));
+        if (BT.chatSend) jobs.push(BT.chatSend({ msg: s }));
+        if (!jobs.length) return Promise.reject(new Error('sin transporte'));
+        return new Promise(function (res, rej) {
+            var left = jobs.length, ok = false;
+            jobs.forEach(function (j) {
+                j.then(function () { if (!ok) { ok = true; res(); } })
+                 .catch(function () { if (--left === 0 && !ok) rej(new Error('sin conexión')); });
+            });
+        });
     }
     function close() {
         if (nativeOn) return BT.close();
@@ -177,9 +208,39 @@ window.TribalBtNet = (function () {
 
     function wifiSend(obj, toIp) {
         var s = JSON.stringify(obj);
-        post({ type: 'msg', msg: s });
+        if (!toIp) post({ type: 'msg', msg: s });   // broadcast local eco solo si no hay IP
         if (nativeOn && BT.wifiSend) return BT.wifiSend({ msg: s, ip: toIp || '255.255.255.255' });
         return Promise.resolve();
+    }
+    // invitación al chat por UDP: el otro acepta → chatConnect invitado
+    function wifiInvite(ip) {
+        return wifiSend({
+            tribal: 1, k: 'winvite', id: 'inv_' + Date.now().toString(36),
+            n: tribalName(), tid: tribalId(), to: ip
+        }, ip);
+    }
+    function wifiAccept(ip, invId) {
+        return wifiSend({
+            tribal: 1, k: 'waccept', id: invId,
+            n: tribalName(), tid: tribalId(), to: ip
+        }, ip);
+    }
+    function wifiDecline(ip, invId) {
+        return wifiSend({ tribal: 1, k: 'wdecline', id: invId,
+            n: tribalName(), to: ip }, ip);
+    }
+    // hotspot automático estilo drone (AP local sin internet)
+    function hotspotStart() {
+        if (nativeOn && BT.hotspotStart) return ensurePerms().then(function () { return BT.hotspotStart(); });
+        return Promise.resolve({ on: true, ssid: 'TRIBALs-DEMO', pass: '12345678', ip: location.hostname || '127.0.0.1' });
+    }
+    function hotspotStop() {
+        if (nativeOn && BT.hotspotStop) return BT.hotspotStop();
+        return Promise.resolve();
+    }
+    function hotspotInfo() {
+        if (nativeOn && BT.hotspotInfo) return BT.hotspotInfo();
+        return Promise.resolve({ on: false });
     }
     function wifiConnect(o) {
         if (nativeOn && BT.wifiConnect) return ensurePerms().then(function () { return BT.wifiConnect(o); });
@@ -193,6 +254,9 @@ window.TribalBtNet = (function () {
         setOn: setOn, pause: pause, ensurePerms: ensurePerms,
         favs: favs, isFav: isFav, setFav: setFav, toggleFav: toggleFav,
         wifiScan: wifiScan, wifiSend: wifiSend, wifiConnect: wifiConnect, wifiForget: wifiForget,
+        wifiInvite: wifiInvite, wifiAccept: wifiAccept, wifiDecline: wifiDecline,
+        hotspotStart: hotspotStart, hotspotStop: hotspotStop, hotspotInfo: hotspotInfo,
+        tribalId: tribalId, tribalName: tribalName,
         openSettings: function () { return (nativeOn && BT.openBtSettings) ? BT.openBtSettings() : scan(true); },
         openWifiSettings: function () { return (nativeOn && BT.openWifiSettings) ? BT.openWifiSettings() : Promise.resolve(); },
         openHotspotSettings: function () { return (nativeOn && BT.openHotspotSettings) ? BT.openHotspotSettings() : Promise.resolve(); }
