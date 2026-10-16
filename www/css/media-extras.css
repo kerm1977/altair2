@@ -2843,8 +2843,32 @@
 }
 /* filtro que el usuario mandó al menú ⋮ (sigue en el DOM, oculto) */
 #media-tabs .tribal-tab.fav-hidden { display: none; }
-/* lo que está en la barra no repite fila en el ⋮ */
-#view-menu button.fav-pinned { display: none; }
+/* la fila fijada sigue visible en el ⋮ — su chincheta dorada marca
+   el estado y permite devolverla a la barra con un toque */
+#view-menu button.fav-pinned { opacity: .92; }
+
+/* chincheta de fijar/soltar al final de cada fila del ⋮ */
+.tribal-menu button .vm-pin {
+    margin-left: auto;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+}
+.tribal-menu button .vm-pin i {
+    font-size: 1rem;
+    color: var(--tb-muted, #b99b82);
+    width: auto;
+}
+.tribal-menu button .vm-pin.on i { color: var(--tb-gold, #f0b429); }
+.tribal-menu button .vm-pin.lock i {
+    color: var(--tb-muted, #b99b82);
+    opacity: .45;
+    font-size: .85rem;
+}
 
 /* píldora de acciones del long-press (puede llevar varios botones) */
 #fav-pop {

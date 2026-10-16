@@ -18,21 +18,26 @@ window.Sono.register('tabfavs', function (S) {
 
     // catálogo completo de accesos movibles. tab:true → su elemento canónico
     // es el propio botón de filtro; el resto → botón vm-* del menú ⋮.
+    var MAX_BAR = 6; // la barra admite máximo 6 íconos («Todos» incluido)
     var ACTIONS = [
         { id: 'tab-all',    tab: true, icon: 'bi-stars',                 title: 'Todo' },
         { id: 'tab-audio',  tab: true, icon: 'bi-music-note-beamed',     title: 'Música' },
         { id: 'tab-video',  tab: true, icon: 'bi-camera-video',          title: 'Videos' },
         { id: 'tab-image',  tab: true, icon: 'bi-image',                 title: 'Fotos' },
         { id: 'tab-cols',   tab: true, icon: 'bi-folder2',               title: 'Colecciones' },
+        { id: 'vm-vnotes',  icon: 'bi-mic-fill',                         title: 'Notas de audio' },
+        { id: 'vm-zip',     icon: 'bi-file-zip',                         title: 'Comprimir' },
         { id: 'vm-stats',   icon: 'bi-bar-chart',                        title: 'Estadísticas' },
         { id: 'vm-slide',   icon: 'bi-collection-play',                  title: 'Slideshow' },
         { id: 'vm-newcol',  icon: 'bi-folder-plus',                      title: 'Nueva colección' },
         { id: 'vm-batch',   icon: 'bi-input-cursor-text',                title: 'Renombrar' },
         { id: 'vm-undo',    icon: 'bi-arrow-counterclockwise',           title: 'Deshacer' },
         { id: 'vm-btchat',  icon: 'bi-bluetooth',                        title: 'Chat Bluetooth' },
-        { id: 'vm-doc',     icon: 'bi-book-half',                        title: 'Libros' },
-        { id: 'vm-files',   icon: 'bi-folder2-open',                     title: 'Archivos' },
-        { id: 'vm-p2p',     icon: 'bi-diagram-3',                        title: 'P2P Torrents' },
+        { id: 'vm-btmgr',   icon: 'bi-broadcast-pin',                    title: 'Administrador BT' },
+        { id: 'vm-remote',  icon: 'bi-controller',                       title: 'Control remoto' },
+        { id: 'vm-ftp',     icon: 'bi-hdd-network-fill',                 title: 'Servidor de archivos' },
+        { id: 'vm-doc',     icon: 'bi-book-half',                        title: 'Libros y notas' },
+        { id: 'vm-notes',   icon: 'bi-journal-richtext',                 title: 'Bloc de notas' },
         { id: 'vm-links',   icon: 'bi-link-45deg',                       title: 'Enlaces' },
         { id: 'vm-perms',   icon: 'bi-shield-lock',                      title: 'Permisos' },
         { id: 'vm-revoke',  icon: 'bi-shield-x',                         title: 'Revocar permisos' }
@@ -83,8 +88,22 @@ window.Sono.register('tabfavs', function (S) {
     }
     function toggle(id) {
         var bar = load(), i = bar.indexOf(id);
-        if (i >= 0) bar.splice(i, 1); else bar.push(id);
+        if (i >= 0) {
+            if (id === 'tab-all') {   // «Todos» es intocable: nunca sale
+                if (S.showToast) S.showToast('«Todos» siempre queda en la barra');
+                return false;
+            }
+            bar.splice(i, 1);
+        } else {
+            if (bar.length >= MAX_BAR) {
+                if (S.showToast) S.showToast('La barra admite máximo ' + MAX_BAR +
+                    ' íconos — quita uno primero');
+                return false;
+            }
+            bar.push(id);
+        }
         save(bar);
+        return true;
     }
 
     // ------------------------------------------- filas del ⋮ para los filtros
@@ -107,6 +126,43 @@ window.Sono.register('tabfavs', function (S) {
             tabRows[a.id] = b;
         });
     })();
+
+    // ------------------------------------------- chincheta ☆ en cada fila ⋮
+    // En el celular el long-press muere (pointercancel del WebView antes de
+    // los 550 ms): la chincheta fija/suelta con UN toque, siempre visible.
+    function decorRows() {
+        ACTIONS.forEach(function (a) {
+            var row = a.tab ? tabRows[a.id] : $(a.id);
+            if (!row || row.querySelector('.vm-pin')) return;
+            var p = document.createElement('span');
+            p.className = 'vm-pin' + (a.id === 'tab-all' ? ' lock' : '');
+            p.setAttribute('data-pin', a.id);
+            p.title = a.id === 'tab-all'
+                ? '«Todos» siempre queda en la barra'
+                : 'Fijar / quitar de la barra';
+            p.innerHTML = '<i class="bi ' +
+                (a.id === 'tab-all' ? 'bi-lock-fill' : 'bi-pin-angle') + '"></i>';
+            row.appendChild(p);
+        });
+    }
+    // captura: llega ANTES que el click propio de la fila → no se ejecuta
+    // la acción ni se cierra el menú al tocar la chincheta
+    viewMenu.addEventListener('click', function (e) {
+        var p = e.target.closest && e.target.closest('.vm-pin');
+        if (!p || !viewMenu.contains(p)) return;
+        e.stopPropagation();
+        e.preventDefault();
+        var id = p.getAttribute('data-pin');
+        if (id === 'tab-all') {
+            if (S.showToast) S.showToast('«Todos» siempre queda en la barra');
+            return;
+        }
+        if (toggle(id)) {
+            renderBar();
+            if (S.showToast) S.showToast(inBar(id) ?
+                '📌 Fijado en la barra' : 'Vuelve al menú ⋮');
+        }
+    }, true);
 
     // ------------------------------------------------- íconos proxy de la barra
     // las acciones vm-* viven en el ⋮; en la barra se representan con un
@@ -151,10 +207,20 @@ window.Sono.register('tabfavs', function (S) {
         Object.keys(proxies).forEach(function (id) {
             if (bar.indexOf(id) < 0) proxies[id].classList.add('fav-hidden');
         });
-        // espejo en el ⋮: lo fijado no repite fila
+        // espejo en el ⋮: la fila queda visible y su chincheta marca estado —
+        // así desde el menú también se pueden devolver íconos a la barra
         ACTIONS.forEach(function (a) {
             var row = a.tab ? tabRows[a.id] : $(a.id);
-            if (row) row.classList.toggle('fav-pinned', bar.indexOf(a.id) >= 0);
+            if (!row) return;
+            var pinned = bar.indexOf(a.id) >= 0;
+            row.classList.toggle('fav-pinned', pinned);
+            var pin = row.querySelector('.vm-pin');
+            if (pin && a.id !== 'tab-all') {
+                pin.classList.toggle('on', pinned);
+                var ic = pin.querySelector('i');
+                if (ic) ic.className = 'bi ' +
+                    (pinned ? 'bi-pin-angle-fill' : 'bi-pin-angle');
+            }
         });
     }
 
@@ -227,7 +293,11 @@ window.Sono.register('tabfavs', function (S) {
             lpT = null;
             lpFired = true;
             setTimeout(function () { lpFired = false; }, 1200);
-            if (pinned) {
+            if (id === 'tab-all') {
+                // «Todos» es fijo: ni lo movemos ni sale de la barra
+                showPop(el, [{ html: '<i class="bi bi-lock-fill"></i> «Todos» es fijo',
+                    cb: function () {} }]);
+            } else if (pinned) {
                 showPop(el, [
                     { html: '<i class="bi bi-chevron-left"></i>', keep: true,
                       cb: function () {
@@ -272,5 +342,6 @@ window.Sono.register('tabfavs', function (S) {
         }
     });
 
+    decorRows();
     renderBar();
 });
