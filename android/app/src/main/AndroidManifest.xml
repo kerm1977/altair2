@@ -75,6 +75,8 @@
     <!-- Chat BT siempre en escucha (servicio en primer plano) + avisos -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- Grabar notas de audio con la pantalla apagada (servicio de micrófono) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <!-- Visibilidad de paquetes (Android 11+): sin esto queryIntentActivities
          no ve la app Bluetooth Share ni los demás destinos de ACTION_SEND -->
@@ -146,6 +148,12 @@
             android:name=".TribalBtService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+
+        <!-- Notas de audio: micrófono vivo con pantalla apagada -->
+        <service
+            android:name=".TribalRecService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -151,7 +151,8 @@ window.TribalBtWifi = (function () {
         ov.innerHTML = '<div class="tribal-p2p tribal-links"><div class="tribal-p2p-head">' +
                 '<button class="tribal-ctrl lk-back" id="btw-back"><i class="bi bi-arrow-left"></i><span>Volver</span></button>' +
                 '<i class="bi bi-wifi"></i><strong>Analizador Wi-Fi / Hotspot</strong>' +
-                '<button class="tribal-btn tribal-btn-xs" id="btw-again" style="margin-left:auto"><i class="bi bi-arrow-clockwise"></i> Analizar</button></div>' +
+                '<button class="tribal-btn tribal-btn-xs" id="btw-help" title="¿Cómo se conecta?" style="margin-left:auto"><i class="bi bi-gear-fill"></i></button>' +
+                '<button class="tribal-btn tribal-btn-xs" id="btw-again"><i class="bi bi-arrow-clockwise"></i> Analizar</button></div>' +
             '<div class="lk-body btm-body">' +
                 '<div class="btm-cats" id="btw-tabs">' +
                     '<button type="button" class="btm-cat" data-t="wifi"><i class="bi bi-wifi"></i><span>Redes Wi-Fi</span></button>' +
@@ -167,6 +168,24 @@ window.TribalBtWifi = (function () {
         (deps.mount || document.body).appendChild(ov);
         ov.querySelector('#btw-back').onclick = close;
         ov.querySelector('#btw-again').onclick = scan;
+        ov.querySelector('#btw-help').onclick = function () {
+            var g = document.createElement('div');
+            g.className = 'tribal-overlay';
+            g.style.zIndex = '99999';
+            g.innerHTML = '<div class="tribal-dialog" style="text-align:left;max-width:340px">' +
+                '<h4><i class="bi bi-gear-fill"></i> Cómo conectar el chat Wi-Fi</h4>' +
+                '<ol style="line-height:1.7;padding-left:18px;font-size:.9rem">' +
+                '<li><b>Alguien crea la red</b>: pestaña «Hotspot / Red local» → «Crear red tribal». El teléfono se vuelve el router (estilo drone, sin internet).</li>' +
+                '<li>La pantalla muestra el <b>SSID y la clave</b> — se los dictas a la otra persona.</li>' +
+                '<li><b>El otro se conecta</b>: en su app, pestaña «Redes Wi-Fi» → toca la red tribal → escribe la clave (o desde sus Ajustes Wi-Fi normales).</li>' +
+                '<li>En 2-3 segundos aparece en <b>«Equipos TRIBALs en tu red»</b>.</li>' +
+                '<li>Tócalo → <b>«Invitar al chat»</b> — la otra persona acepta y el chat se abre solo.</li>' +
+                '<li>También funciona si ambos están en la <b>misma red Wi-Fi de casa</b> (sin crear hotspot): aparecen igual y se invita igual.</li></ol>' +
+                '<div class="tribal-dialog-actions"><button class="tribal-btn" id="btw-guide-x">Entendido</button></div></div>';
+            document.body.appendChild(g);
+            g.querySelector('#btw-guide-x').onclick = function () { g.remove(); };
+            g.onclick = function (e) { if (e.target === g) g.remove(); };
+        };
         ov.querySelector('#btw-tabs').onclick = function (e) { var b = e.target.closest('[data-t]'); if (b) { tab = b.getAttribute('data-t'); render(); } };
         ov.querySelector('#btw-wset').onclick = function () { var n = net(); if (n && n.openWifiSettings) n.openWifiSettings(); };
         ov.querySelector('#btw-hset').onclick = function () { var n = net(); if (n && n.openHotspotSettings) n.openHotspotSettings(); };

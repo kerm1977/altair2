@@ -11,6 +11,26 @@ window.TribalVNotes = (function () {
                 pendingBuf: null, pendingBlobs: [], pendingExt: '' };
 
     var MIMES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+    // grabación nativa (servicio de micrófono): sobrevive a pantalla apagada;
+    // el WebView solo aporta la visualización — el audio lo graba Android
+    var REC = (window.Capacitor && window.Capacitor.Plugins &&
+        window.Capacitor.Plugins.TribalRec) || null;
+    function isNative() {
+        return !!(REC && window.Capacitor.isNativePlatform &&
+            window.Capacitor.isNativePlatform()); }
+    // lee el .m4a del servicio → blob para el pipeline normal
+    function recFileBlob() {
+        return REC.recPeek().then(function (r) {
+            if (!r || !r.rel) return null;
+            var FS = window.Capacitor.Plugins.Filesystem;
+            return FS.readFile({ path: r.rel, directory: 'DATA' })
+                .then(function (f) {
+                    var bin = atob(f.data), u = new Uint8Array(bin.length);
+                    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+                    return { blob: new Blob([u], { type: 'audio/mp4' }),
+                             durMs: r.durMs || 0 };
+                });
+        }); }
     function esc(s) {
         var E = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
         return String(s || '').replace(/[&<>"]/g, function (c) { return E[c]; });
@@ -62,6 +82,23 @@ window.TribalVNotes = (function () {
     }
 
     function startRec() {
+        if (isNative()) {
+            return REC.recStart().then(function () {
+                ctx.mime = 'audio/mp4'; ctx.chunks = [];
+                ctx.startedAt = Date.now();
+                setState('rec');
+                tickT = setInterval(tick, 250);
+                // la visualización usa su propio stream (extra, opcional)
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function (st) {
+                        stream = st;
+                        viz = window.TribalViz &&
+                            TribalViz.mic(ov.querySelector('#vn-canvas'), stream);
+                    }).catch(function () {});
+            }).catch(function () {
+                deps.toast('No se pudo iniciar la grabación');
+            });
+        }
         navigator.mediaDevices.getUserMedia({ audio: true }).then(function (st) {
             stream = st;
             ctx.mime = MIMES.filter(function (m) {
@@ -120,6 +157,12 @@ window.TribalVNotes = (function () {
     }
     function dropRec() {                        // tirar el memo sin guardar
         window.TribalVNav.clearPending(ctx); ctx.chunks = [];
+        if (isNative()) {
+            REC.recCancel().catch(function () {});
+            endStream(); setState('idle');
+            ov.querySelector('#vn-time').textContent = '00:00';
+            ctx.elapsed = 0; return;
+        }
         if (rec && rec.state !== 'inactive') {
             rec.onstop = function () { endStream(); setState('idle'); };
             try { rec.stop(); } catch (e) { endStream(); setState('idle'); }
@@ -144,9 +187,22 @@ window.TribalVNotes = (function () {
                 });
         }
         if (a === 'more') {                     // seguir: reanuda la grabación
-            if (rec && rec.state === 'paused') { rec.resume(); }
+            if (isNative()) {
+                if (ctx.state === 'paused') REC.recResume().catch(function () {});
+                else { startRec(); return; }    // borrador nativo → toma nueva
+            }
+            else if (rec && rec.state === 'paused') { rec.resume(); }
             else if (!rec) { startRec(); return; }
             ctx.startedAt = Date.now(); setState('rec'); return;
+        }
+        if (isNative()) {                       // save (ruta nativa)
+            REC.recStop().then(recFileBlob).then(function (r) {
+                endStream(); setState('idle');
+                ov.querySelector('#vn-time').textContent = '00:00';
+                if (r && r.blob) window.TribalVNav.finishBlob(deps, ctx,
+                    r.blob, (r.durMs || 0) / 1000 || ctx.liveSecs());
+            }).catch(function () { deps.toast('No se pudo cerrar la grabación'); });
+            return;
         }
         if (rec && rec.state !== 'inactive') {  // save
             try { rec.stop(); } catch (e2) { onStopped(); }
@@ -211,12 +267,19 @@ window.TribalVNotes = (function () {
             if (ctx.state === 'idle') return startRec();
             if (ctx.state === 'rec') {
                 ctx.elapsed += (Date.now() - ctx.startedAt) / 1000;
-                rec.pause(); setState('paused'); saveDraft();
-            } else { rec.resume(); ctx.startedAt = Date.now(); setState('rec'); }
+                if (isNative()) REC.recPause().catch(function () {});
+                else rec.pause();
+                setState('paused'); saveDraft();
+            } else {
+                if (isNative()) REC.recResume().catch(function () {});
+                else rec.resume();
+                ctx.startedAt = Date.now(); setState('rec'); }
         });
         ov.querySelector('#vn-stop').addEventListener('click', function () {
             if (ctx.state === 'rec') {
-                ctx.elapsed += (Date.now() - ctx.startedAt) / 1000; rec.pause();
+                ctx.elapsed += (Date.now() - ctx.startedAt) / 1000;
+                if (isNative()) REC.recPause().catch(function () {});
+                else rec.pause();
             }
             setState('paused'); saveDraft(); askStop();
         });
@@ -225,6 +288,7 @@ window.TribalVNotes = (function () {
     // Se registran UNA vez a nivel de módulo (no dentro de build, que corre
     // cada vez que se abre el panel).
     document.addEventListener('visibilitychange', function () {
+        if (isNative()) return;   // nativo sigue grabando con pantalla apagada
         if (document.hidden && ctx.state === 'rec' && rec) {
             ctx.elapsed += (Date.now() - ctx.startedAt) / 1000;
             try { rec.pause(); } catch (e) {}
@@ -239,11 +303,40 @@ window.TribalVNotes = (function () {
         endStream();
         if (ov) { ov.parentNode.removeChild(ov); ov = null; }
     }
+    // archivo nativo pendiente (crash/cierre a medio grabar) → borrador
+    function restoreNative(r) {
+        if (!r || !r.rel) return;
+        var FS = window.Capacitor.Plugins.Filesystem;
+        FS.readFile({ path: r.rel, directory: 'DATA' }).then(function (f) {
+            var bin = atob(f.data), u = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+            ctx.pendingBlobs = [new Blob([u], { type: 'audio/mp4' })];
+            ctx.pendingExt = '.m4a';
+            ctx.elapsed = 0; setState('draft');
+            ov.querySelector('#vn-time').textContent = fmtT((r.durMs || 0) / 1000);
+            var box = ov.querySelector('#vn-ask');
+            box.innerHTML = '<p><i class="bi bi-arrow-counterclockwise"></i> ' +
+                'Grabación recuperada del teléfono (' + fmtT((r.durMs || 0) / 1000) +
+                ') — ¿qué hago?</p><div class="vn-ask-btns">' +
+                '<button data-a="more"><i class="bi bi-play"></i> Seguir grabando</button>' +
+                '<button data-a="d-save"><i class="bi bi-check2"></i> Guardar</button>' +
+                '<button data-a="del" class="danger"><i class="bi bi-trash3"></i> Eliminar memo</button></div>';
+            box.hidden = false;
+            FS.deleteFile({ path: r.rel, directory: 'DATA' }).catch(function () {});
+        }).catch(function () {});
+    }
     function open(d) {
         deps = d;
         if (ov) close(); build();
         ctx.elapsed = 0; ctx.state = 'idle'; setState('idle'); fillList();
         if (window.TribalVDraft && TribalVDraft.meta()) restoreDraft();
+        else if (isNative()) REC.recPeek().then(function (r) {
+            if (r && r.live) {                    // sigue grabando en segundo plano
+                ctx.elapsed = (r.durMs || 0) / 1000; ctx.mime = 'audio/mp4';
+                ctx.startedAt = Date.now(); setState('rec');
+                tickT = setInterval(tick, 250); }
+            else if (r && r.rel) restoreNative(r);
+        }).catch(function () {});
     }
     return { open: open };
 })();

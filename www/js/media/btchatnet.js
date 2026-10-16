@@ -256,6 +256,8 @@ window.TribalBtNet = (function () {
         wifiScan: wifiScan, wifiSend: wifiSend, wifiConnect: wifiConnect, wifiForget: wifiForget,
         wifiInvite: wifiInvite, wifiAccept: wifiAccept, wifiDecline: wifiDecline,
         hotspotStart: hotspotStart, hotspotStop: hotspotStop, hotspotInfo: hotspotInfo,
+        unpair: function (a) { return (nativeOn && BT.unpair) ? BT.unpair({ addr: a }) : Promise.resolve(); },
+        pair: function (a) { return (nativeOn && BT.pair) ? BT.pair({ addr: a }) : Promise.resolve(); },
         tribalId: tribalId, tribalName: tribalName,
         openSettings: function () { return (nativeOn && BT.openBtSettings) ? BT.openBtSettings() : scan(true); },
         openWifiSettings: function () { return (nativeOn && BT.openWifiSettings) ? BT.openWifiSettings() : Promise.resolve(); },

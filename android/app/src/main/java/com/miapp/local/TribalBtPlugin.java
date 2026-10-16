@@ -530,6 +530,28 @@ public class TribalBtPlugin extends Plugin {
     @PluginMethod
     public void close(PluginCall call) { closeAll(); call.resolve(); }
 
+    // desvincular + revincular a la fuerza: removeBond limpia el emparejado
+    // viejo; createBond dispara el diálogo de vinculación del sistema
+    @PluginMethod
+    public void unpair(PluginCall call) {
+        String addr = call.getString("addr", "");
+        if (addr.isEmpty()) { call.reject("sin addr"); return; }
+        try {
+            android.bluetooth.BluetoothDevice d = adapter.getRemoteDevice(addr);
+            d.getClass().getMethod("removeBond").invoke(d);
+            call.resolve();
+        } catch (Exception e) { call.reject("unpair: " + e.getMessage()); } }
+
+    @PluginMethod
+    public void pair(PluginCall call) {
+        String addr = call.getString("addr", "");
+        if (addr.isEmpty()) { call.reject("sin addr"); return; }
+        try {
+            android.bluetooth.BluetoothDevice d = adapter.getRemoteDevice(addr);
+            d.createBond();   // el sistema muestra el diálogo de emparejado
+            call.resolve();
+        } catch (Exception e) { call.reject("pair: " + e.getMessage()); } }
+
     // =========================================================================
     // MOTOR WI-FI / HOTSPOT + DESCUBRIMIENTO Y CONTROL REMOTO UDP (PUERTO 47777)
     // =========================================================================
