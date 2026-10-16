@@ -244,6 +244,11 @@
 .tribal-thumb img, .tribal-thumb video {
     width: 100%; height: 100%; object-fit: cover; display: block;
 }
+/* Sin portada todavía: ocultar el <img> vacío para que no dibuje el
+   marco de imagen rota — queda el fondo rayado con el ícono centrado */
+.tribal-thumb img:not([src]),
+.tribal-thumb img[src=""],
+.tribal-thumb video:not([src]) { display: none; }
 .tribal-thumb .kind-icon {
     font-size: 2.6rem;
     color: var(--tb-gold);

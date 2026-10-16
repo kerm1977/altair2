@@ -327,6 +327,11 @@ window.Sono.register('render', function (S) {
         S.grid.querySelectorAll('img[data-bookcover]').forEach(function (img) {
             var meta = S.byId(img.dataset.bookcover);
             if (!meta) return;
+            img.onerror = function () {   // portada rota → ícono tribal
+                this.style.display = 'none';
+                var ic = this.parentElement && this.parentElement.querySelector('.kind-icon');
+                if (ic) ic.style.display = '';
+            };
             if (window.TribalShelf) window.TribalShelf.coverFor(meta, img, S.urlFor);
         });
         S.grid.querySelectorAll('img[data-thumb]').forEach(function (img) {
