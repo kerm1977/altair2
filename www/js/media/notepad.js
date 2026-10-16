@@ -185,9 +185,12 @@ window.TribalNotepad = (function () {
     }
 
     // Nada puede cubrir el pie de página: los elementos libres empujan el lienzo
+    // hacia abajo y el mínimo nunca baja del alto base (48vh) ni del fondo
+    // real de cualquier elemento libre — el footer siempre queda al final.
     function ensureFooterSpace() {
         var canvas = ov && ov.querySelector('#np-canvas');
         if (!canvas) return;
+        var base = Math.round(window.innerHeight * 0.48);
         var max = 0;
         canvas.querySelectorAll('.np-img-wrap.np-free').forEach(function (w) {
             var hh = w.offsetHeight || 0, ww = w.offsetWidth || 0;
@@ -196,7 +199,7 @@ window.TribalNotepad = (function () {
             var bottom = (w.offsetTop || 0) + Math.max(hh, rh);
             if (bottom > max) max = bottom;
         });
-        canvas.style.minHeight = max ? Math.ceil(max + 60) + 'px' : '';
+        canvas.style.minHeight = Math.ceil(Math.max(max + 60, base)) + 'px';
     }
 
     // Construye el HTML de la ventana completa del Bloc de Notas (sin <input> de texto)
@@ -774,6 +777,10 @@ window.TribalNotepad = (function () {
             applyWrapTransform(w);
             bindWrapEvents(w);
         });
+        // Los medios aún no miden su alto real al abrir: re-medir al cargar
+        // y una vez más tras el primer render para que nada quede sobre el pie
+        setTimeout(ensureFooterSpace, 120);
+        setTimeout(ensureFooterSpace, 600);
     }
 
     // Modal de confirmación en 2 pasos para eliminar cualquier detalle seleccionado
@@ -1317,6 +1324,13 @@ window.TribalNotepad = (function () {
         ['keyup', 'mouseup', 'touchend'].forEach(function (ev) {
             canvas.addEventListener(ev, saveSelection);
         });
+
+        // Al cargar un medio libre su alto cambia → el pie re-empuja abajo
+        canvas.addEventListener('load', function (e) {
+            if (e.target && e.target.closest && e.target.closest('.np-img-wrap')) {
+                ensureFooterSpace();
+            }
+        }, true);
 
         titleEl.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
