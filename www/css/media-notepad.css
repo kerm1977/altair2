@@ -298,6 +298,47 @@
     color: var(--tb-cream, #f3e6cf);
 }
 
+/* Popovers de íconos de la barra (alinear, bloque, mayús, interlineado) */
+.np-ddx { position: relative; display: inline-flex; }
+
+.np-ddpop {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 80;
+    display: flex;
+    gap: 4px;
+    padding: 6px;
+    background: #241206;
+    border: 1px solid rgba(240, 180, 41, 0.35);
+    border-radius: 12px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+}
+
+.np-ddpop.col { flex-direction: column; }
+
+.np-ddpop button {
+    min-width: 36px;
+    height: 34px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--tb-cream, #f3e6cf);
+    border: 1px solid rgba(240, 180, 41, 0.2);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.np-ddpop button.on {
+    border-color: var(--tb-gold, #f0b429);
+    background: rgba(240, 180, 41, 0.18);
+}
+
 .np-tb-group {
     display: inline-flex;
     flex-wrap: wrap;
@@ -510,12 +551,19 @@
     flex: 1;
     outline: none;
     font-size: 1rem;
-    line-height: 1.5;
+    line-height: 1.35;
     color: var(--tb-cream, #f3e6cf);
     min-height: 48vh;
     position: relative;
     word-break: break-word;
 }
+
+/* Interlineado real de bloc de notas: cada <p> es una línea, sin
+   el margen nativo de ~1em que inflaba el espacio entre líneas */
+.np-air-canvas p { margin: 0; }
+.np-air-canvas ul,
+.np-air-canvas ol { margin: 0.3em 0; padding-left: 1.5em; }
+.np-air-canvas li { margin: 0; }
 
 .np-air-canvas h1 { font-size: 1.85rem; color: var(--tb-gold, #f0b429); margin: 0.5em 0 0.3em; }
 .np-air-canvas h2 { font-size: 1.55rem; color: var(--tb-gold, #f0b429); margin: 0.5em 0 0.3em; }

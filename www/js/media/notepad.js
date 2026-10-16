@@ -40,13 +40,17 @@ window.TribalNotepad = (function () {
 
     var LINE_HEIGHTS = ['-2', '-1.5', '-1.25', '1', '1.25', '1.5', '2'];
     var LH_CSS = {
-        '-2': '0.4',     // casi una línea entera debajo de la otra
-        '-1.5': '0.85',  // base inferior pegada a la base superior
-        '-1.25': '0.95', // apenas el grosor de una línea HR de aire
-        '1': '1.0',      // muy pocos píxeles
-        '1.25': '1.35',  // separación normal
-        '1.5': '1.65',   // un poco más
-        '2': '2.1'       // separación amplia
+        '-2': '0.4',      // casi una línea entera debajo de la otra
+        '-1.5': '0.85',   // base inferior pegada a la base superior
+        '-1.25': '0.95',  // apenas el grosor de una línea HR de aire
+        '1': '1.15',      // un poquito menos espacioso que lo normal
+        '1.25': '1.35',   // separación normal de bloc de notas
+        '1.5': '1.55',    // un poco más
+        '2': '2.0'        // separación amplia
+    };
+    var ALIGN_ICO = {
+        left: 'bi-text-left', center: 'bi-text-center',
+        right: 'bi-text-right', justify: 'bi-justify-left'
     };
     var LETTER_SPACINGS = ['0px', '1px', '2px', '4px'];
 
@@ -248,13 +252,16 @@ window.TribalNotepad = (function () {
                         '<button type="button" class="np-tbtn" data-cmd="italic" title="Itálica"><i class="bi bi-type-italic"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="underline" title="Subrayado"><i class="bi bi-type-underline"></i></button>' +
                         '<button type="button" class="np-tbtn" data-act="quote" title="Cita"><i class="bi bi-chat-quote"></i></button>' +
-                        '<select class="np-dd" id="np-dd-align" title="Alinear elementos seleccionados">' +
-                            '<option value="">Alinear…</option>' +
-                            '<option value="left">Izquierda</option>' +
-                            '<option value="center">Centrar</option>' +
-                            '<option value="right">Derecha</option>' +
-                            '<option value="justify">Justificado</option>' +
-                        '</select>' +
+                        '<span class="np-ddx">' +
+                            '<button type="button" class="np-tbtn" id="np-dd-align" title="Alinear">' +
+                                '<i class="bi bi-text-left" id="np-align-ico"></i></button>' +
+                            '<span class="np-ddpop" id="np-pop-align" hidden>' +
+                                '<button type="button" data-v="left" title="Izquierda"><i class="bi bi-text-left"></i></button>' +
+                                '<button type="button" data-v="center" title="Centrar"><i class="bi bi-text-center"></i></button>' +
+                                '<button type="button" data-v="right" title="Derecha"><i class="bi bi-text-right"></i></button>' +
+                                '<button type="button" data-v="justify" title="Justificado"><i class="bi bi-justify-left"></i></button>' +
+                            '</span>' +
+                        '</span>' +
                         '<button type="button" class="np-tbtn np-tb-more" id="np-tb-more" ' +
                             'title="Más herramientas"><i class="bi bi-chevron-down"></i></button>' +
                     '</div>' +
@@ -265,38 +272,48 @@ window.TribalNotepad = (function () {
                         '<button type="button" class="np-tbtn" data-act="code" title="Código"><i class="bi bi-code-slash"></i></button>' +
                         '<button type="button" class="np-tbtn" data-act="link" title="Agregar hipervínculo"><i class="bi bi-link-45deg"></i></button>' +
                         '<button type="button" class="np-tbtn" data-act="hr" title="Línea horizontal"><i class="bi bi-hr"></i></button>' +
-                        '<select class="np-dd" id="np-dd-block" title="Títulos y formato de bloque">' +
-                            '<option value="">Título / Bloque…</option>' +
-                            '<option value="P">Párrafo normal (P)</option>' +
-                            '<option value="H1">Título H1</option>' +
-                            '<option value="H2">Título H2</option>' +
-                            '<option value="H3">Título H3</option>' +
-                            '<option value="H4">Título H4</option>' +
-                            '<option value="H5">Título H5</option>' +
-                            '<option value="H6">Título H6</option>' +
-                        '</select>' +
-                        '<select class="np-dd" id="np-dd-case" title="Cambiar mayúsculas/minúsculas">' +
-                            '<option value="">Mayús / Minús…</option>' +
-                            '<option value="upper">MAYÚSCULAS (AA)</option>' +
-                            '<option value="lower">minúsculas (aa)</option>' +
-                            '<option value="title">Title Case (Aa)</option>' +
-                        '</select>' +
-                        '<select class="np-dd" id="np-dd-lh" title="Interlineado">' +
-                            '<option value="-2">Interlineado: -2</option>' +
-                            '<option value="-1.5">Interlineado: -1.5</option>' +
-                            '<option value="-1.25">Interlineado: -1.25</option>' +
-                            '<option value="1">Interlineado: 1</option>' +
-                            '<option value="1.25">Interlineado: 1.25</option>' +
-                            '<option value="1.5" selected>Interlineado: 1.5</option>' +
-                            '<option value="2">Interlineado: 2</option>' +
-                        '</select>' +
+                        '<span class="np-ddx">' +
+                            '<button type="button" class="np-tbtn" id="np-dd-block" title="Párrafo o título">' +
+                                '<i class="bi bi-type-h1"></i></button>' +
+                            '<span class="np-ddpop col" id="np-pop-block" hidden>' +
+                                '<button type="button" data-v="P">P</button>' +
+                                '<button type="button" data-v="H1">H1</button>' +
+                                '<button type="button" data-v="H2">H2</button>' +
+                                '<button type="button" data-v="H3">H3</button>' +
+                                '<button type="button" data-v="H4">H4</button>' +
+                                '<button type="button" data-v="H5">H5</button>' +
+                                '<button type="button" data-v="H6">H6</button>' +
+                            '</span>' +
+                        '</span>' +
+                        '<span class="np-ddx">' +
+                            '<button type="button" class="np-tbtn" id="np-dd-case" title="Mayúsculas / minúsculas">' +
+                                '<i class="bi bi-fonts"></i></button>' +
+                            '<span class="np-ddpop" id="np-pop-case" hidden>' +
+                                '<button type="button" data-v="upper" title="MAYÚSCULAS">AA</button>' +
+                                '<button type="button" data-v="lower" title="minúsculas">aa</button>' +
+                                '<button type="button" data-v="title" title="Title Case">Aa</button>' +
+                            '</span>' +
+                        '</span>' +
+                        '<span class="np-ddx">' +
+                            '<button type="button" class="np-tbtn" id="np-dd-lh" title="Interlineado">' +
+                                '<i class="bi bi-arrows-vertical"></i></button>' +
+                            '<span class="np-ddpop col" id="np-pop-lh" hidden>' +
+                                '<button type="button" data-v="-2">-2</button>' +
+                                '<button type="button" data-v="-1.5">-1.5</button>' +
+                                '<button type="button" data-v="-1.25">-1.25</button>' +
+                                '<button type="button" data-v="1">1</button>' +
+                                '<button type="button" data-v="1.25">1.25</button>' +
+                                '<button type="button" data-v="1.5">1.5</button>' +
+                                '<button type="button" data-v="2">2</button>' +
+                            '</span>' +
+                        '</span>' +
                     '</div>' +
                     '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn" data-cmd="insertUnorderedList" title="Viñetas"><i class="bi bi-list-ul"></i></button>' +
                         '<button type="button" class="np-tbtn" data-cmd="insertOrderedList" title="Lista ordenada"><i class="bi bi-list-ol"></i></button>' +
                         '<button type="button" class="np-tbtn" data-act="ls" title="Letter-spacing"><i class="bi bi-distribute-horizontal"></i> <small id="np-ls-lbl">0px</small></button>' +
-                        '<button type="button" class="np-tbtn" data-act="autocorrect" title="Ortografía y diccionario personal"><i class="bi bi-spellcheck"></i> Ortografía</button>' +
-                        '<button type="button" class="np-tbtn" data-act="synonyms" title="Sinónimos de la palabra seleccionada"><i class="bi bi-book"></i> Sinónimos</button>' +
+                        '<button type="button" class="np-tbtn" data-act="autocorrect" title="Ortografía y diccionario personal"><i class="bi bi-spellcheck"></i></button>' +
+                        '<button type="button" class="np-tbtn" data-act="synonyms" title="Sinónimos de la palabra seleccionada"><i class="bi bi-book"></i></button>' +
                     '</div>' +
                     '<div class="np-tb-group">' +
                         '<button type="button" class="np-tbtn" data-act="img-dev" title="Imagen del dispositivo"><i class="bi bi-image"></i></button>' +
@@ -1039,8 +1056,12 @@ window.TribalNotepad = (function () {
 
     function applyLineHeight(val) {
         if (!curNote || !ov) return;
-        var cssLh = LH_CSS[val] || val || '1.5';
+        var cssLh = LH_CSS[val] || val || '1.35';
         curNote.lineHeight = val;
+        var lhPop = ov.querySelector('#np-pop-lh');
+        if (lhPop) lhPop.querySelectorAll('[data-v]').forEach(function (b) {
+            b.classList.toggle('on', b.getAttribute('data-v') === String(val));
+        });
         var canvas = ov.querySelector('#np-canvas');
         restoreSelection();
         var sel = window.getSelection && window.getSelection();
@@ -1227,7 +1248,7 @@ window.TribalNotepad = (function () {
             text: '',
             createdAt: now,
             updatedAt: now,
-            lineHeight: '1.5',
+            lineHeight: '1.25',
             letterSpacing: '0px'
         };
         try {
@@ -1249,11 +1270,13 @@ window.TribalNotepad = (function () {
         var canvasEl = ov.querySelector('#np-canvas');
         titleEl.textContent = curNote.title || '';
         canvasEl.innerHTML = curNote.html || '<p><br></p>';
-        var lhVal = curNote.lineHeight || '1.5';
+        var lhVal = curNote.lineHeight || '1.25';
         canvasEl.style.lineHeight = LH_CSS[lhVal] || lhVal;
         canvasEl.style.letterSpacing = curNote.letterSpacing || '0px';
-        var ddLh = ov.querySelector('#np-dd-lh');
-        if (ddLh) ddLh.value = lhVal;
+        var lhPop = ov.querySelector('#np-pop-lh');
+        if (lhPop) lhPop.querySelectorAll('[data-v]').forEach(function (b) {
+            b.classList.toggle('on', b.getAttribute('data-v') === lhVal);
+        });
         ov.querySelector('#np-ls-lbl').textContent = curNote.letterSpacing || '0px';
         ov.querySelector('#np-ts-created').textContent = IO.fmtDateTime(curNote.createdAt);
         ov.querySelector('#np-ts-updated').textContent = IO.fmtDateTime(curNote.updatedAt);
@@ -1540,33 +1563,42 @@ window.TribalNotepad = (function () {
             });
         });
 
-        // Dropdowns de Títulos, Alineación, Mayús/Minús e Interlineado
-        onEl('#np-dd-block', 'change', function () {
-            var v = this.value;
-            this.value = '';
-            if (!v) return;
+        // Popovers de íconos: Alinear, Bloque (P/H1-H6), Mayús/Minús e Interlineado
+        function bindDdx(btnId, popId, onPick) {
+            var btn = ov.querySelector('#' + btnId), pop = ov.querySelector('#' + popId);
+            if (!btn || !pop) return;
+            pop.addEventListener('pointerdown', function (e) { e.preventDefault(); });
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                var was = pop.hidden;
+                ov.querySelectorAll('.np-ddpop').forEach(function (m) { m.hidden = true; });
+                pop.hidden = !was;
+            });
+            pop.addEventListener('click', function (e) {
+                var b = e.target.closest('[data-v]');
+                if (!b) return;
+                pop.hidden = true;
+                onPick(b.getAttribute('data-v'));
+            });
+            document.addEventListener('pointerdown', function (e) {
+                if (!pop.hidden && !pop.contains(e.target) && e.target !== btn &&
+                    !btn.contains(e.target)) pop.hidden = true;
+            });
+        }
+        bindDdx('np-dd-align', 'np-pop-align', function (v) {
+            applyAlignment(v);
+            var ico = ov.querySelector('#np-align-ico');
+            if (ico && ALIGN_ICO[v]) ico.className = 'bi ' + ALIGN_ICO[v];
+        });
+        bindDdx('np-dd-block', 'np-pop-block', function (v) {
             canvas.focus();
             restoreSelection();
             document.execCommand('formatBlock', false, '<' + v + '>');
             pushHistory();
             scheduleLiveSave();
         });
-        onEl('#np-dd-align', 'change', function () {
-            var v = this.value;
-            this.value = '';
-            if (!v) return;
-            applyAlignment(v);
-        });
-        onEl('#np-dd-case', 'change', function () {
-            var v = this.value;
-            this.value = '';
-            if (!v) return;
-            transformSelectedCase(v);
-        });
-        onEl('#np-dd-lh', 'change', function () {
-            if (!this.value) return;
-            applyLineHeight(this.value);
-        });
+        bindDdx('np-dd-case', 'np-pop-case', function (v) { transformSelectedCase(v); });
+        bindDdx('np-dd-lh', 'np-pop-lh', function (v) { applyLineHeight(v); });
 
         // Barra de herramientas WYSIWYG
         onEl('#np-toolbar', 'click', function (e) {
@@ -1654,7 +1686,7 @@ window.TribalNotepad = (function () {
                 if (qs && qs.rangeCount) {
                     var qr = qs.getRangeAt(0);
                     var curLh = canvas.style.lineHeight ||
-                        LH_CSS[curNote && curNote.lineHeight] || '1.5';
+                        LH_CSS[curNote && curNote.lineHeight] || '1.35';
                     canvas.querySelectorAll('blockquote').forEach(function (bq) {
                         try {
                             if (qr.intersectsNode(bq)) {

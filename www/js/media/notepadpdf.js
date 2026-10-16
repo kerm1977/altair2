@@ -291,10 +291,10 @@ window.TribalNotepadIO = (function () {
         var holder = document.createElement('div');
         holder.innerHTML = note.html || '';
         // El interlineado guardado es una CLAVE (-2…2): se traduce al factor visual
-        var LHMAP = { '-2': 0.4, '-1.5': 0.85, '-1.25': 0.95, '1': 1.0,
-            '1.25': 1.35, '1.5': 1.65, '2': 2.1 };
+        var LHMAP = { '-2': 0.4, '-1.5': 0.85, '-1.25': 0.95, '1': 1.15,
+            '1.25': 1.35, '1.5': 1.55, '2': 2.0 };
         var lhMult = LHMAP[String(note.lineHeight)] || parseFloat(note.lineHeight);
-        if (!(lhMult > 0.2)) lhMult = 1.5;
+        if (!(lhMult > 0.2)) lhMult = 1.35;
 
         function drawWrappedText(c, text, x, startY, maxW, lineH, align) {
             var words = String(text || '').split(/\s+/);
