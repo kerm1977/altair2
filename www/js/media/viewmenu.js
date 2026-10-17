@@ -148,6 +148,15 @@ window.Sono.register('viewmenu', function (S) {
         });
     }
 
+    // calculadora de divisas base USD (media/fx.js + media/fxnet.js)
+    if ($('vm-fx')) {
+        $('vm-fx').addEventListener('click', function () {
+            viewMenu.hidden = true;
+            if (window.TribalFX) window.TribalFX.open();
+            else S.showToast('Divisas no disponible');
+        });
+    }
+
     // solicitar permisos: diálogo nativo + pantalla de ajustes de la app
     $('vm-perms').addEventListener('click', function () {
         viewMenu.hidden = true;
