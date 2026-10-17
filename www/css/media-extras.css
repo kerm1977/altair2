@@ -422,6 +422,51 @@
     text-align: center;
 }
 
+/* ruta del archivo en «Información»: larga, se rompe en cualquier punto;
+   la variante .tmeta-link es tocable → abre la carpeta contenedora */
+.tmeta-path { font-size: 0.72rem; line-height: 1.35; }
+.tmeta-link {
+    color: var(--tb-gold);
+    text-decoration: underline dotted;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.tmeta-link:active { opacity: 0.7; }
+
+/* ------------------------------------------------------------- escáner --- */
+.tscan-dialog { max-width: 420px; }
+.tscan-desc {
+    margin: 0 0 10px;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--tb-muted);
+}
+.tscan-kinds {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.tscan-kinds label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.84rem;
+    color: var(--tb-cream);
+    padding: 6px 8px;
+    border: 1px solid rgba(90, 58, 28, 0.55);
+    border-radius: 10px;
+}
+.tscan-kinds input { accent-color: var(--tb-gold); }
+.tscan-status {
+    min-height: 38px;
+    margin-bottom: 8px;
+    font-size: 0.76rem;
+    line-height: 1.35;
+    color: var(--tb-muted);
+    word-break: break-word;
+}
+
 .tmeta-in {
     width: 100%;
     padding: 10px 12px;

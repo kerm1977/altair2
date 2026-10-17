@@ -160,6 +160,42 @@ window.MediaStore = (function () {
             return meta;
         },
 
+        // Registra archivos EXTERNOS del dispositivo (escáner) por referencia:
+        // meta.path = ruta absoluta real, meta.ref = true → getURL sirve el
+        // archivo donde está y remove() jamás borra el original.
+        // files: [{path,name,size,mime,kind,mtime}] → {added, skipped}
+        addRefs: function (files) {
+            var index = getIndex();
+            var havePath = {};
+            var haveNameSize = {};
+            index.forEach(function (m) {
+                if (m.ref && m.path) havePath[m.path] = 1;
+                if (m.name) haveNameSize[m.name + '|' + (m.size || 0)] = 1;
+            });
+            var added = 0, skipped = 0, now = Date.now();
+            (files || []).forEach(function (f) {
+                if (!f || !f.path || havePath[f.path]) { skipped++; return; }
+                // probable ya-importado: mismo nombre+tamaño copiado antes
+                if (haveNameSize[f.name + '|' + (f.size || 0)]) { skipped++; return; }
+                var mime = f.mime || IO.mimeFromName(f.name, '');
+                index.push({
+                    id: 'r_' + now.toString(36) + '_' + added,
+                    name: f.name,
+                    mime: mime,
+                    kind: f.kind || kindFromMime(mime, f.name),
+                    size: f.size || 0,
+                    addedAt: now + added,
+                    path: f.path,
+                    ref: true
+                });
+                havePath[f.path] = 1;
+                haveNameSize[f.name + '|' + (f.size || 0)] = 1;
+                added++;
+            });
+            if (added) saveIndex(index);
+            return { added: added, skipped: skipped };
+        },
+
         rename: function (id, newName) {
             var index = getIndex();
             var meta = index.filter(function (m) { return m.id === id; })[0];
@@ -175,8 +211,9 @@ window.MediaStore = (function () {
             var meta = index.filter(function (m) { return m.id === id; })[0];
             saveIndex(index.filter(function (m) { return m.id !== id; }));
             if (!meta) return Promise.resolve();
-            // builtin: el blob vive en el bundle, solo limpiar la carátula guardada
-            var pend = meta.builtin
+            // builtin: el blob vive en el bundle; ref: el archivo es externo
+            // (escaneado) → solo se quita del índice, el original se respeta
+            var pend = (meta.builtin || meta.ref)
                 ? (isNative() ? IO.nativeDelete(DIR + '/art_' + id + '.jpg') : IO.idbDel(id + '_art'))
                 : (isNative()
                     ? Promise.all([IO.nativeDelete(meta.path), IO.nativeDelete(DIR + '/art_' + id + '.jpg')])
@@ -199,10 +236,13 @@ window.MediaStore = (function () {
                 return meta;
             }
             if (isNative()) {
-                var old = meta.path;
+                var old = meta.path, wasRef = !!meta.ref;
                 return IO.nativeWrite(id, file).then(function (p) {
                     meta.path = p;
+                    meta.ref = null; // ahora vive como copia propia de la app
                     apply();
+                    // un ref apuntaba al original del usuario → no se borra
+                    if (wasRef) return meta;
                     return IO.nativeDelete(old).then(function () { return meta; });
                 });
             }
@@ -313,6 +353,8 @@ window.MediaStore = (function () {
                 );
             }
             if (isNative()) {
+                // ref: ruta absoluta externa (escáner) → URL directa al archivo
+                if (meta.ref) return Promise.resolve(IO.nativeFileURL(meta.path));
                 return IO.nativeURL(meta.path);
             }
             return IO.idbGet(meta.id).then(function (blob) {

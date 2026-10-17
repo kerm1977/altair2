@@ -36,6 +36,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(TribalBtPlugin.class);
         registerPlugin(TribalFtpPlugin.class);
         registerPlugin(TribalRecPlugin.class);
+        registerPlugin(TribalScanPlugin.class);
         super.onCreate(savedInstanceState);
         setupSystemBarsSafeArea();
         handleIncoming(getIntent());

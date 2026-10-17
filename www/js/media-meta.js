@@ -39,6 +39,17 @@ window.TribalMeta = (function () {
         return v ? '<div class="tmeta-row"><span>' + esc(k) + '</span><b>' + esc(v) + '</b></div>' : '';
     }
 
+    // Texto + bandera "abrible" de la ruta según el origen del archivo:
+    //   ref (escáner) → ruta real del dispositivo, tocable ("abrir en la ruta")
+    //   copia de la app → carpeta privada, se muestra pero no es navegable
+    //   builtin → asset del bundle; web → IndexedDB del navegador
+    function pathInfo(m) {
+        if (m.ref && m.path) return { text: m.path, openable: true };
+        if (m.builtin)   return { text: 'Integrado en la app → builtin/' + m.builtin, openable: false };
+        if (m.path)      return { text: 'Almacenamiento interno de TRIBALs → ' + m.path, openable: false };
+        return { text: 'Navegador (IndexedDB) — sin ruta de disco', openable: false };
+    }
+
     function probeDuration(m, deps, cb) {
         if (m._dur != null) return cb(m._dur);
         if (m.kind !== 'audio' && m.kind !== 'video') return cb(null);
@@ -56,6 +67,7 @@ window.TribalMeta = (function () {
     // ------------------------------------------------------------- info ----
     function openInfo(m, deps) {
         var info = m.info || {};
+        var pi = pathInfo(m);
         var el = shell(deps.mount,
             '<div class="tribal-dialog tmeta-dialog">' +
                 '<h4>Información</h4>' +
@@ -67,6 +79,15 @@ window.TribalMeta = (function () {
                     row('Tamaño', deps.fmtSize(m.size)) +
                     row('Agregado', m.addedAt ? new Date(m.addedAt).toLocaleString() : '—') +
                     row('Duración', '…') +
+                    '<div class="tmeta-row"><span>Ruta</span>' +
+                        '<b class="' + (pi.openable ? 'tmeta-path tmeta-link' : 'tmeta-path') + '"' +
+                        ' id="tmeta-path" title="' + esc(pi.text) + '">' +
+                        esc(pi.text) + (pi.openable ? ' <i class="bi bi-box-arrow-up-right"></i>' : '') +
+                        '</b></div>' +
+                    row('Origen', m.ref ? 'Escaneado del dispositivo'
+                        : m.builtin ? 'Integrado en la app'
+                        : (window.SonoStoreIO && window.SonoStoreIO.isNative()) ? 'Copiado a la app'
+                        : 'Navegador') +
                 '</div>' +
                 '<div class="tmeta-rows" id="tmeta-info-saved"></div>' +
                 '<div class="tribal-dialog-actions">' +
@@ -75,6 +96,24 @@ window.TribalMeta = (function () {
             '</div>');
 
         el.querySelector('#tmeta-info-ok').addEventListener('click', close);
+
+        // tocar la ruta → abrir la carpeta exacta en el gestor de archivos
+        // ("abrir en la ruta"); si el sistema no tiene gestor compatible,
+        // la ruta se copia al portapapeles como respaldo
+        if (pi.openable) {
+            el.querySelector('#tmeta-path').addEventListener('click', function () {
+                var toast = deps.toast || function () {};
+                if (window.TribalScan && window.TribalScan.openLocation) {
+                    window.TribalScan.openLocation(m.path).then(function (res) {
+                        if (res === 'open') toast('📂 Abriendo la carpeta…');
+                        else if (res === 'copy') toast('Sin gestor de archivos compatible — ruta copiada al portapapeles');
+                        else toast('No se pudo abrir la carpeta');
+                    });
+                } else {
+                    toast('Disponible solo en el APK');
+                }
+            });
+        }
 
         var saved = el.querySelector('#tmeta-info-saved');
         saved.innerHTML =

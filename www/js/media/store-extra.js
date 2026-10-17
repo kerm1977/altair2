@@ -71,9 +71,11 @@
                 });
         }
 
-        // archivo ya en disco (subido / recibido) → su URI directo, sin
-        // pasar por memoria; si la URI no cuaja, materializar en caché
-        if (IO.isNative() && meta.path && !meta.builtin) {
+        // archivo ya en disco de la app (subido / recibido) → su URI directo,
+        // sin pasar por memoria; si la URI no cuaja, materializar en caché.
+        // Los ref (escáner) viven fuera de Directory.Data → van por caché,
+        // que es lo único que FileProvider puede compartir.
+        if (IO.isNative() && meta.path && !meta.builtin && !meta.ref) {
             return shareUri('DATA', meta.path).catch(function () {
                 return blobShare();
             });

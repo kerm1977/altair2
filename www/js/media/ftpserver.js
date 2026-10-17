@@ -22,7 +22,9 @@ window.TribalFtp = (function () {
         return MS.list().then(function (items) {
             var sel = isSel();
             var arr = items.filter(function (m) {
-                    if (!m || !(m.path || m.builtin)) return false;
+                    // refs del escáner quedan fuera: /dl no lleva auth y
+                    // servir rutas absolutas externas expondría el disco a la LAN
+                    if (!m || m.ref || !(m.path || m.builtin)) return false;
                     return !sel || (m.info && m.info.ftp);
                 })
                 .map(function (m) { return { i: m.id, n: m.name, s: m.size || 0,

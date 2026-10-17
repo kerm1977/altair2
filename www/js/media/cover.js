@@ -25,6 +25,19 @@ window.TribalCover = (function () {
     }
     function blobOf(m, S) {
         if (window.MediaStore.isNative()) {
+            // ref del escáner: ruta absoluta fuera del sandbox de la app —
+            // readFile con URI file:// y, si el bridge no la acepta, por la
+            // URL servida (convertFileSrc) igual que en web
+            if (m.ref) {
+                return window.SonoStoreIO.nativeReadAbs(m.path, m.mime)
+                    .catch(function () {
+                        return fetch(window.SonoStoreIO.nativeFileURL(m.path))
+                            .then(function (r) {
+                                if (!r.ok) throw new Error('http ' + r.status);
+                                return r.blob();
+                            });
+                    });
+            }
             var FS = window.Capacitor.Plugins.Filesystem;
             var dir = (FS.Directory && FS.Directory.Data) || 'DATA';
             return FS.readFile({ path: m.path, directory: dir })

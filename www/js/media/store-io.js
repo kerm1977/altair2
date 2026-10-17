@@ -230,6 +230,23 @@ window.SonoStoreIO = (function () {
         });
     }
 
+    // URL servible por el WebView para una ruta ABSOLUTA fuera de la app
+    // (archivos referenciados por el escáner — no viven en Directory.Data)
+    function nativeFileURL(absPath) {
+        return window.Capacitor.convertFileSrc('file://' + absPath);
+    }
+
+    // Lee un archivo por ruta absoluta (referencia del escáner) → Blob
+    function nativeReadAbs(absPath, mime) {
+        var FS = fsPlugin();
+        return FS.readFile({ path: 'file://' + absPath }).then(function (r) {
+            var bin = atob(r.data);
+            var bytes = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return new Blob([bytes], { type: mime || '' });
+        });
+    }
+
     return {
         isNative: isNative,
         kindFromMime: kindFromMime,
@@ -245,6 +262,8 @@ window.SonoStoreIO = (function () {
         nativeWriteArt: nativeWriteArt,
         nativeWriteCache: nativeWriteCache,
         nativeDelete: nativeDelete,
-        nativeURL: nativeURL
+        nativeURL: nativeURL,
+        nativeFileURL: nativeFileURL,
+        nativeReadAbs: nativeReadAbs
     };
 })();

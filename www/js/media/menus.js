@@ -133,7 +133,9 @@ window.Sono.register('menus', function (S) {
     $('menu-delete').addEventListener('click', function () {
         if (!S.menuItem) return closeMenu();
         S.pendingId = S.menuItem.id;
-        S.delText.textContent = '¿Devolver "' + S.menuItem.name + '" a las cenizas? No hay vuelta atrás.';
+        S.delText.textContent = S.menuItem.ref
+            ? '«' + S.menuItem.name + '" saldrá de la biblioteca. El archivo original NO se borra — sigue en ' + (S.menuItem.path || 'su carpeta') + '.'
+            : '¿Devolver "' + S.menuItem.name + '" a las cenizas? No hay vuelta atrás.';
         S.delOv.hidden = false;
         closeMenu();
     });

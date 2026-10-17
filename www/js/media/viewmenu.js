@@ -128,6 +128,16 @@ window.Sono.register('viewmenu', function (S) {
         else S.showToast('Libretilla no disponible');
     });
 
+    // escáner del dispositivo: carga música/videos/fotos/documentos por
+    // referencia (sin copiar) en sus secciones (media/scan.js)
+    if ($('vm-scan')) {
+        $('vm-scan').addEventListener('click', function () {
+            viewMenu.hidden = true;
+            if (window.TribalScan) window.TribalScan.open(S.extDeps());
+            else S.showToast('Escáner no disponible');
+        });
+    }
+
     // solicitar permisos: diálogo nativo + pantalla de ajustes de la app
     $('vm-perms').addEventListener('click', function () {
         viewMenu.hidden = true;
