@@ -72,6 +72,8 @@ window.TribalCover = (function () {
                 '<p class="ie-hint">o una imagen de la tribu:</p>' +
                 '<div class="tr-cover-grid" id="tc-lib"></div>' +
                 '<div class="ie-row">' +
+                    '<button class="tribal-btn tribal-btn-xs" id="tc-dev">' +
+                        '<i class="bi bi-folder2-open"></i> Del dispositivo (GIF)</button>' +
                     '<button class="tribal-btn tribal-btn-xs tr-danger" id="tc-del">' +
                         '<i class="bi bi-trash3"></i> Quitar carátula</button>' +
                     '<button class="tribal-btn tribal-btn-xs" id="tc-close">Cerrar</button>' +
@@ -80,6 +82,23 @@ window.TribalCover = (function () {
         var kill = function () { ov.remove(); };
         ov.querySelector('#tc-close').addEventListener('click', kill);
         ov.addEventListener('click', function (e) { if (e.target === ov) kill(); });
+        // imagen o GIF animado elegido del dispositivo (media/coverdev.js)
+        var dev = ov.querySelector('#tc-dev');
+        if (dev) dev.addEventListener('click', function () {
+            if (!window.TribalCoverDev) return S.showToast('Selector no disponible');
+            window.TribalCoverDev.pick(function (f) {
+                if (!f) return;
+                window.MediaStore.saveArtwork(meta.id, f).then(function (m2) {
+                    applyInfo(meta, m2);
+                    S.showToast('Carátula puesta' +
+                        (f.type === 'image/gif' ? ' (GIF animado)' : ''));
+                    kill();
+                    S.render();
+                }).catch(function () {
+                    S.showToast('No se pudo usar ese archivo');
+                });
+            });
+        });
         ov.querySelector('#tc-del').addEventListener('click', function () {
             S.confirm('Quitar carátula', '¿Quitar la carátula de «' +
                 meta.name + '»?', 'Quitar', function () {

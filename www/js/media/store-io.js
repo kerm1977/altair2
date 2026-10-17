@@ -206,7 +206,12 @@ window.SonoStoreIO = (function () {
 
     function nativeWriteArt(id, blob) {
         var FS = fsPlugin();
-        var path = DIR + '/art_' + id + '.jpg';
+        // extensión real del blob: un GIF guardado como .jpg podría no
+        // animarse — el WebView deduce el MIME por la extensión
+        var t = (blob && blob.type) || '';
+        var ext = t === 'image/gif' ? 'gif' : t === 'image/png' ? 'png' :
+                  t === 'image/webp' ? 'webp' : 'jpg';
+        var path = DIR + '/art_' + id + '.' + ext;
         return writeAny(FS, path, blob, fsDir()).then(function () { return path; });
     }
 

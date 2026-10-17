@@ -257,10 +257,14 @@ window.MediaStore = (function () {
             if (!meta) return Promise.resolve();
             // builtin: el blob vive en el bundle; ref: el archivo es externo
             // (escaneado) → solo se quita del índice, el original se respeta
+            // la carátula puede ser .gif/.png/.webp — usar la ruta guardada
+            // (fallback al .jpg de artes antiguas)
+            var artP = (meta.info && meta.info.artPath) ||
+                       (DIR + '/art_' + id + '.jpg');
             var pend = (meta.builtin || meta.ref)
-                ? (isNative() ? IO.nativeDelete(DIR + '/art_' + id + '.jpg') : IO.idbDel(id + '_art'))
+                ? (isNative() ? IO.nativeDelete(artP) : IO.idbDel(id + '_art'))
                 : (isNative()
-                    ? Promise.all([IO.nativeDelete(meta.path), IO.nativeDelete(DIR + '/art_' + id + '.jpg')])
+                    ? Promise.all([IO.nativeDelete(meta.path), IO.nativeDelete(artP)])
                     : Promise.all([IO.idbDel(id), IO.idbDel(id + '_art')]));
             return pend.then(function () {});
         },
@@ -307,8 +311,14 @@ window.MediaStore = (function () {
         // Guarda una carátula local para el archivo (blob imagen)
         saveArtwork: function (id, blob) {
             var self = this;
+            var old = isNative() && findMeta(getIndex(), id);
+            old = old && old.info && old.info.artPath;
             var persist = isNative()
-                ? IO.nativeWriteArt(id, blob).then(function (p) { return self.updateInfo(id, { artPath: p, hasArt: true }); })
+                ? IO.nativeWriteArt(id, blob).then(function (p) {
+                    // extensión nueva → la art vieja (.jpg) quedaría huérfana
+                    if (old && old !== p) IO.nativeDelete(old);
+                    return self.updateInfo(id, { artPath: p, hasArt: true });
+                })
                 : IO.idbPut(id + '_art', blob).then(function () { return self.updateInfo(id, { hasArt: true }); });
             return persist.then(function (meta) { return meta || true; });
         },
