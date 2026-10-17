@@ -16,12 +16,16 @@ window.TribalViz = (function () {
         el = audioEl;
         ctx = canvas.getContext('2d');
         if (!running) { running = true; requestAnimationFrame(loop); }
-        // conecta el tap del EQ cuando el audio empieza a sonar
-        el.addEventListener('play', function () {
+        // conecta el tap del EQ cuando el audio empieza a sonar — Y de
+        // inmediato si YA está sonando (el vinilo se suele abrir con la
+        // música en marcha: sin esto el espectro quedaba plano = "borrado")
+        function tap() {
             if (window.TribalEQ && TribalEQ.analyserFor) {
                 attach(TribalEQ.analyserFor(el));
             }
-        });
+        }
+        el.addEventListener('play', tap);
+        if (!el.paused) tap();
     }
 
     function attach(an) {
