@@ -131,11 +131,13 @@ window.TribalVinyl = (function () {
         // gestos táctiles del fullscreen:
         //   swipe horizontal en zona vacía → prev/next
         //   arrastre vertical en el lado derecho → volumen
-        var gX = null, gY, gMode, gV0;
+        var gX = null, gY, gMode, gV0, gTapDisc;
         ov.addEventListener('pointerdown', function (e) {
             if (e.target.closest('button,input,.tribal-vinyl-bar')) return;
             gX = e.clientX; gY = e.clientY; gMode = null;
             gV0 = el ? el.volume : 1;
+            // el gesto nació sobre el disco/anillo → tap candidato a play/pausa
+            gTapDisc = !!e.target.closest('.tribal-vinyl-stage');
         });
         ov.addEventListener('pointermove', function (e) {
             if (gX == null || !el) return;
@@ -163,8 +165,13 @@ window.TribalVinyl = (function () {
                 Math.abs(dx) > Math.abs(dy)) {
                 if (dx < 0 && cb.onNext) cb.onNext();
                 else if (dx > 0 && cb.onPrev) cb.onPrev();
+            } else if (e.type === 'pointerup' && !gMode && gTapDisc && el &&
+                       Math.abs(dx) < 22 && Math.abs(dy) < 22) {
+                // tap corto sobre el disco/anillo = el mismo ▶/⏸ de abajo —
+                // objetivo grande para pausar rápido sin apuntar al botón
+                if (el.paused) el.play(); else el.pause();
             }
-            gX = null; gMode = null;
+            gX = null; gMode = null; gTapDisc = false;
         }
         ov.addEventListener('pointerup', gUp);
         ov.addEventListener('pointercancel', gUp);

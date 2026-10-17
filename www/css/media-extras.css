@@ -242,8 +242,14 @@
     .tribal-vinyl-stage { width: min(42vh, 62vw); height: min(42vh, 62vw); }
 }
 /* gestos táctiles del fullscreen: swipe horizontal = pista;
-   arrastre vertical en el lado derecho = volumen */
+   arrastre vertical en el lado derecho = volumen;
+   tap corto sobre el disco/anillo = play/pausa (objetivo grande) */
 .tribal-vinyl { touch-action: none; }
+.tribal-vinyl-stage {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.tribal-vinyl-stage:active .tribal-vinyl-disc { filter: brightness(1.18); }
 .tribal-vinyl-ring {
     position: absolute;
     inset: 0;
