@@ -260,7 +260,7 @@
 }
 .tribal-vinyl-disc {
     position: absolute;
-    inset: 9%;
+    inset: 14%;
     border-radius: 50%;
     background:
         radial-gradient(circle at 50% 50%, #1a0f06 0 17%, transparent 17.5%),

@@ -56,14 +56,14 @@ window.TribalVinyl = (function () {
                 '<svg class="tribal-vinyl-ring" viewBox="0 0 200 200" aria-hidden="true">' +
                     '<circle cx="100" cy="100" r="96" fill="none" stroke="#f0b429" stroke-width="2" stroke-dasharray="6 6"/>' +
                     '<g fill="#e2602e">' +
-                        '<polygon points="100,2 104,12 96,12"/>' +
-                        '<polygon points="100,2 104,12 96,12" transform="rotate(45 100 100)"/>' +
-                        '<polygon points="100,2 104,12 96,12" transform="rotate(90 100 100)"/>' +
-                        '<polygon points="100,2 104,12 96,12" transform="rotate(135 100 100)"/>' +
-                        '<polygon points="100,2 104,12 96,12" transform="rotate(180 100 100)"/>' +
-                        '<polygon points="100,2 104,12 96,12" transform="rotate(225 100 100)"/>' +
-                        '<polygon points="100,2 104,12 96,12" transform="rotate(270 100 100)"/>' +
-                        '<polygon points="100,2 104,12 96,12" transform="rotate(315 100 100)"/>' +
+                        '<polygon points="100,12 103,24 97,24"/>' +
+                        '<polygon points="100,12 103,24 97,24" transform="rotate(45 100 100)"/>' +
+                        '<polygon points="100,12 103,24 97,24" transform="rotate(90 100 100)"/>' +
+                        '<polygon points="100,12 103,24 97,24" transform="rotate(135 100 100)"/>' +
+                        '<polygon points="100,12 103,24 97,24" transform="rotate(180 100 100)"/>' +
+                        '<polygon points="100,12 103,24 97,24" transform="rotate(225 100 100)"/>' +
+                        '<polygon points="100,12 103,24 97,24" transform="rotate(270 100 100)"/>' +
+                        '<polygon points="100,12 103,24 97,24" transform="rotate(315 100 100)"/>' +
                     '</g>' +
                 '</svg>' +
                 '<div class="tribal-vinyl-disc"><div class="tribal-vinyl-label">' + sunSvg() + '</div></div>' +
