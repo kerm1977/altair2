@@ -1,101 +1,99 @@
 /* ==========================================================================
    ARCHIVO: media-fx.css
-   RESPONSABILIDAD: calculadora de divisas tribal (media/fx.js) — overlay
-     con grid de tarjetas por moneda, tasa y monto editables.
+   RESPONSABILIDAD: calculadora de divisas tribal (media/fx.js) — página
+     completa con barra de monto + dropdown y lista de conversiones.
    ========================================================================== */
 
 .tribal-fx {
-    position: fixed; inset: 0; z-index: 9600;
-    display: none; align-items: center; justify-content: center;
-    background: rgba(8, 4, 2, 0.82); padding: 14px;
-}
-.tribal-fx.on { display: flex; }
-
-.fx-box {
-    width: min(96vw, 640px); max-height: 92vh;
-    display: flex; flex-direction: column;
-    background: linear-gradient(160deg, #241108, #170a04 60%, #1e0d06);
-    border: 1px solid var(--tb-border, #6b3a1e);
-    border-radius: 14px; padding: 12px;
+    position: fixed; inset: 0; z-index: 9600; display: none;
+    background: radial-gradient(circle at 50% -10%, #2c1408, #100704 65%);
     color: var(--tb-text, #f3e2c7);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+}
+.tribal-fx.on { display: block; }
+
+.fx-page {
+    height: 100%; display: flex; flex-direction: column;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 12px
+             calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
 .fx-head { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.fx-head b { font-size: 1.05rem; color: var(--tb-gold, #f0b429); flex: 1; }
+.fx-head b {
+    flex: 1; font-size: 1.15rem; color: var(--tb-gold, #f0b429);
+}
+.fx-back {
+    width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%;
+    border: 1px solid var(--tb-border, #6b3a1e);
+    background: rgba(0, 0, 0, 0.35); color: var(--tb-text, #f3e2c7);
+    font-size: 1.4rem; line-height: 1; cursor: pointer;
+}
 .fx-fetch {
     border: 1px solid var(--tb-gold, #f0b429); color: var(--tb-gold, #f0b429);
     background: rgba(240, 180, 41, 0.08); border-radius: 999px;
-    padding: 6px 12px; font-size: 0.78rem; cursor: pointer;
+    padding: 8px 14px; font-size: 0.8rem; cursor: pointer;
 }
 .fx-fetch:active { background: rgba(240, 180, 41, 0.22); }
-.fx-close {
-    width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%;
+
+/* barra tipo buscador: monto + dropdown de la moneda origen */
+.fx-search {
+    flex-shrink: 0; display: flex; gap: 8px; margin: 12px 0 6px;
+    background: rgba(0, 0, 0, 0.4);
     border: 1px solid var(--tb-border, #6b3a1e);
-    background: rgba(0, 0, 0, 0.35); color: var(--tb-text, #f3e2c7);
-    font-size: 0.95rem; cursor: pointer;
+    border-radius: 999px; padding: 6px;
 }
+.fx-amt {
+    flex: 1; min-width: 0; padding: 8px 6px 8px 16px;
+    font-size: 1.25rem; font-weight: 700;
+    background: transparent; border: 0; outline: none;
+    color: var(--tb-gold, #f0b429);
+}
+.fx-amt::placeholder { color: var(--tb-muted, #c8a273); opacity: 0.6; }
+.fx-sel {
+    max-width: 52%; padding: 8px 10px; font-size: 0.9rem; font-weight: 600;
+    background: rgba(226, 96, 46, 0.15); color: var(--tb-text, #f3e2c7);
+    border: 1px solid var(--tb-border, #6b3a1e); border-radius: 999px;
+    cursor: pointer;
+}
+.fx-sel option { background: #1e0d06; color: #f3e2c7; }
 
 .fx-status {
-    flex-shrink: 0; margin: 8px 0 10px; font-size: 0.74rem;
+    flex-shrink: 0; margin: 4px 4px 8px; font-size: 0.74rem;
     color: var(--tb-muted, #c8a273); font-style: italic;
 }
 
-.fx-grid {
+.fx-list {
     flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
-    display: grid; gap: 8px;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    padding-bottom: 4px;
+    display: flex; flex-direction: column; gap: 8px; padding-bottom: 6px;
 }
 
-.fx-card {
+.fx-row {
+    display: flex; align-items: center; gap: 10px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid var(--tb-border, #6b3a1e);
-    border-radius: 10px; padding: 8px 10px;
-    display: flex; flex-direction: column; gap: 6px;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    border-radius: 12px; padding: 10px 12px;
 }
-.fx-card.fx-src {
-    border-color: var(--tb-gold, #f0b429);
-    box-shadow: 0 0 10px rgba(240, 180, 41, 0.25);
-}
-
-.fx-chead { display: flex; align-items: center; gap: 6px; }
-.fx-flag { font-size: 1.1rem; }
-.fx-chead b { color: var(--tb-gold, #f0b429); font-size: 0.9rem; }
-.fx-cname {
-    flex: 1; font-size: 0.68rem; color: var(--tb-muted, #c8a273);
+.fx-flag { font-size: 1.4rem; flex: 0 0 auto; }
+.fx-rtxt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fx-rtxt b {
+    font-size: 1.15rem; color: var(--tb-gold, #f0b429);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.fx-swap {
-    width: 26px; height: 26px; flex: 0 0 26px; border-radius: 50%;
-    border: 1px solid var(--tb-border, #6b3a1e);
-    background: rgba(226, 96, 46, 0.15); color: var(--tb-gold, #f0b429);
-    font-size: 0.85rem; cursor: pointer; line-height: 1;
+.fx-rtxt small {
+    font-size: 0.7rem; color: var(--tb-muted, #c8a273);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.fx-swap:active { background: rgba(226, 96, 46, 0.4); }
-
-.fx-rrow {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 0.72rem; color: var(--tb-muted, #c8a273);
+.fx-rrate {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 4px;
+    font-size: 0.68rem; color: var(--tb-muted, #c8a273);
 }
 .fx-rate {
-    width: 74px; padding: 3px 5px; font-size: 0.78rem;
+    width: 66px; padding: 4px 5px; font-size: 0.78rem; text-align: right;
     background: rgba(0, 0, 0, 0.4); color: var(--tb-text, #f3e2c7);
     border: 1px solid var(--tb-border, #6b3a1e); border-radius: 6px;
 }
 .fx-rate:disabled { opacity: 0.45; }
 
-.fx-amt {
-    width: 100%; box-sizing: border-box;
-    padding: 7px 8px; font-size: 1rem; font-weight: 600;
-    background: rgba(0, 0, 0, 0.45); color: var(--tb-gold, #f0b429);
-    border: 1px solid var(--tb-border, #6b3a1e); border-radius: 8px;
-}
-.fx-amt::placeholder { color: var(--tb-muted, #c8a273); font-weight: 400; font-size: 0.72rem; }
-.fx-card.fx-src .fx-amt { border-color: var(--tb-gold, #f0b429); }
-
 .fx-foot {
-    flex-shrink: 0; margin-top: 8px; font-size: 0.7rem;
+    flex-shrink: 0; margin-top: 6px; font-size: 0.7rem;
     color: var(--tb-muted, #c8a273); text-align: center;
 }
