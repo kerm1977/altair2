@@ -138,6 +138,16 @@ window.Sono.register('viewmenu', function (S) {
         });
     }
 
+    // limpiador tribal: basura, temporales, duplicados, corruptos, espacio
+    // (media/clean*.js + plugin nativo TribalClean)
+    if ($('vm-clean')) {
+        $('vm-clean').addEventListener('click', function () {
+            viewMenu.hidden = true;
+            if (window.TribalClean) window.TribalClean.open(S.extDeps());
+            else S.showToast('Limpiador no disponible');
+        });
+    }
+
     // solicitar permisos: diálogo nativo + pantalla de ajustes de la app
     $('vm-perms').addEventListener('click', function () {
         viewMenu.hidden = true;

@@ -1,65 +1,26 @@
 // ============================================================================
 // ARCHIVO: media/scan.js
-// RESPONSABILIDAD: Escáner de archivos del dispositivo + "abrir en la ruta".
+// RESPONSABILIDAD: diálogo del Escáner de dispositivo.
 //   - APK: TribalScanPlugin recorre el almacenamiento (interno + SD) y los
 //     hallazgos entran al índice por REFERENCIA (meta.ref, sin copiar) —
-//     así nada se duplica en disco y cada item conserva su ruta real.
-//   - Web/desktop: el navegador no puede recorrer el disco → se ofrece
-//     "Elegir carpeta" que importa lo seleccionado (IndexedDB, como subir).
-//   API: TribalScan.open(deps) · TribalScan.openLocation(path) ·
-//        TribalScan.exists(path)
+//     cero duplicados en disco y cada item conserva su ruta real.
+//   - Web/desktop: el navegador no puede recorrer el disco → «Elegir
+//     carpeta» importa lo seleccionado (IndexedDB, igual que subir).
+//   API: TribalScan.open(deps) · TribalScan.openLocation (delega a scanio)
 // ============================================================================
 window.TribalScan = (function () {
     'use strict';
 
+    var IO = window.TribalScanIO;
     var ov = null, listenerH = null;
 
-    function esc(s) {
-        return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    function plug() {
-        var P = window.Capacitor && window.Capacitor.Plugins;
-        return (P && P.TribalScan) || null;
-    }
-
     function close() {
-        if (listenerH && plug()) {
-            try { listenerH.remove(); } catch (e) {}
-        }
+        if (listenerH) { try { listenerH.remove(); } catch (e) {} }
         listenerH = null;
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = null;
     }
 
-    // "Abrir en la ruta": la carpeta contenedora en el gestor del sistema.
-    // Devuelve Promise<'open'|'copy'|'fail'> — el caller muestra el toast.
-    function openLocation(path) {
-        var P = plug();
-        function copy() {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                return navigator.clipboard.writeText(path)
-                    .then(function () { return 'copy'; })
-                    .catch(function () { return 'fail'; });
-            }
-            return Promise.resolve('fail');
-        }
-        if (!P || !P.openLocation) return copy();
-        return P.openLocation({ path: path }).then(function (r) {
-            return (r && r.opened) ? 'open' : copy();
-        }).catch(function () { return copy(); });
-    }
-
-    function exists(path) {
-        var P = plug();
-        if (!P || !P.exists) return Promise.resolve(true);
-        return P.exists({ path: path })
-            .then(function (r) { return !!(r && r.exists); })
-            .catch(function () { return true; });
-    }
-
-    // ----------------------------------------------------------- diálogo ---
     function open(deps) {
         close();
         var toast = deps.toast || function () {};
@@ -115,8 +76,9 @@ window.TribalScan = (function () {
 
         var scanning = false;
         cancel.addEventListener('click', function () {
-            if (scanning && plug() && plug().cancel) {
-                plug().cancel();
+            var P = IO.plug();
+            if (scanning && P && P.cancel) {
+                P.cancel();
                 say('Deteniendo…');
             } else close();
         });
@@ -128,7 +90,7 @@ window.TribalScan = (function () {
 
         // ------------------------------ nativo ------------------------------
         function runNative() {
-            var P = plug();
+            var P = IO.plug();
             if (!P || !P.scan) {
                 say('El escáner nativo no está en este APK — reinstala la versión nueva.');
                 return;
@@ -159,23 +121,7 @@ window.TribalScan = (function () {
                     return;
                 }
                 var res = deps.store.addRefs(files);
-                var porSeccion = {};
-                // contar lo que realmente entró: los últimos "added" metas
-                deps.store.list().then(function (items) {
-                    items.slice(0, res.added).forEach(function (m) {
-                        porSeccion[m.kind] = (porSeccion[m.kind] || 0) + 1;
-                    });
-                    var partes = [];
-                    if (porSeccion.audio) partes.push(porSeccion.audio + ' en Música');
-                    if (porSeccion.video) partes.push(porSeccion.video + ' en Videos');
-                    if (porSeccion.image) partes.push(porSeccion.image + ' en Fotos');
-                    if (porSeccion.doc) partes.push(porSeccion.doc + ' en Documentos');
-                    if (porSeccion.other) partes.push(porSeccion.other + ' en Otros');
-                    say('✅ ' + res.added + ' archivos cargados' +
-                        (partes.length ? ' — ' + partes.join(' · ') : '') +
-                        (res.skipped ? ' (' + res.skipped + ' ya estaban)' : ''));
-                    if (res.added && deps.reload) deps.reload();
-                });
+                report(res);
             }).catch(function (e) {
                 scanning = false;
                 busy(false);
@@ -183,15 +129,34 @@ window.TribalScan = (function () {
             });
         }
 
+        // resumen por sección de lo que realmente entró al índice
+        function report(res) {
+            deps.store.list().then(function (items) {
+                var por = {};
+                items.slice(0, res.added).forEach(function (m) {
+                    por[m.kind] = (por[m.kind] || 0) + 1;
+                });
+                var partes = [];
+                if (por.audio) partes.push(por.audio + ' en Música');
+                if (por.video) partes.push(por.video + ' en Videos');
+                if (por.image) partes.push(por.image + ' en Fotos');
+                if (por.doc) partes.push(por.doc + ' en Documentos');
+                if (por.other) partes.push(por.other + ' en Otros');
+                say('✅ ' + res.added + ' archivos cargados' +
+                    (partes.length ? ' — ' + partes.join(' · ') : '') +
+                    (res.skipped ? ' (' + res.skipped + ' ya estaban)' : ''));
+                if (res.added && deps.reload) deps.reload();
+            });
+        }
+
         // ------------------------------- web --------------------------------
-        var picked = false;
         dirIn.addEventListener('change', function () {
             var files = Array.prototype.slice.call(dirIn.files || []);
             dirIn.value = '';
             if (!files.length) return;
             var want = kinds();
             busy(true, 'Importando…');
-            var n = 0, done = 0;
+            var n = 0;
             (function next(i) {
                 if (i >= files.length) {
                     busy(false);
@@ -200,8 +165,8 @@ window.TribalScan = (function () {
                     return;
                 }
                 var f = files[i];
-                var kind = deps.store.kindFromMime(f.type, f.name);
-                if (want.indexOf(kind) < 0) { done++; return next(i + 1); }
+                if (want.indexOf(deps.store.kindFromMime(f.type, f.name)) < 0)
+                    return next(i + 1);
                 say('Importando ' + (i + 1) + '/' + files.length + ' — ' + f.name);
                 deps.store.add(f).then(function () { n++; next(i + 1); })
                     .catch(function () { next(i + 1); });
@@ -209,5 +174,11 @@ window.TribalScan = (function () {
         });
     }
 
-    return { open: open, openLocation: openLocation, exists: exists, close: close };
+    // la API pública mantiene openLocation/exists delegando a scanio —
+    // media-meta.js ya llama TribalScan.openLocation
+    return {
+        open: open, close: close,
+        openLocation: IO.openLocation,
+        exists: IO.exists
+    };
 })();

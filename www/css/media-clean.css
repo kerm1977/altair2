@@ -1,0 +1,187 @@
+/* ==========================================================================
+   ARCHIVO: media-clean.css — Limpiador tribal (clean.js / cleanact.js /
+   cleanlist.js / cleandup.js). Barras de espacio, tarjetas de categoría,
+   lista de revisión y grupos de duplicados. Identidad tribal intacta.
+   ========================================================================== */
+
+.cln-dialog { max-width: 460px; }
+
+/* barras de espacio: disco (fuego) y liberación (verde tribal) */
+.cln-bar {
+    height: 14px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--tb-border);
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+.cln-fill {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #8a2c0d, var(--tb-gold));
+    transition: width 0.5s ease;
+}
+.cln-barfree .cln-fill {
+    background: linear-gradient(90deg, #2d6a2d, #7bc96f);
+}
+.cln-bartxt {
+    font-size: 0.72rem;
+    color: var(--tb-muted);
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+/* tarjetas de categoría */
+.cln-cats {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+    max-height: 42vh;
+    overflow-y: auto;
+}
+.cln-cat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(90, 58, 28, 0.55);
+    border-radius: 10px;
+    font-size: 0.8rem;
+}
+.cln-cat input { accent-color: var(--tb-gold); flex: 0 0 auto; }
+.cln-cat-i { font-size: 1.1rem; flex: 0 0 auto; }
+.cln-cat-t { flex: 1; min-width: 0; }
+.cln-cat-t b { display: block; color: var(--tb-cream); font-size: 0.8rem; }
+.cln-cat-t i {
+    display: block;
+    font-style: normal;
+    color: var(--tb-muted);
+    font-size: 0.68rem;
+}
+.cln-cat-n {
+    flex: 0 0 auto;
+    color: var(--tb-gold);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-align: right;
+}
+.cln-view {
+    flex: 0 0 auto;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--tb-border);
+    border-radius: 8px;
+    color: var(--tb-gold);
+    font-size: 0.68rem;
+    padding: 5px 9px;
+}
+.cln-view:disabled { opacity: 0.35; }
+
+/* lista de revisión paginada */
+.cln-list-dialog { max-width: 480px; }
+.cln-hint {
+    margin: 0 0 8px;
+    font-size: 0.72rem;
+    color: var(--tb-muted);
+}
+.cln-list {
+    max-height: 50vh;
+    overflow-y: auto;
+    border: 1px solid rgba(90, 58, 28, 0.4);
+    border-radius: 10px;
+    margin-bottom: 8px;
+}
+.cln-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 9px;
+    border-bottom: 1px dashed rgba(90, 58, 28, 0.4);
+    font-size: 0.76rem;
+}
+.cln-row.off { opacity: 0.45; }
+.cln-row input { accent-color: var(--tb-gold); flex: 0 0 auto; }
+.cln-row-t { flex: 1; min-width: 0; }
+.cln-row-t b {
+    display: block;
+    color: var(--tb-cream);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cln-row-t i {
+    display: block;
+    font-style: normal;
+    color: var(--tb-muted);
+    font-size: 0.62rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cln-row em {
+    flex: 0 0 auto;
+    font-style: normal;
+    color: var(--tb-gold);
+    font-size: 0.68rem;
+}
+.cln-empty {
+    padding: 14px;
+    text-align: center;
+    color: var(--tb-muted);
+    font-size: 0.78rem;
+}
+.cln-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 0.72rem;
+    color: var(--tb-muted);
+    margin-bottom: 8px;
+}
+
+/* duplicados */
+.cdup-group {
+    border-bottom: 1px solid rgba(90, 58, 28, 0.55);
+    padding: 6px 8px;
+}
+.cdup-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--tb-cream);
+    margin-bottom: 4px;
+}
+.cdup-head span { color: var(--tb-gold); font-weight: 700; }
+.cdup-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 2px;
+    font-size: 0.68rem;
+}
+.cdup-row input { accent-color: var(--tb-gold); flex: 0 0 auto; }
+.cdup-p {
+    flex: 1;
+    min-width: 0;
+    color: var(--tb-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;         /* muestra el final de la ruta (el nombre) */
+    text-align: left;
+}
+.cdup-tag {
+    font-style: normal;
+    font-size: 0.6rem;
+    color: #7bc96f;
+    border: 1px solid #2d6a2d;
+    border-radius: 6px;
+    padding: 1px 5px;
+}
+.cdup-bar {
+    padding: 6px 2px;
+    font-size: 0.74rem;
+    color: var(--tb-gold);
+    text-align: center;
+}

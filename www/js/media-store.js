@@ -196,6 +196,18 @@ window.MediaStore = (function () {
             return { added: added, skipped: skipped };
         },
 
+        // Quita del índice los metas cuya ruta ya no existe (p. ej. borrados
+        // por el limpiador) → cantidad de entradas retiradas
+        dropPaths: function (paths) {
+            var dead = {};
+            (paths || []).forEach(function (p) { dead[p] = 1; });
+            var index = getIndex();
+            var keep = index.filter(function (m) { return !dead[m.path]; });
+            var n = index.length - keep.length;
+            if (n) saveIndex(keep);
+            return n;
+        },
+
         rename: function (id, newName) {
             var index = getIndex();
             var meta = index.filter(function (m) { return m.id === id; })[0];
