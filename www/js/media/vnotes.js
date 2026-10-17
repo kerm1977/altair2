@@ -326,18 +326,28 @@ window.TribalVNotes = (function () {
         });
     }
 
-    // lista: SOLO las grabaciones hechas aquí (info.vn o «Mi grabación …»)
+    // lista: SOLO las grabaciones hechas aquí (info.vn o «Mi grabación …»),
+    // las más nuevas primero, con fecha y duración · 20 por página
+    var PER_PAGE = 20, listPage = 0;
     function fillList() {
         var box = ov.querySelector('#vn-list');
-        var list = (deps.items || []).filter(function (m) {
+        var all = (deps.items || []).filter(function (m) {
             return m.kind === 'audio' &&
                 ((m.info && m.info.vn) || /^mi grabaci/i.test(m.name || ''));
-        }).slice(0, 40);
+        }).sort(function (a, b) { return (b.addedAt || 0) - (a.addedAt || 0); });
+        var pages = Math.max(1, Math.ceil(all.length / PER_PAGE));
+        listPage = Math.max(0, Math.min(listPage, pages - 1));
+        var list = all.slice(listPage * PER_PAGE, (listPage + 1) * PER_PAGE);
         box.innerHTML = '';
-        if (!list.length) {
+        if (!all.length) {
             box.innerHTML = '<p class="vn-empty">Sin notas todavía</p>';
             return;
         }
+        var head = document.createElement('div');
+        head.className = 'vn-list-head';
+        head.innerHTML = '<span><i class="bi bi-collection"></i> Grabaciones</span>' +
+            '<small>' + all.length + ' en total</small>';
+        box.appendChild(head);
         list.forEach(function (m) {
             var r = window.TribalVRow.row(m);
             box.appendChild(r);
@@ -345,6 +355,24 @@ window.TribalVNotes = (function () {
                 play: function (rw) { if (window.TribalVNotePlay)
                     TribalVNotePlay.toggle(m, rw, deps); } });
         });
+        if (pages > 1) {
+            var pg = document.createElement('div');
+            pg.className = 'vn-pager';
+            pg.innerHTML = '<button data-pg="-1"' + (listPage ? '' : ' disabled') +
+                '><i class="bi bi-chevron-left"></i> Anterior</button>' +
+                '<span>Página ' + (listPage + 1) + ' / ' + pages + '</span>' +
+                '<button data-pg="1"' + (listPage < pages - 1 ? '' : ' disabled') +
+                '>Siguiente <i class="bi bi-chevron-right"></i></button>';
+            pg.onclick = function (e) {
+                var b = e.target.closest('[data-pg]');
+                if (!b || b.disabled) return;
+                if (window.TribalVNotePlay) TribalVNotePlay.stop();
+                listPage += +b.getAttribute('data-pg');
+                fillList();
+                box.scrollIntoView({ block: 'start' });
+            };
+            box.appendChild(pg);
+        }
     }
 
     function build() {
@@ -432,7 +460,7 @@ window.TribalVNotes = (function () {
     function open(d) {
         deps = d;
         if (ov) close(); build();
-        ctx.mode = 'mic'; ctx.fmt = 'm4a';
+        ctx.mode = 'mic'; ctx.fmt = 'm4a'; listPage = 0;
         ctx.elapsed = 0; ctx.state = 'idle'; setState('idle'); fillList();
         if (window.TribalVDraft && TribalVDraft.meta()) restoreDraft();
         else if (isNative()) (window.TribalVScreen ? TribalVScreen.peek() : Promise.resolve({}))

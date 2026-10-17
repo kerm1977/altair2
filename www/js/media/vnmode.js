@@ -42,7 +42,7 @@ window.TribalVMode = (function () {
         var box = ov.querySelector('#vn-mode');
         if (!box) {
             box = document.createElement('div');
-            box.id = 'vn-mode'; box.className = 'vn-ask vn-mode';
+            box.id = 'vn-mode'; box.className = 'vn-mode';   // sin recuadro: solo botones
             var ask = ov.querySelector('#vn-ask');
             ask.parentNode.insertBefore(box, ask);
         }
@@ -50,8 +50,7 @@ window.TribalVMode = (function () {
         function close() { box.hidden = true; box.innerHTML = ''; }
 
         function step1() {
-            box.innerHTML = '<p><i class="bi bi-record-circle"></i> ¿Qué quieres grabar?</p>' +
-                '<div class="vn-mode-btns">' + MODES.map(function (m) {
+            box.innerHTML = '<div class="vn-mode-btns">' + MODES.map(function (m) {
                     var sug = m.id === 'call' && inCall;
                     return btn('data-m', m.id, m.ico, m.t + (sug ? ' · en llamada' : ''),
                         m.d, sug ? 'sug' : '');
@@ -61,8 +60,7 @@ window.TribalVMode = (function () {
         }
         function step2() {
             var list = mode === 'screen' ? FMT.screen : FMT.audio;
-            box.innerHTML = '<p><i class="bi bi-file-earmark-music"></i> ¿En qué formato?</p>' +
-                '<div class="vn-mode-btns">' + list.map(function (f) {
+            box.innerHTML = '<div class="vn-mode-btns">' + list.map(function (f) {
                     return btn('data-f', f.id, '', f.t, f.d);
                 }).join('') + '</div>' +
                 (NOTE[mode] ? '<p class="vn-mode-note">' + NOTE[mode] + '</p>' : '') +

@@ -76,7 +76,11 @@
 .vn-ask-btns button.danger { border-color: var(--tb-terra); color: #ff9d7a;
     background: rgba(226, 96, 46, .12); }
 /* selector de qué grabar: micrófono · llamada · pantalla y sonido */
+/* sin recuadro: solo los botones, en flujo normal (nunca bajo la lista) */
+.vn-mode { width: 100%; max-width: 420px; margin: 8px 0; padding: 0;
+    background: none; border: 0; }
 .vn-mode[hidden] { display: none; }
+.vn-mode .vn-ask-btns { margin-top: 2px; }
 .vn-mode-btns { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
 .vn-mode-btns button {
     display: grid; grid-template-columns: auto 1fr; column-gap: 12px; align-items: center;
@@ -93,9 +97,26 @@
 .vn-mode-btns button:active { transform: scale(.98); background: rgba(226, 96, 46, .2); }
 .vn-mode-btns button.sug { border-color: var(--tb-terra);
     box-shadow: 0 0 12px rgba(226, 96, 46, .45); }
-.vn-ask .vn-mode-note { margin: 0 0 10px; font-size: .76rem; line-height: 1.4;
-    color: var(--tb-cream); text-align: left; }
-.vn-list { width: 100%; max-width: 860px; margin-top: 14px; text-align: left; }
+.vn-mode .vn-mode-note { margin: 0 0 10px; font-size: .76rem; line-height: 1.4;
+    color: var(--tb-muted); text-align: left; }
+/* el cuerpo es columna con scroll: nada se comprime ni se pinta encima de
+   los botones de arriba (selector, aviso, Cancelar) */
+.vn-panel .lk-body > * { flex-shrink: 0; }
+.vn-list { position: relative; width: 100%; max-width: 860px; margin-top: 14px;
+    text-align: left; }
+.vn-list-head { display: flex; align-items: center; justify-content: space-between;
+    margin: 0 0 4px; color: var(--tb-gold); font-size: .85rem; font-weight: 700; }
+.vn-list-head small { color: var(--tb-muted); font-weight: 600; }
+.vn-meta { flex: 0 0 100%; display: flex; gap: 14px; flex-wrap: wrap;
+    color: var(--tb-muted); font-size: .72rem; padding-left: 26px; }
+.vn-meta i { color: var(--tb-terra); margin-right: 4px; }
+.vn-row .vn-meta span { flex: 0 0 auto; overflow: visible; white-space: nowrap; }
+.vn-pager { display: flex; align-items: center; justify-content: center; gap: 12px;
+    margin: 12px 0 4px; color: var(--tb-cream); font-size: .8rem; }
+.vn-pager button { padding: 8px 14px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--tb-border); background: rgba(240, 180, 41, .1);
+    color: var(--tb-gold); font: 600 .8rem/1 sans-serif; }
+.vn-pager button:disabled { opacity: .35; cursor: default; }
 .vn-row {
     display: flex; align-items: center; gap: 10px; padding: 9px 6px;
     border-bottom: 1px solid rgba(90, 58, 28, .4); color: var(--tb-cream);

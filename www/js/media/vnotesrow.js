@@ -23,6 +23,19 @@ window.TribalVRow = (function () {
                 (p.id === sel ? ' selected' : '') + '>' + p.label +
                 '</option>'; }).join('');
     }
+    function fmtDate(t) {
+        if (!t) return '—';
+        try {
+            return new Date(t).toLocaleString('es', { day: '2-digit', month: 'short',
+                year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch (e) { return new Date(t).toLocaleString(); }
+    }
+    function fmtDur(s) {
+        if (!(s > 0)) return '--:--';
+        s = Math.round(s);
+        var h = (s / 3600) | 0, mm = ((s % 3600) / 60) | 0, ss = s % 60;
+        return (h ? h + ':' + ('0' + mm).slice(-2) : mm) + ':' + ('0' + ss).slice(-2);
+    }
     function row(m) {
         var r = document.createElement('div'); r.className = 'vn-row';
         var pc = Math.round(volOf(m) * 100);
@@ -37,6 +50,9 @@ window.TribalVRow = (function () {
             'bi-download"></i></button>' +
             '<button data-del class="danger" title="Eliminar"><i class="bi ' +
             'bi-trash3"></i></button></div>' +
+            '<div class="vn-meta"><span><i class="bi bi-calendar3"></i>' +
+            fmtDate(m.addedAt) + '</span><span><i class="bi bi-stopwatch"></i>' +
+            fmtDur(m.info && m.info.dur) + '</span></div>' +
             '<div class="vn-ctl"><i class="bi bi-volume-up-fill"></i>' +
             '<input type="range" class="vn-vol" min="0" max="200" step="5" ' +
             'value="' + pc + '"><span class="vn-vpc">' + pc + '%</span>' +
