@@ -75,6 +75,26 @@
 }
 .vn-ask-btns button.danger { border-color: var(--tb-terra); color: #ff9d7a;
     background: rgba(226, 96, 46, .12); }
+/* selector de qué grabar: micrófono · llamada · pantalla y sonido */
+.vn-mode[hidden] { display: none; }
+.vn-mode-btns { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.vn-mode-btns button {
+    display: grid; grid-template-columns: auto 1fr; column-gap: 12px; align-items: center;
+    text-align: left; padding: 11px 14px; border-radius: 14px;
+    border: 1px solid var(--tb-border); background: rgba(240, 180, 41, .08);
+    color: var(--tb-cream); cursor: pointer;
+}
+.vn-mode-btns button i { grid-row: span 2; font-size: 1.4rem; color: var(--tb-gold); }
+.vn-mode-btns button b { font-size: .92rem; color: var(--tb-gold); }
+.vn-mode-btns button small { font-size: .74rem; color: var(--tb-muted); }
+.vn-mode-btns button:not(:has(i)) { grid-template-columns: 1fr; }
+.vn-mode-btns button:not(:has(i)) b,
+.vn-mode-btns button:not(:has(i)) small { grid-column: 1; }
+.vn-mode-btns button:active { transform: scale(.98); background: rgba(226, 96, 46, .2); }
+.vn-mode-btns button.sug { border-color: var(--tb-terra);
+    box-shadow: 0 0 12px rgba(226, 96, 46, .45); }
+.vn-ask .vn-mode-note { margin: 0 0 10px; font-size: .76rem; line-height: 1.4;
+    color: var(--tb-cream); text-align: left; }
 .vn-list { width: 100%; max-width: 860px; margin-top: 14px; text-align: left; }
 .vn-row {
     display: flex; align-items: center; gap: 10px; padding: 9px 6px;
