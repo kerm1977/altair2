@@ -65,7 +65,8 @@ window.TribalFX = (function () {
 
     function paintStatus(txt) { if (statusEl) statusEl.textContent = txt; }
     function stampText() {
-        return stamp ? ('tasas: ' + stamp) : 'tasas manuales (edítalas en cada fila o actualiza)';
+        return stamp ? ('fuente: open.er-api.com · ' + stamp)
+                     : 'tasas manuales (edítalas en cada fila o actualiza)';
     }
 
     function rowHtml(c, a, code, usd) {
@@ -77,8 +78,9 @@ window.TribalFX = (function () {
             '<span class="fx-flag">' + c.flag + '</span>' +
             '<div class="fx-rtxt"><b>' + eq + ' ' + c.sym + '</b>' +
             '<small>' + esc(label) + '</small></div>' +
-            '<label class="fx-rrate">1 USD = ' +
+            '<label class="fx-rrate"><span class="fx-pen">✎</span> 1 USD = ' +
             '<input type="number" step="any" min="0" class="fx-rate" ' +
+            'title="Tasa manual: toca y escribe" ' +
             'data-c="' + c.code + '" value="' + rates[c.code] + '"' +
             (c.code === 'USD' ? ' disabled' : '') + '> ' + c.sym + '</label>' +
             '</div>';
@@ -156,8 +158,8 @@ window.TribalFX = (function () {
             '</div>' +
             '<div class="fx-status"></div>' +
             '<div class="fx-list"></div>' +
-            '<div class="fx-foot">Base USD · toca la tasa de una fila para ' +
-            'editarla a mano.</div>' +
+            '<div class="fx-foot">Base USD · fuente en línea: open.er-api.com' +
+            ' · el lápiz ✎ de cada fila ajusta la tasa a mano.</div>' +
             '</div>';
         document.body.appendChild(ov);
         amtEl = ov.querySelector('.fx-amt');

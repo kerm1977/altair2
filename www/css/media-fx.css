@@ -86,12 +86,14 @@
     flex: 0 0 auto; display: flex; align-items: center; gap: 4px;
     font-size: 0.68rem; color: var(--tb-muted, #c8a273);
 }
+.fx-pen { color: var(--tb-gold, #f0b429); font-size: 0.8rem; }
 .fx-rate {
     width: 66px; padding: 4px 5px; font-size: 0.78rem; text-align: right;
     background: rgba(0, 0, 0, 0.4); color: var(--tb-text, #f3e2c7);
-    border: 1px solid var(--tb-border, #6b3a1e); border-radius: 6px;
+    border: 1px dashed var(--tb-gold, #f0b429); border-radius: 6px;
 }
-.fx-rate:disabled { opacity: 0.45; }
+.fx-rate:focus { border-style: solid; outline: none; }
+.fx-rate:disabled { opacity: 0.45; border-style: solid; }
 
 .fx-foot {
     flex-shrink: 0; margin-top: 6px; font-size: 0.7rem;
