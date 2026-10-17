@@ -110,6 +110,8 @@
     <!-- Barra de selección múltiple -->
     <div class="tribal-msbar" id="media-msbar" hidden>
         <span id="ms-count">0 seleccionados</span>
+        <button class="tribal-btn" id="ms-all" title="Seleccionar todo"><i class="bi bi-check2-all"></i> Todo</button>
+        <button class="tribal-btn" id="ms-none" title="Deseleccionar"><i class="bi bi-x-square"></i> Nada</button>
         <button class="tribal-btn" id="ms-art" title="Carátula a las seleccionadas"><i class="bi bi-image"></i> Carátula</button>
         <button class="tribal-btn" id="ms-ftp" title="Compartir las seleccionadas por el servidor LAN"><i class="bi bi-hdd-network"></i> Servidor</button>
         <button class="tribal-btn danger" id="ms-del"><i class="bi bi-trash3"></i> Eliminar</button>
@@ -514,8 +516,8 @@
             <div class="lk-body" id="batch-page1">
                 <p id="batch-info"></p>
                 <div class="tribal-batch-tools">
-                    <button class="tribal-btn tribal-btn-xs" id="batch-all">Todos</button>
-                    <button class="tribal-btn tribal-btn-xs" id="batch-none">Ninguno</button>
+                    <button class="tribal-btn tribal-btn-xs" id="batch-all">Seleccionar todo</button>
+                    <button class="tribal-btn tribal-btn-xs" id="batch-none">Deseleccionar</button>
                     <span class="tribal-flex"></span>
                     <button class="tribal-btn primary" id="batch-next">Renombrar seleccionados →</button>
                 </div>

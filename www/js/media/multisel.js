@@ -181,6 +181,17 @@ window.Sono.register('multisel', function (S) {
 
     // ------------------------------------------------------------ cableado --
     $('ms-exit').addEventListener('click', S.msExit);
+    // seleccionar todo / deseleccionar — sobre la vista filtrada actual
+    if ($('ms-all')) $('ms-all').addEventListener('click', function () {
+        (S.filtered() || []).forEach(function (m) { S.msSel[m.id] = true; });
+        syncBar();
+        S.render();
+    });
+    if ($('ms-none')) $('ms-none').addEventListener('click', function () {
+        S.msSel = {};
+        syncBar();
+        S.render();
+    });
     $('ms-del').addEventListener('click', function () {
         var n = count();
         if (!n) return S.showToast('Nada seleccionado');

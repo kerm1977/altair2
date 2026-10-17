@@ -433,6 +433,19 @@
 }
 .tmeta-link:active { opacity: 0.7; }
 
+/* marca verde de sesión: archivo renombrado + su nombre anterior */
+.tribal-ren-ic { color: #7bc96f; margin-right: 4px; font-size: 0.72em; }
+.tribal-ren-old {
+    display: block;
+    font-size: 0.62rem;
+    color: #7bc96f;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: -1px;
+}
+
 /* ------------------------------------------------------------- escáner --- */
 .tscan-dialog { max-width: 420px; }
 .tscan-desc {

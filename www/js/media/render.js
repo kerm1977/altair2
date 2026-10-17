@@ -247,9 +247,14 @@ window.Sono.register('render', function (S) {
                         ? S.fmtTime(m.info.dur) : '—') +
                       '</span>'
                     : '<span class="tr-row-dur">' + S.fmtSize(m.size) + '</span>';
+                var rowRen = window.MediaStore.wasRenamed &&
+                    window.MediaStore.wasRenamed(m.id)
+                    ? '<i class="bi bi-pencil-fill tribal-ren-ic" ' +
+                      'title="Renombrado — antes: ' +
+                      S.esc(window.MediaStore.prevName(m.id)) + '"></i>' : '';
                 row.innerHTML =
                     msCkR + left +
-                    '<span class="tr-row-name">' +
+                    '<span class="tr-row-name">' + rowRen +
                         S.esc((m.info && m.info.titulo) || m.name) + '</span>' +
                     (m.fav ? '<i class="bi bi-heart-fill tr-row-fav"></i>' : '') +
                     side +
@@ -296,12 +301,24 @@ window.Sono.register('render', function (S) {
                 var cn = S.colNames(m);
                 if (cn) metaTxt = cn + ' · ' + metaTxt;
             }
+            // marca verde de sesión: renombrado en esta corrida + nombre viejo
+            var wasRen = window.MediaStore.wasRenamed &&
+                window.MediaStore.wasRenamed(m.id);
+            var renMark = wasRen
+                ? '<i class="bi bi-pencil-fill tribal-ren-ic" ' +
+                  'title="Renombrado en esta sesión — antes: ' +
+                  S.esc(window.MediaStore.prevName(m.id)) + '"></i>' : '';
+            var renOld = wasRen
+                ? '<span class="tribal-ren-old">antes: ' +
+                  S.esc(window.MediaStore.prevName(m.id)) + '</span>' : '';
+
             card.innerHTML =
                 msCk + inner +
                 '<span class="tribal-kind-badge ' + m.kind + '">' + S.KIND_LABEL[m.kind] + '</span>' +
                 '<div class="tribal-card-body">' +
                     '<div style="flex:1;min-width:0">' +
-                        '<p class="tribal-card-name">' + S.esc(m.name) + '</p>' +
+                        '<p class="tribal-card-name">' + renMark + S.esc(m.name) + '</p>' +
+                        renOld +
                         '<span class="tribal-card-meta">' + S.esc(metaTxt) + '</span>' +
                     '</div>' +
                     '<button class="tribal-card-menu" data-menu="' + m.id + '" aria-label="Opciones">' +

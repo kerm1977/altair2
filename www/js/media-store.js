@@ -49,10 +49,29 @@ window.MediaStore = (function () {
         return index.filter(function (m) { return m.id === id; })[0] || null;
     }
 
+    // Renombrar una nota del bloc: el nombre que se ve en la tarjeta y en el
+    // editor es el TÍTULO de la nota, no meta.name — hay que propagarlo a
+    // ambos o el próximo autoguardado (syncToMediaStore→replaceData) pisa
+    // el nombre nuevo con el título viejo. Ese era el bug del renombrado
+    // "sin efecto" en notas.
+    function syncNoteTitle(meta, newName) {
+        var title = String(newName || '').replace(/\.txt$/i, '');
+        meta.info.titulo = title;
+        var NIO = window.TribalNotepadIO;
+        if (NIO && NIO.getById && NIO.save) {
+            NIO.getById(meta.info.noteId).then(function (n) {
+                if (n) { n.title = title; return NIO.save(n); }
+            }).catch(function () {});
+        }
+    }
+
     // ------------------------------------------------------------------------
     // Historial de deshacer (última operación sobre nombres/colecciones)
+    // + registro de renombrados SOLO en sesión (memoria, nada persiste):
+    //   renamedLog[id] = nombre que tenía antes — la lista lo marca en verde
     // ------------------------------------------------------------------------
     var undoStack = [];
+    var renamedLog = {};
 
     function pushUndo(entry) {
         undoStack.push(entry);
@@ -67,7 +86,12 @@ window.MediaStore = (function () {
         if (e.type === 'rename-file') {
             var idx = getIndex();
             var m = findMeta(idx, e.id);
-            if (m) { m.name = e.before; saveIndex(idx); }
+            if (m) {
+                m.name = e.before;
+                if (m.info && m.info.noteId) syncNoteTitle(m, e.before);
+                delete renamedLog[e.id];   // deshecho → la marca verde se va
+                saveIndex(idx);
+            }
             return Promise.resolve(m);
         }
         if (e.type === 'rename-col') {
@@ -213,10 +237,18 @@ window.MediaStore = (function () {
             var meta = index.filter(function (m) { return m.id === id; })[0];
             if (!meta) return Promise.resolve(null);
             pushUndo({ type: 'rename-file', id: id, before: meta.name });
+            renamedLog[id] = meta.name;       // sesión: marca verde + nombre viejo
             meta.name = newName;
+            // notas del bloc: su nombre visible vive en info.titulo y en el
+            // documento interno — sin esto el autoguardado revertía el nombre
+            if (meta.info && meta.info.noteId) syncNoteTitle(meta, newName);
             saveIndex(index);
             return Promise.resolve(meta);
         },
+
+        // registro de sesión de renombrados (para la marca verde de la lista)
+        wasRenamed: function (id) { return renamedLog[id] != null; },
+        prevName: function (id) { return renamedLog[id]; },
 
         remove: function (id) {
             var index = getIndex();
