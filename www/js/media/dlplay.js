@@ -16,29 +16,37 @@ window.TribalDlPlay = (function () {
         function el(s) { var r = ov && ov(); return r ? r.querySelector(s) : null; }
         function say(t) { var s = el('.dg-status'); if (s) s.textContent = t; }
 
-        function metaOf(path) {
+        // metas que apuntan al MISMO archivo de tribu_dl — por basename:
+        // el plugin puede haber registrado /data/user/0/… y /data/data/…
+        // (symlink del mismo archivo) como dos metas distintos
+        function metasFor(e) {
             var idx = (window.MediaStore && MediaStore._index)
-                ? MediaStore._index() : [], m = null;
-            idx.forEach(function (x) { if (x.path === path) m = x; });
-            return m;
-        }
-        function metaById(id) {
-            var idx = MediaStore._index ? MediaStore._index() : [], m = null;
-            idx.forEach(function (x) { if (x.id === id) m = x; });
-            return m;
+                ? MediaStore._index() : [], hits = [];
+            var base = e.path ? String(e.path).split('/').pop() : null;
+            idx.forEach(function (x) {
+                if (e.metaId && x.id === e.metaId) return hits.push(x);
+                if (!base || !x.path) return;
+                if (x.path === e.path) return hits.unshift(x);
+                if (x.path.indexOf('tribu_dl') >= 0 &&
+                    String(x.path).split('/').pop() === base) hits.push(x);
+            });
+            return hits;
         }
 
         // meta de la descarga; si el índice lo perdió pero el archivo sigue
-        // en tribu_dl → se re-registra sobre la marcha y queda en Videos
+        // en tribu_dl → se re-registra sobre la marcha y queda en Videos.
+        // Y si hay metas gemelos del mismo archivo → queda solo el primero.
         function metaFor(e) {
-            var m = (e.metaId && metaById(e.metaId)) ||
-                    (e.path && metaOf(e.path)) || null;
+            var hits = metasFor(e), m = hits[0] || null;
+            for (var i = 1; i < hits.length; i++) {
+                try { MediaStore.remove(hits[i].id); } catch (x) {}
+            }
             if (!m && e.path) {
                 try {
                     MediaStore.addRefs([{ path: e.path, name: e.name,
                         size: e.size || 0,
                         mime: window.TribalDlList.mimeOf(e.name) }]);
-                    m = metaOf(e.path);
+                    m = metasFor(e)[0] || null;
                 } catch (x) {}
             }
             return m;

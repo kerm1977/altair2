@@ -130,11 +130,14 @@ public class TribalDlPlugin extends Plugin {
 
                 // (a) archivos nuevos por mtime; (b) si yt-dlp dijo "ya se
                 // había descargado" / "Destination:", el archivo ya existía
-                // — lo devolvemos igual para registrarlo en la biblioteca
+                // — lo devolvemos igual para registrarlo en la biblioteca.
+                // OJO: filesDir es /data/user/0/… y su canónico /data/data/…
+                // — el MISMO archivo por ambas vías tiene paths distintos;
+                // comparar siempre por ruta canónica o sale duplicado.
                 List<File> news = newsSince(dir, before);
                 for (String l : lines) {
                     File f = destFile(dir, l);
-                    if (f != null && !news.contains(f)) news.add(f);
+                    if (f != null && !hasCanon(news, f)) news.add(f);
                 }
                 if (news.isEmpty()) {
                     String t = tail(lines, 6);
@@ -242,13 +245,25 @@ public class TribalDlPlugin extends Plugin {
         List<File> out = new ArrayList<>();
         if (fs == null) return out;
         for (File f : fs) {
+            try { f = f.getCanonicalFile(); } catch (Exception e) { continue; }
             if (!f.isFile() || f.lastModified() < since - 5000) continue;
-            if (f.getName().endsWith(".part")
-                || f.getName().endsWith(".ytdl")) continue;
+            String n = f.getName();
+            if (n.endsWith(".part") || n.endsWith(".ytdl")) continue;
+            if (n.matches(".*\\.f\\d+\\..*")) continue; // fragmentos del merge
             out.add(f);
         }
         out.sort(Comparator.comparingLong(File::lastModified));
         return out;
+    }
+
+    // mismo archivo por ruta distinta (symlink /data/user/0 ↔ /data/data)
+    private static boolean hasCanon(List<File> fs, File f) {
+        try {
+            String p = f.getCanonicalPath();
+            for (File o : fs)
+                if (o.getCanonicalPath().equals(p)) return true;
+        } catch (Exception ignored) {}
+        return false;
     }
 
     // líneas de yt-dlp que nombran el archivo de destino (ya existente o

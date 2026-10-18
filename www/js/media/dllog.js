@@ -16,11 +16,12 @@ window.TribalDlLog = (function () {
         try {
             var a = JSON.parse(localStorage.getItem(KEY) || '[]');
             if (!Array.isArray(a)) return [];
-            // limpieza retroactiva: entradas duplicadas al mismo archivo
-            // (una re-descarga las creaba antes) → queda la más reciente
+            // limpieza retroactiva: entradas duplicadas al mismo archivo.
+            // Clave por BASENAME — tribu_dl es plano y el mismo archivo
+            // podía quedar con ruta /data/user/0 y /data/data (symlink)
             var seen = {}, out = [];
             a.forEach(function (e) {
-                var k = e && e.path ? 'p:' + e.path
+                var k = e && e.path ? 'p:' + String(e.path).split('/').pop()
                         : 'u:' + (e && e.url) + '|' + (e && e.name);
                 if (seen[k]) return;
                 seen[k] = 1; out.push(e);
@@ -40,10 +41,13 @@ window.TribalDlLog = (function () {
         add: function (e) {
             var a = load();
             // mismo archivo ya registrado (re-descarga del mismo enlace)
-            // → refresca la entrada vieja en vez de crear un duplicado
+            // → refresca la entrada vieja en vez de crear un duplicado.
+            // Compara por basename: la ruta puede variar por symlink.
             if (e.path) {
+                var eb = String(e.path).split('/').pop();
                 for (var i = 0; i < a.length; i++) {
-                    if (a[i].path === e.path) {
+                    if (a[i].path &&
+                        String(a[i].path).split('/').pop() === eb) {
                         for (var k in e) a[i][k] = e[k];
                         a[i].ts = Date.now();
                         save(a);

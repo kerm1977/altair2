@@ -1,10 +1,9 @@
 // ============================================================================
 // ARCHIVO: media/dllist.js — pinta la cola activa + el historial de descargas
-// RESPONSABILIDAD: filas con ícono por tipo, nombre, estado (en cola /
-// descargando % / ✔ tamaño / ✖ error), ruta en modo revisión, botón de
-// borrado de 3 pasos (🗑 → ¿Eliminar? → Borrar definitivamente) y paginación
-// de 20 por página. Sin estado propio — todo llega por render().
-// API: TribalDlList.render(el, {queue, running, items, page, review, dir})
+// RESPONSABILIDAD: filas con ícono/miniatura, estado (en cola / % / ✔ / ✖),
+// ruta en modo revisión, borrado de 3 pasos y paginación de 20. Sin estado
+// propio — todo llega por render().
+// API: TribalDlList.render(el, {queue,running,items,page,review,dir,onThumb})
 // ============================================================================
 window.TribalDlList = (function () {
     'use strict';
@@ -23,10 +22,8 @@ window.TribalDlList = (function () {
                p(d.getHours()) + ':' + p(d.getMinutes());
     }
     // acepta 'a'|'v' o booleano "esAudio"
-    function icon(k) {
-        return (k === 'a' || k === true)
-            ? 'bi-music-note-beamed' : 'bi-camera-video-fill';
-    }
+    function icon(k) { return (k === 'a' || k === true)
+        ? 'bi-music-note-beamed' : 'bi-camera-video-fill'; }
 
     // fila de la cola viva (pendiente o bajando ahora)
     function qRow(j, isRun, pct, line) {
@@ -83,10 +80,9 @@ window.TribalDlList = (function () {
         if ((o.running || (o.queue && o.queue.length)) && o.items.length)
             html += '<div class="dg-hr"></div>';
         var slice = (o.items || []).slice(o.page * PAGE, (o.page + 1) * PAGE);
-        if (!slice.length && !o.running && !(o.queue && o.queue.length)) {
+        if (!slice.length && !o.running && !(o.queue && o.queue.length))
             html += '<div class="dg-empty">Sin descargas todavía — ' +
                 'pega un enlace arriba.</div>';
-        }
         slice.forEach(function (e) { html += hRow(e, o.review); });
         html += pagerHtml((o.items || []).length, o.page);
         el.innerHTML = html;
@@ -158,9 +154,15 @@ window.TribalDlList = (function () {
         }
         var idx = (window.MediaStore && MediaStore._index)
             ? MediaStore._index() : [], hits = 0;
+        var base = e && e.path ? String(e.path).split('/').pop() : null;
         idx.forEach(function (m) {
-            if (e && ((e.metaId && m.id === e.metaId) ||
-                      (e.path && m.path === e.path))) {
+            // mismo archivo: id, ruta exacta, o mismo basename en tribu_dl
+            // (/data/user/0/… y /data/data/… son el mismo archivo)
+            var same = e && ((e.metaId && m.id === e.metaId) ||
+                (e.path && m.path === e.path) ||
+                (base && m.path && m.path.indexOf('tribu_dl') >= 0 &&
+                 String(m.path).split('/').pop() === base));
+            if (same) {
                 hits++;
                 MediaStore.remove(m.id).then(function () {
                     if (c.reload) c.reload();
@@ -173,8 +175,8 @@ window.TribalDlList = (function () {
         if (c.repaint) c.repaint();
     }
 
-    // máquina de borrado en 3 pasos: 🗑 → «¿Eliminar?» → «Borrar archivo» →
-    // cb(id). Si pasan 3 s sin el siguiente toque, el botón se resetea.
+    // borrado en 3 pasos: 🗑 → «¿Eliminar?» → «Borrar archivo» → cb(id).
+    // Si pasan 3 s sin el siguiente toque, el botón se resetea.
     function del3(btn, cb, repaint) {
         var step = +btn.getAttribute('data-step') || 0;
         clearTimeout(btn._tm);
@@ -182,9 +184,7 @@ window.TribalDlList = (function () {
             btn.setAttribute('data-step', step + 1);
             btn.innerHTML = step === 0 ? '¿Eliminar?' : 'Borrar archivo';
             btn._tm = setTimeout(function () { repaint(); }, 3000);
-        } else {
-            cb(btn.getAttribute('data-id'));
-        }
+        } else cb(btn.getAttribute('data-id'));
     }
 
     function mimeOf(name) {
