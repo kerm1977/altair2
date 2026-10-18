@@ -1,40 +1,76 @@
 /* === media-dl.css — descargador de internet (yt-dlp) =======================
-   Panel tribal oscuro con el mismo lenguaje del resto de herramientas. */
-.dg-overlay .lk-panel { max-width: 520px; }
-.dg-body { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
-.dg-hint { margin: 0; font-size: .82rem; color: var(--tb-muted); line-height: 1.45; }
-
-/* URL + pegar */
-.dg-urlrow { display: flex; gap: 8px; }
-.dg-urlrow input {
-    flex: 1; min-width: 0; padding: 12px 14px; border-radius: 14px;
-    border: 1px solid var(--tb-border); background: rgba(0, 0, 0, .35);
-    color: var(--tb-cream); font-size: .95rem; outline: none;
+   Página completa al estilo de Divisas: buscador de URL prominente, dos
+   acciones grandes, cola viva e historial paginado con líneas doradas. */
+.tribal-dl {
+    position: fixed; inset: 0; z-index: 70;
+    background: var(--tb-bg, #160e07);
 }
-.dg-urlrow input:focus { border-color: var(--tb-gold); }
-.dg-urlrow button {
-    flex: 0 0 46px; border-radius: 14px; border: 1px solid var(--tb-border);
-    background: rgba(240, 180, 41, .1); color: var(--tb-gold); font-size: 1.15rem;
-    cursor: pointer;
-}
-.dg-urlrow button:active { transform: scale(.94); }
+.dg-page { height: 100%; }
 
-/* los dos botones grandes de formato */
-.dg-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* buscador de URL — grande, redondo, brillo al enfocar */
+.dg-urlbox {
+    display: flex; gap: 8px; margin: 4px 16px 0; flex-shrink: 0;
+    border: 1px solid var(--tb-border); border-radius: 18px;
+    background: rgba(0, 0, 0, .4); padding: 6px;
+    transition: border-color .2s, box-shadow .2s;
+}
+.dg-urlbox:focus-within {
+    border-color: var(--tb-gold);
+    box-shadow: 0 0 14px rgba(240, 180, 41, .25);
+}
+.dg-url {
+    flex: 1; min-width: 0; border: 0; outline: none; background: none;
+    color: var(--tb-cream); font-size: 1rem; padding: 10px 8px;
+}
+.dg-url::placeholder { color: var(--tb-muted); opacity: .7; }
+.dg-paste {
+    flex: 0 0 44px; border: 0; border-radius: 12px; cursor: pointer;
+    background: rgba(240, 180, 41, .14); color: var(--tb-gold);
+    font-size: 1.15rem;
+}
+.dg-paste:active { transform: scale(.92); }
+
+/* toggle de playlist */
+.dg-plrow {
+    display: flex; align-items: center; gap: 9px; margin: 12px 18px 0;
+    flex-shrink: 0;
+    color: var(--tb-muted); font-size: .85rem; cursor: pointer;
+    user-select: none;
+}
+.dg-plrow input {
+    appearance: none; width: 20px; height: 20px; flex: 0 0 20px;
+    border: 1px solid var(--tb-border); border-radius: 6px;
+    background: rgba(0, 0, 0, .35); cursor: pointer; margin: 0;
+}
+.dg-plrow input:checked {
+    background: linear-gradient(135deg, var(--tb-terra), var(--tb-gold));
+    border-color: var(--tb-gold);
+}
+.dg-plrow input:checked::after {
+    content: '✓'; display: block; text-align: center;
+    color: #160e07; font-weight: 800; font-size: .8rem; line-height: 18px;
+}
+
+/* acciones principales */
+.dg-btns {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin: 12px 16px 0; flex-shrink: 0;
+}
 .dg-btns button {
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    padding: 18px 10px; border-radius: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px 10px; border-radius: 14px; cursor: pointer;
     border: 1px solid var(--tb-border); color: var(--tb-cream);
-    background: linear-gradient(160deg, rgba(226, 96, 46, .18), rgba(0,0,0,.25));
-    font-size: .9rem; font-weight: 600;
+    background: linear-gradient(160deg, rgba(226, 96, 46, .18),
+        rgba(0, 0, 0, .25));
+    font-size: .92rem; font-weight: 600;
 }
-.dg-btns button i { font-size: 1.6rem; color: var(--tb-gold); }
+.dg-btns button i { font-size: 1.25rem; color: var(--tb-gold); }
 .dg-btns button:active { transform: scale(.96); }
-.dg-btns button:disabled { opacity: .45; }
 
 /* progreso */
 .dg-prog {
-    height: 8px; border-radius: 99px; overflow: hidden;
+    height: 8px; border-radius: 99px; overflow: hidden; margin: 14px 16px 0;
+    flex-shrink: 0;
     background: rgba(255, 255, 255, .07);
 }
 .dg-fill {
@@ -43,13 +79,80 @@
     transition: width .35s ease;
     box-shadow: 0 0 10px rgba(240, 180, 41, .5);
 }
-.dg-state {
-    margin: 0; font-size: .8rem; color: var(--tb-muted);
+.dg-status {
+    margin: 8px 18px 0; font-size: .8rem; color: var(--tb-muted);
+    flex-shrink: 0;
     min-height: 1.2em; word-break: break-all; line-height: 1.4;
 }
-.dg-warn {
-    margin: 0; padding: 10px 12px; border-radius: 12px; font-size: .8rem;
-    color: #ffb37a; background: rgba(226, 96, 46, .12);
-    border: 1px dashed var(--tb-terra);
+
+/* lista de descargas — ocupa el resto de la página y scrollea */
+.dg-list { flex: 1; overflow-y: auto; margin: 10px 0 4px; }
+.dg-dir {
+    margin: 6px 16px; padding: 9px 12px; border-radius: 10px;
+    font-size: .72rem; color: var(--tb-muted); word-break: break-all;
+    background: rgba(240, 180, 41, .07);
+    border: 1px dashed rgba(240, 180, 41, .35);
 }
-.dg-body #dg-cancel { align-self: center; }
+.dg-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 18px; position: relative;
+}
+.dg-row > i { font-size: 1.2rem; color: var(--tb-gold); flex: 0 0 auto; }
+.dg-rtxt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dg-rtxt b {
+    font-size: .9rem; color: var(--tb-cream); font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dg-rtxt small {
+    font-size: .72rem; color: var(--tb-muted); word-break: break-all;
+}
+.dg-rtxt .dg-ok { color: #7dd87d; font-size: .78rem; }
+.dg-rtxt .dg-bad { color: #ff8a6a; font-size: .78rem; font-weight: 500; }
+.dg-rtxt .dg-run { color: var(--tb-gold); font-size: .85rem; }
+.dg-rtxt .dg-wait { color: var(--tb-muted); font-size: .78rem; }
+.dg-qrow.on { background: rgba(240, 180, 41, .06); }
+.dg-hr {
+    height: 1px; margin: 4px 16px;
+    background: linear-gradient(90deg, transparent, var(--tb-terra),
+        transparent);
+}
+/* separador dorado difuminado entre filas (idéntico a la vista Todo) */
+.dg-row + .dg-row::before {
+    content: ''; position: absolute; top: 0; left: 16px; right: 16px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #e2602e, transparent);
+    opacity: .55;
+}
+.dg-empty {
+    padding: 26px 24px; text-align: center;
+    color: var(--tb-muted); font-size: .85rem;
+}
+
+/* botón de borrado de 3 pasos */
+.dg-del {
+    flex: 0 0 auto; min-width: 38px; height: 38px; padding: 0 10px;
+    border-radius: 12px; border: 1px solid var(--tb-border);
+    background: rgba(0, 0, 0, .3); color: var(--tb-muted);
+    font-size: .78rem; cursor: pointer;
+}
+.dg-del[data-step="1"], .dg-del[data-step="2"] {
+    color: #ffb37a; border-color: var(--tb-terra); white-space: nowrap;
+}
+.dg-del[data-step="2"] { background: rgba(226, 96, 46, .18); }
+.dg-del i { font-size: 1rem; }
+
+/* paginación */
+.dg-pager {
+    display: flex; align-items: center; justify-content: center;
+    gap: 16px; padding: 10px 0 4px;
+}
+.dg-pager span { color: var(--tb-muted); font-size: .8rem; }
+.dg-pg {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid var(--tb-border); background: rgba(0, 0, 0, .3);
+    color: var(--tb-gold); font-size: 1.1rem; cursor: pointer;
+}
+.dg-pg:disabled { opacity: .3; }
+
+/* «Mis descargas» activo */
+.dg-rev.on { border-color: var(--tb-gold); color: var(--tb-gold); }

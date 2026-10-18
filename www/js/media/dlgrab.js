@@ -1,68 +1,133 @@
 // ============================================================================
-// ARCHIVO: media/dlgrab.js — descargador de video/audio de internet
-// RESPONSABILIDAD: pega un enlace de cualquier sitio (YouTube, Vimeo, redes,
-// páginas) y baja el MP4 o el audio MP3 con yt-dlp corriendo EN EL TELÉFONO
-// (TribalDl nativo). El archivo queda guardado y registrado en la biblioteca
-// (grupo «descargas» por procedencia). Solo funciona en el APK — en la
-// preview web muestra el aviso.
+// ARCHIVO: media/dlgrab.js — descargador de internet (página completa)
+// RESPONSABILIDAD: pega enlace/playlist y baja MP4/MP3 con yt-dlp nativo.
+// Cola secuencial + historial persistente (TribalDlLog) paginado de a 20;
+// «Mis descargas» muestra la carpeta real y borra con 3 confirmaciones.
 // API: TribalDlGrab.open(deps) / close()
 // ============================================================================
 window.TribalDlGrab = (function () {
     'use strict';
-    var ov = null, deps = {}, busy = false, listener = null;
-    var $ = function (id) { return ov ? ov.querySelector('#' + id) : null; };
+    var ov = null, deps = {}, listener = null, tickT = null;
+    var queue = [], running = null, dir = '';
+    var pct = -1, lastLine = '', page = 0, review = false;
+    var el = function (s) { return ov ? ov.querySelector(s) : null; };
 
     function plug() { return window.Capacitor &&
         Capacitor.Plugins && Capacitor.Plugins.TribalDl; }
     function toast(t) { (deps.toast || function () {})(t); }
-    function say(t) { var el = $('dg-state'); if (el) el.textContent = t; }
-    function bar(p) {
-        var el = $('dg-fill');
-        if (el) el.style.width = Math.max(0, Math.min(100, p)) + '%';
+    function say(t) { var s = el('.dg-status'); if (s) s.textContent = t; }
+    function bar(p) { var f = el('.dg-fill');
+        if (f) f.style.width = Math.max(0, Math.min(100, p)) + '%'; }
+    function mimeOf(n) { return window.TribalDlList.mimeOf(n); }
+    function refresh() {
+        window.TribalDlList.render(el('.dg-list'), {
+            queue: queue, running: running, pct: pct, line: lastLine,
+            items: window.TribalDlLog.list(), page: page,
+            review: review, dir: review ? dir : ''
+        });
+        var rb = el('.dg-rev');
+        if (rb) rb.classList.toggle('on', review);
     }
-    function mimeOf(name) {
-        var ext = (name.split('.').pop() || '').toLowerCase();
-        var m = { mp4: 'video/mp4', mkv: 'video/x-matroska', webm: 'video/webm',
-                  mov: 'video/quicktime', mp3: 'audio/mpeg', m4a: 'audio/mp4',
-                  ogg: 'audio/ogg', opus: 'audio/ogg', wav: 'audio/wav' };
-        return m[ext] || 'application/octet-stream';
+    function metaOf(path) {
+        var idx = (window.MediaStore && MediaStore._index)
+            ? MediaStore._index() : [], m = null;
+        idx.forEach(function (x) { if (x.path === path) m = x; });
+        return m;
     }
 
-    function setBusy(on) {
-        busy = on;
-        ['dg-url', 'dg-vid', 'dg-aud'].forEach(function (id) {
-            var b = $(id); if (b) b.disabled = on;
-        });
-        var c = $('dg-cancel'); if (c) c.hidden = !on;
+    // heartbeat: si el motor no emite líneas (init lento), el estado sigue vivo
+    function startTick(t0) {
+        stopTick();
+        tickT = setInterval(function () {
+            if (!running) return stopTick();
+            var s = Math.floor((Date.now() - t0) / 1000);
+            say(lastLine || ('preparando motor yt-dlp… ' + s + 's'));
+            refresh();
+        }, 1000);
     }
+    function stopTick() { if (tickT) { clearInterval(tickT); tickT = null; } }
 
     function grab(audio) {
-        var url = ($('dg-url').value || '').trim();
-        if (!url) return say('Pega primero el enlace del video');
-        if (!/^https?:\/\//i.test(url))
-            return say('Eso no parece un enlace — debe empezar con http');
-        setBusy(true); bar(0);
-        say('conectando…');
-        plug().dlStart({ url: url, audio: audio }).then(function (r) {
-            return window.MediaStore.addRefs([{
-                path: r.path, name: r.name, size: r.size,
-                mime: mimeOf(r.name), mtime: Date.now()
-            }]).then(function () {
-                var mb = (r.size / 1048576);
-                say('✔ «' + r.name + '» ya está en la tribu (' +
-                    mb.toFixed(1) + ' MB)');
-                bar(100);
-                if (deps.reload) deps.reload();
-                toast('⬇ ' + (audio ? 'Audio' : 'Video') + ' descargado');
+        var url = (el('.dg-url').value || '').trim();
+        var bad = !url || !/^https?:\/\//i.test(url);
+        if (bad) return say(url ? 'Eso no parece un enlace — usa http(s)'
+                                : 'Pega primero el enlace del video o playlist');
+        queue.push({ url: url, audio: audio, playlist: el('.dg-pl').checked });
+        el('.dg-url').value = '';
+        say('en cola — ' + (queue.length + (running ? 1 : 0)) + ' trabajo(s)');
+        refresh(); pump();
+    }
+
+    function pump() {
+        if (running || !queue.length) return;
+        running = queue.shift(); pct = -1; lastLine = ''; bar(0);
+        runJob(running);
+    }
+
+    function runJob(job) {
+        var p = plug();
+        if (!p) return finish(null,
+            '✖ la descarga corre solo en el APK instalado');
+        startTick(Date.now());
+        try {
+            p.dlStart({ url: job.url, audio: job.audio,
+                        playlist: job.playlist }).then(function (r) {
+                var files = (r && r.files && r.files.length) ? r.files
+                    : (r && r.path ? [r] : []);
+                files.forEach(function (f) {
+                    try {
+                        MediaStore.addRefs([{ path: f.path, name: f.name,
+                            size: f.size, mime: mimeOf(f.name),
+                            mtime: Date.now() }]);
+                    } catch (e) {}
+                    var m = metaOf(f.path);
+                    TribalDlLog.add({ name: f.name, path: f.path,
+                        size: f.size, url: job.url,
+                        kind: job.audio ? 'a' : 'v', status: 'ok',
+                        metaId: m ? m.id : null });
+                });
+                finish(files.length ? files.length +
+                    ' archivo(s) en «descargas»' : null,
+                    files.length ? null : '✖ yt-dlp no dejó archivo');
+            }).catch(function (e) {
+                TribalDlLog.add({ name: job.url, url: job.url,
+                    kind: job.audio ? 'a' : 'v', status: 'fail',
+                    err: String((e && e.message) || e).slice(0, 140) });
+                finish(null, '✖ ' + String((e && e.message) || e)
+                    .slice(0, 140));
             });
-        }).catch(function (e) {
-            say('✖ ' + String((e && e.message) || e || 'falló la descarga'));
-        }).then(function () { setBusy(false); });
+        } catch (e) { finish(null, '✖ ' + String(e)); }
+    }
+
+    function finish(ok, err) {
+        stopTick(); running = null;
+        if (ok) { bar(100); say('✔ ' + ok); toast('⬇ descarga lista'); }
+        else say(err || '');
+        if (deps.reload) deps.reload();
+        refresh(); pump();
+    }
+
+    // borrado real (tras los 3 pasos de dllist): archivo + registro
+    function doDelete(id) {
+        var e = TribalDlLog.find(id);
+        if (e && e.path && plug()) {
+            plug().dlDelete({ path: e.path }).catch(function () {});
+        }
+        if (e && e.metaId) {
+            MediaStore.remove(e.metaId).then(function () {
+                if (deps.reload) deps.reload();
+            });
+        }
+        TribalDlLog.remove(id);
+        toast('descarga eliminada');
+        refresh();
     }
 
     function close() {
+        stopTick();
         if (listener && listener.remove) { listener.remove(); listener = null; }
-        if (busy) { try { plug().dlCancel(); } catch (e) {} busy = false; }
+        if (running && plug()) { try { plug().dlCancel(); } catch (e) {} }
+        queue = []; running = null;
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = null;
         if (window.TribalState) TribalState.closed('dl');
@@ -72,59 +137,41 @@ window.TribalDlGrab = (function () {
         close();
         deps = d || {};
         if (window.TribalState) TribalState.opened('dl');
+        TribalDlLog.markDead();
         ov = document.createElement('div');
-        ov.className = 'tribal-overlay lk-overlay dg-overlay';
-        ov.innerHTML =
-            '<div class="lk-panel vn-panel"><div class="lk-head">' +
-            '<h3><i class="bi bi-cloud-arrow-down-fill"></i> Descargar de internet</h3>' +
-            '<button class="lk-x" id="dg-x"><i class="bi bi-x-lg"></i></button></div>' +
-            '<div class="lk-body dg-body">' +
-            '<p class="dg-hint">Pega el enlace del video — YouTube, Vimeo, ' +
-                'X/Twitter, Facebook, TikTok y miles de sitios más.</p>' +
-            '<div class="dg-urlrow">' +
-            '<input id="dg-url" type="url" inputmode="url" ' +
-                'placeholder="https://…" autocomplete="off">' +
-            '<button id="dg-paste" title="Pegar"><i class="bi bi-clipboard"></i></button>' +
-            '</div>' +
-            '<div class="dg-btns">' +
-            '<button id="dg-vid"><i class="bi bi-camera-video-fill"></i>' +
-                'Video MP4</button>' +
-            '<button id="dg-aud"><i class="bi bi-music-note-beamed"></i>' +
-                'Solo audio MP3</button>' +
-            '</div>' +
-            '<div class="dg-prog"><div class="dg-fill" id="dg-fill"></div></div>' +
-            '<p class="dg-state" id="dg-state"></p>' +
-            '<button id="dg-cancel" class="tribal-btn" hidden>' +
-                '<i class="bi bi-stop-circle"></i> Cancelar descarga</button>' +
-            (plug() ? '' :
-                '<p class="dg-warn">⚠ La descarga corre en el teléfono — ' +
-                'disponible solo en el APK instalado.</p>') +
-            '</div></div>';
+        ov.className = 'tribal-dl';
+        ov.innerHTML = TribalDlList.pageHtml();
         (deps.mount || document.body).appendChild(ov);
 
         if (plug()) {
             plug().addListener('dlProgress', function (p) {
-                if (p.pct >= 0) bar(p.pct);
-                if (p.line) say(p.line.length > 120
-                    ? p.line.slice(0, 120) + '…' : p.line);
+                if (p.pct >= 0) { pct = p.pct; bar(pct); }
+                if (p.line) { lastLine = p.line; say(p.line.slice(0, 120)); }
+                refresh();
             }).then(function (h) { listener = h; });
+            plug().dlDir().then(function (r) { dir = r.dir || ''; });
         }
-        $('dg-x').addEventListener('click', close);
-        ov.addEventListener('click', function (e) {
-            if (e.target === ov && !busy) close();
+        el('.dg-x').addEventListener('click', close);
+        el('.dg-vid').addEventListener('click', function () { grab(false); });
+        el('.dg-aud').addEventListener('click', function () { grab(true); });
+        el('.dg-rev').addEventListener('click', function () {
+            review = !review; page = 0; refresh();
         });
-        $('dg-vid').addEventListener('click', function () { grab(false); });
-        $('dg-aud').addEventListener('click', function () { grab(true); });
-        $('dg-cancel').addEventListener('click', function () {
-            plug().dlCancel(); setBusy(false); say('descarga cancelada');
-        });
-        $('dg-paste').addEventListener('click', function () {
+        el('.dg-paste').addEventListener('click', function () {
             if (navigator.clipboard && navigator.clipboard.readText) {
                 navigator.clipboard.readText().then(function (t) {
-                    if (t) $('dg-url').value = t.trim();
+                    if (t) el('.dg-url').value = t.trim();
                 }).catch(function () {});
             }
         });
+        el('.dg-list').addEventListener('click', function (e) {
+            var pg = e.target.closest('.dg-pg');
+            if (pg) { page += +pg.getAttribute('data-pg'); refresh(); return; }
+            var del = e.target.closest('.dg-del');
+            if (del) TribalDlList.del3(del, doDelete, refresh);
+        });
+        refresh();
+        if (!plug()) say('⚠ disponible solo en el APK instalado');
     }
 
     return { open: open, close: close };
