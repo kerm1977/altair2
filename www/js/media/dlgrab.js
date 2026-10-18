@@ -113,6 +113,11 @@ window.TribalDlGrab = (function () {
         ov.innerHTML = TribalDlList.pageHtml();
         (deps.mount || document.body).appendChild(ov);
         player = window.TribalDlPlay.make(deps, function () { return ov; });
+        try {
+            player.healAll(function (e) {
+                log('↺ re-registrado: ' + e.name, 'ok');
+            });
+        } catch (e) {}
         // el ‹ se conecta ANTES que todo lo demás — si algo falla abajo,
         // la página igual se puede cerrar y no queda una pantalla muerta
         el('.dg-x').addEventListener('click', close);

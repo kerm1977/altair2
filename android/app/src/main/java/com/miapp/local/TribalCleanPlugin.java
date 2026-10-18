@@ -3,7 +3,6 @@ package com.miapp.local;
 import android.os.Environment;
 import android.os.StatFs;
 import android.webkit.CookieManager;
-import android.webkit.WebStorage;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -167,7 +166,10 @@ public class TribalCleanPlugin extends Plugin {
                 if (ek != null) for (File k : ek) CleanUtil.del(k);
             }
             CookieManager.getInstance().removeAllCookies(null);
-            WebStorage.getInstance().deleteAllData();
+            // NUNCA WebStorage.deleteAllData(): eso borra localStorage e
+            // IndexedDB — el índice de la biblioteca, historial de
+            // descargas, borradores de notas y el estado anti-crash. Eso
+            // NO es caché, es la base de datos de la app.
             if (getBridge() != null && getBridge().getWebView() != null) {
                 android.webkit.WebView wv = getBridge().getWebView();
                 wv.clearCache(true);

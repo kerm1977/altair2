@@ -103,7 +103,27 @@ window.TribalDlPlay = (function () {
             });
         }
 
-        return { play: play, fillThumb: fillThumb, metaFor: metaFor };
+        // re-registro masivo: si el índice se perdió (limpieza, datos
+        // borrados) pero los archivos siguen en tribu_dl, al abrir el
+        // descargador vuelven a la biblioteca solos. stat() primero —
+        // un meta de un archivo ya muerto sería una tarjeta inerte.
+        function healAll(onHeal) {
+            var L = window.TribalDlLog; if (!L) return;
+            var FS = window.Capacitor && Capacitor.Plugins &&
+                     Capacitor.Plugins.Filesystem;
+            L.list().forEach(function (e) {
+                if (e.status !== 'ok' || !e.path || metasFor(e).length)
+                    return;
+                if (FS && FS.stat) {
+                    FS.stat({ path: 'file://' + e.path }).then(function () {
+                        if (metaFor(e) && onHeal) onHeal(e);
+                    }).catch(function () {});   // el archivo ya no existe
+                } else if (metaFor(e) && onHeal) onHeal(e);
+            });
+        }
+
+        return { play: play, fillThumb: fillThumb, metaFor: metaFor,
+                 healAll: healAll };
     }
 
     return { make: make };
