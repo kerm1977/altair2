@@ -118,11 +118,12 @@ window.TribalDlList = (function () {
             '</i>Solo audio MP3</button></div>' +
             '<div class="dg-prog"><div class="dg-fill"></div></div>' +
             '<div class="dg-status"></div>' +
-            '<div class="dg-tools">' +
-            '<button type="button" class="dg-tool dg-conbtn">' +
-            '▸ consola</button>' +
+            '<div class="dg-tools"><button type="button" ' +
+            'class="dg-tool dg-conbtn">▸ consola</button>' +
             '<button type="button" class="dg-tool dg-upd">' +
-            '⟳ actualizar motor</button></div>' +
+            '⟳ actualizar motor</button>' +
+            '<button type="button" class="dg-tool dg-copy">' +
+            '📋 copiar consola</button></div>' +
             '<div class="dg-console" hidden></div>' +
             '<div class="dg-list"></div>' +
             '<div class="fx-foot">yt-dlp en el teléfono · los archivos ' +

@@ -72,6 +72,38 @@ window.TribalDlGrab = (function () {
             reload: deps.reload, repaint: refresh });
     }
 
+    // texto completo de la consola de diagnóstico
+    function consoleText() {
+        var c = el('.dg-console'), out = [];
+        if (!c) return '';
+        for (var i = 0; i < c.children.length; i++)
+            out.push(c.children[i].textContent);
+        return out.join('\n');
+    }
+
+    // «📋 copiar consola»: la manda por el share sheet nativo (WhatsApp
+    // etc.) y además la deja en el portapapeles como respaldo
+    function shareConsole() {
+        var t = consoleText();
+        if (!t) return say('la consola está vacía');
+        el('.dg-console').hidden = false;
+        el('.dg-conbtn').textContent = '▾ consola';
+        var clip = navigator.clipboard && navigator.clipboard.writeText
+            ? navigator.clipboard.writeText(t).catch(function () {})
+            : Promise.resolve();
+        var SH = window.Capacitor && Capacitor.Plugins &&
+                 Capacitor.Plugins.Share;
+        clip.then(function () {
+            if (SH && SH.share)
+                return SH.share({ title: 'TRIBALs — consola yt-dlp',
+                                  text: t });
+        }).then(function () {
+            say('✔ consola lista — pégala donde quieras');
+        }).catch(function () {
+            say('✔ consola copiada al portapapeles');
+        });
+    }
+
     // «⟳ actualizar motor»: yt-dlp se desactualiza y los sitios empiezan a
     // fallar (403 etc.) — la librería baja el binario nuevo en caliente
     function updateEngine() {
@@ -134,6 +166,18 @@ window.TribalDlGrab = (function () {
                     // tribu_dl queda solo como staging del motor
                     dir = (r && (r.media || r.dir)) || '';
                 });
+                // auto-actualizador: yt-dlp caduca rápido (los sitios
+                // cambian y el motor viejo empieza a fallar). Al abrir
+                // la página, si pasaron >24 h, actualiza en silencio —
+                // solo en el hilo de fondo, no bloquea la descarga.
+                var lastUpd = +localStorage.getItem('tribu_dl_upd_ts') || 0;
+                if (Date.now() - lastUpd > 86400000) {
+                    localStorage.setItem('tribu_dl_upd_ts',
+                        String(Date.now()));
+                    plug().dlUpdate({ channel: 'stable' }).then(function (r) {
+                        log('⟳ motor: ' + ((r && r.status) || '?'));
+                    }).catch(function () {});
+                }
             }
             el('.dg-vid').addEventListener('click',
                 function () { grab(false); });
@@ -143,6 +187,7 @@ window.TribalDlGrab = (function () {
                 review = !review; page = 0; refresh();
             });
             el('.dg-upd').addEventListener('click', updateEngine);
+            el('.dg-copy').addEventListener('click', shareConsole);
             el('.dg-conbtn').addEventListener('click', function () {
                 var c = el('.dg-console');
                 c.hidden = !c.hidden;
