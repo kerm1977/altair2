@@ -133,6 +133,7 @@ window.Sono.register('saver', function (S) {
             TribalSlide.openConfig(deps());
     });
     TS.reg('batch', function () { var b = $('vm-batch'); if (b) b.click(); });
+    TS.reg('dl',    function () { if (window.TribalDlGrab) TribalDlGrab.open(deps()); });
 
     // ----------------------------- RESTORE tras el primer reload de datos --
     var restored = false;

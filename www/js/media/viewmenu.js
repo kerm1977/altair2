@@ -157,6 +157,15 @@ window.Sono.register('viewmenu', function (S) {
         });
     }
 
+    // descargador de video/audio de internet — yt-dlp en el teléfono
+    if ($('vm-dl')) {
+        $('vm-dl').addEventListener('click', function () {
+            viewMenu.hidden = true;
+            if (window.TribalDlGrab) window.TribalDlGrab.open(S.extDeps());
+            else S.showToast('Descargador no disponible');
+        });
+    }
+
     // solicitar permisos: diálogo nativo + pantalla de ajustes de la app
     $('vm-perms').addEventListener('click', function () {
         viewMenu.hidden = true;

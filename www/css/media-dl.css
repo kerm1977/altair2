@@ -1,0 +1,55 @@
+/* === media-dl.css — descargador de internet (yt-dlp) =======================
+   Panel tribal oscuro con el mismo lenguaje del resto de herramientas. */
+.dg-overlay .lk-panel { max-width: 520px; }
+.dg-body { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+.dg-hint { margin: 0; font-size: .82rem; color: var(--tb-muted); line-height: 1.45; }
+
+/* URL + pegar */
+.dg-urlrow { display: flex; gap: 8px; }
+.dg-urlrow input {
+    flex: 1; min-width: 0; padding: 12px 14px; border-radius: 14px;
+    border: 1px solid var(--tb-border); background: rgba(0, 0, 0, .35);
+    color: var(--tb-cream); font-size: .95rem; outline: none;
+}
+.dg-urlrow input:focus { border-color: var(--tb-gold); }
+.dg-urlrow button {
+    flex: 0 0 46px; border-radius: 14px; border: 1px solid var(--tb-border);
+    background: rgba(240, 180, 41, .1); color: var(--tb-gold); font-size: 1.15rem;
+    cursor: pointer;
+}
+.dg-urlrow button:active { transform: scale(.94); }
+
+/* los dos botones grandes de formato */
+.dg-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dg-btns button {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 18px 10px; border-radius: 16px; cursor: pointer;
+    border: 1px solid var(--tb-border); color: var(--tb-cream);
+    background: linear-gradient(160deg, rgba(226, 96, 46, .18), rgba(0,0,0,.25));
+    font-size: .9rem; font-weight: 600;
+}
+.dg-btns button i { font-size: 1.6rem; color: var(--tb-gold); }
+.dg-btns button:active { transform: scale(.96); }
+.dg-btns button:disabled { opacity: .45; }
+
+/* progreso */
+.dg-prog {
+    height: 8px; border-radius: 99px; overflow: hidden;
+    background: rgba(255, 255, 255, .07);
+}
+.dg-fill {
+    height: 100%; width: 0; border-radius: 99px;
+    background: linear-gradient(90deg, var(--tb-terra), var(--tb-gold));
+    transition: width .35s ease;
+    box-shadow: 0 0 10px rgba(240, 180, 41, .5);
+}
+.dg-state {
+    margin: 0; font-size: .8rem; color: var(--tb-muted);
+    min-height: 1.2em; word-break: break-all; line-height: 1.4;
+}
+.dg-warn {
+    margin: 0; padding: 10px 12px; border-radius: 12px; font-size: .8rem;
+    color: #ffb37a; background: rgba(226, 96, 46, .12);
+    border: 1px dashed var(--tb-terra);
+}
+.dg-body #dg-cancel { align-self: center; }

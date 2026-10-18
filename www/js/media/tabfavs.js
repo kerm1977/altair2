@@ -39,6 +39,7 @@ window.Sono.register('tabfavs', function (S) {
         { id: 'vm-scan',    icon: 'bi-binoculars',                       title: 'Escanear dispositivo' },
         { id: 'vm-clean',   icon: 'bi-stars',                            title: 'Limpiador' },
         { id: 'vm-fx',      icon: 'bi-currency-exchange',                title: 'Divisas' },
+        { id: 'vm-dl',      icon: 'bi-cloud-arrow-down-fill',            title: 'Descargar' },
         { id: 'vm-doc',     icon: 'bi-book-half',                        title: 'Libros y notas' },
         { id: 'vm-notes',   icon: 'bi-journal-richtext',                 title: 'Bloc de notas' },
         { id: 'vm-links',   icon: 'bi-link-45deg',                       title: 'Enlaces' },

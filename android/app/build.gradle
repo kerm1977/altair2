@@ -40,6 +40,14 @@ android {
         }
     }
 
+    // youtubedl-android: con extractNativeLibs=true las .so deben
+    // empaquetarse sin comprimir para que python/yt-dlp/ffmpeg arranquen
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     // ========================================================
     // SOLUCIÓN PARA FORZAR JAVA 17 Y EVITAR ERROR DE TOOLCHAIN 21
     // ========================================================
@@ -73,6 +81,9 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    // Descargador de video/audio: yt-dlp + python + ffmpeg empaquetados
+    implementation 'io.github.junkfood02.youtubedl-android:library:0.18.1'
+    implementation 'io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1'
 }
 
 apply from: 'capacitor.build.gradle'

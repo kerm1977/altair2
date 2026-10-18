@@ -37,7 +37,7 @@ window.TribalOrigins = (function () {
         if (/messenger/.test(p)) return 'ms';
         if (/telegram/.test(p)) return 'tg';
         if (/instagram/.test(p)) return 'ig';
-        if (/download|descarga/.test(p)) return 'dl';
+        if (/download|descarga|tribu_dl/.test(p)) return 'dl';
         return null;
     }
 
