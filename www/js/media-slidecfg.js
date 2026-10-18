@@ -18,6 +18,7 @@
         if (!d.images.length) {
             return d.toast('Primero sube fotografías a la tribu');
         }
+        if (window.TribalState) TribalState.opened('slide');
         var esc = _x.esc, shell = _x.shell, close = _x.close, saveCfg = _x.saveCfg;
 
         var el = shell(d.mount,

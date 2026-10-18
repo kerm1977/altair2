@@ -61,6 +61,7 @@ window.TribalSlide = (function () {
     function close() {
         _x.running = false;
         killTimer();
+        if (window.TribalState) TribalState.closed('slide');
         if (_x.syncFs) {
             window.removeEventListener('resize', _x.syncFs);
             _x.syncFs = null;

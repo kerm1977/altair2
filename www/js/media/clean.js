@@ -20,6 +20,7 @@ window.TribalClean = (function () {
     function close() {
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = null;
+        if (window.TribalState) TribalState.closed('clean');
     }
 
     function say(t) {
@@ -101,6 +102,7 @@ window.TribalClean = (function () {
     function open(d) {
         close();
         deps = d;
+        if (window.TribalState) TribalState.opened('clean');
         if (!D.plug()) {
             (d.toast || function () {})('El limpiador solo existe en el APK');
             return;

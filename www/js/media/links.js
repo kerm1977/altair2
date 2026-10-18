@@ -116,6 +116,7 @@ window.TribalLinks = (function () {
 
     // ------------------------------------------------------------- open ----
     function open(S) {
+        if (window.TribalState) TribalState.opened('links');
         deps = S;
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = document.createElement('div');
@@ -166,6 +167,7 @@ window.TribalLinks = (function () {
         });
     }
     function close() {
+        if (window.TribalState) TribalState.closed('links');
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = null; st.editId = null; st.pickId = null;
     }

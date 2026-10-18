@@ -115,7 +115,7 @@ window.TribalRemote = (function () {
         for (var i = 0; i < 8; i++) rays += '<polygon points="100,2 104,13 96,13" transform="rotate(' + (i * 45) + ' 100 100)"/>';
         return '<svg class="rc-wheel-ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="none" stroke="#f0b429" stroke-width="2" stroke-dasharray="6 6"/><circle cx="100" cy="100" r="88" fill="none" stroke="#e2602e" stroke-width="1.5" stroke-dasharray="3 8"/><g fill="#e2602e">' + rays + '</g></svg>'; }
     function initListener(sono) { if (sono) deps.sono = sono; var n = net(); if (n) n.init(onNetEvt); }
-    function open(d) { deps = d || deps || {}; initListener(deps.sono);
+    function open(d) { if (window.TribalState) TribalState.opened('remote'); deps = d || deps || {}; initListener(deps.sono);
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = document.createElement('div');
         ov.className = 'tribal-overlay tribal-p2p-ov';
@@ -196,5 +196,5 @@ window.TribalRemote = (function () {
         });
         function up() { if (!down) return; down = false; dot.classList.remove('on'); if (!moved && Date.now() - t0 < 280) sendPkt({ cmd: 'lclick' }); }
         surf.addEventListener('pointerup', up); surf.addEventListener('pointercancel', up); }
-    function close() { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
+    function close() { if (window.TribalState) TribalState.closed('remote'); if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
     return { open: open, close: close, initListener: initListener, execLocal: execLocal }; })();

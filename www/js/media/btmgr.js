@@ -116,6 +116,7 @@ window.TribalBtMgr = (function () {
         ov.querySelector('#btm-list').innerHTML = html || '<div class="btm-empty"><i class="bi bi-bluetooth"></i><p>Sin dispositivos en esta categoría.</p><small>Toca «Buscar cercanos».</small></div>'; }
 
     function open(d) { deps = d || {}; if (!N) N = window.TribalBtNet;
+        if (window.TribalState) TribalState.opened('btmgr');
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = document.createElement('div');
         ov.className = 'tribal-overlay tribal-p2p-ov';
@@ -163,6 +164,6 @@ window.TribalBtMgr = (function () {
         };
         boot();
     }
-    function close() { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
+    function close() { if (window.TribalState) TribalState.closed('btmgr'); if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
     return { open: open, close: close };
 })();

@@ -2260,6 +2260,7 @@ window.TribalNotepad = (function () {
         ov.innerHTML = buildHtml();
         (deps.mount || document.body).appendChild(ov);
         wireEvents();
+        if (window.TribalState) TribalState.opened('notepad');
         recoverCrashDraft().then(function () {
             var targetId = initialNoteId;
             if (!targetId) {
@@ -2297,6 +2298,7 @@ window.TribalNotepad = (function () {
         ov = null;
         curNote = null;
         activeWrap = null;
+        if (window.TribalState) TribalState.closed('notepad');
     }
 
     return {

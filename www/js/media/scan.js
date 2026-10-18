@@ -19,10 +19,12 @@ window.TribalScan = (function () {
         listenerH = null;
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = null;
+        if (window.TribalState) TribalState.closed('scan');
     }
 
     function open(deps) {
         close();
+        if (window.TribalState) TribalState.opened('scan');
         var toast = deps.toast || function () {};
         var isN = deps.store.isNative();
 

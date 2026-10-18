@@ -94,6 +94,7 @@ window.TribalZipUI = (function () {
     }
     function open(d) {
         deps = d; sel = {};
+        if (window.TribalState) TribalState.opened('zip');
         if (ov) ov.parentNode.removeChild(ov);
         ov = document.createElement('div');
         ov.className = 'tribal-overlay lk-overlay vn-overlay zp-overlay';
@@ -115,9 +116,9 @@ window.TribalZipUI = (function () {
             '<div id="zp-st" class="vn-state"></div></div></div>';
         (deps.mount || document.body).appendChild(ov);
         ov.querySelector('#zp-x').addEventListener('click', function () {
-            ov.parentNode.removeChild(ov); ov = null; });
+            ov.parentNode.removeChild(ov); ov = null; if (window.TribalState) TribalState.closed('zip'); });
         ov.addEventListener('click', function (e) {
-            if (e.target === ov) { ov.parentNode.removeChild(ov); ov = null; } });
+            if (e.target === ov) { ov.parentNode.removeChild(ov); ov = null; if (window.TribalState) TribalState.closed('zip'); } });
         ov.querySelector('.zp-filters').addEventListener('click', function (e) {
             var b = e.target.closest('.zp-f'); if (!b) return;
             ov.querySelectorAll('.zp-f').forEach(function (x) {

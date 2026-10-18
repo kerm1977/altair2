@@ -81,6 +81,7 @@ window.TribalFtp = (function () {
         window.open('https://wa.me/?text=' + encodeURIComponent(shareTxt()), '_blank'); }
 
     function open(d) {
+        if (window.TribalState) TribalState.opened('ftp');
         deps = d || {};
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = document.createElement('div');
@@ -135,7 +136,7 @@ window.TribalFtp = (function () {
         if (!plug()) { var st = ov.querySelector('#ftp-state'); if (st) st.textContent = 'Disponible solo en el APK instalado'; }
         refresh();
     }
-    function close() { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
+    function close() { if (window.TribalState) TribalState.closed('ftp'); if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
 
     // marca/quita info.ftp en los ids, empuja el catálogo y enciende el servidor
     function share(ids, on) {

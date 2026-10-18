@@ -23,6 +23,7 @@ window.TribalReader = (function () {
     function close() {
         if (closing) return;
         closing = true;
+        if (window.TribalState) TribalState.closed('doc');
         if (ov && ov._idle) clearTimeout(ov._idle);
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = null;
@@ -172,6 +173,7 @@ window.TribalReader = (function () {
         esc: esc, close: close, shell: shell, wireNav: wireNav,
         isOpen: function () { return !!ov; },
         open: function (meta, deps) {
+            if (window.TribalState) TribalState.opened('doc', { id: meta.id });
             var ext = extOf(meta.name);
             if (['pdf', 'epub', 'txt'].indexOf(ext) < 0 &&
                 !(meta.mime === 'application/pdf' || meta.mime === 'application/epub+zip' ||

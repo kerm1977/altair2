@@ -468,6 +468,7 @@ window.TribalBtChat = (function () {
         deliver(tag({ k: k, name: name, mime: mime, data: data, id: m.id, q: q }), m); }
     function open(d) {
         deps = d || {}; build(); ov.hidden = false;
+        if (window.TribalState) TribalState.opened('chat');
         if (window.TribalBtBadge) TribalBtBadge.clear();
         if (open_) { N.listen().catch(function () {}); flushOutbox(); return; }  // sigue en escucha
         open_ = true;                            // historial persistente
@@ -500,6 +501,6 @@ window.TribalBtChat = (function () {
                     'El chat necesita el Bluetooth encendido para escuchar a la tribu. ¿Activarlo?',
                     'Activar', ask);
                 else toast('Bluetooth desconectado — actívalo para el chat'); }); }); }
-    function close() { ov.hidden = true; if (window.TribalBtVoice) window.TribalBtVoice.cancel(); }
+    function close() { ov.hidden = true; if (window.TribalBtVoice) window.TribalBtVoice.cancel(); if (window.TribalState) TribalState.closed('chat'); }
     return { open: open, close: close, sendMedia: sendMedia };
 })();

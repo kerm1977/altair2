@@ -143,7 +143,7 @@ window.TribalBtWifi = (function () {
         }
         ov.querySelector('#btw-list').innerHTML = html; }
 
-    function open(d, which) { deps = d || {}; tab = which === 'hotspot' ? 'hotspot' : 'wifi';
+    function open(d, which) { if (window.TribalState) TribalState.opened('wifi'); deps = d || {}; tab = which === 'hotspot' ? 'hotspot' : 'wifi';
         if (!N) N = window.TribalBtNet;
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = document.createElement('div');
@@ -212,6 +212,6 @@ window.TribalBtWifi = (function () {
             if (h && h.on) { tribalHs = h; render(); } }).catch(function () {});
         scan();
     }
-    function close() { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
+    function close() { if (window.TribalState) TribalState.closed('wifi'); if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; }
     return { open: open, close: close };
 })();

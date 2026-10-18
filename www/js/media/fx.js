@@ -101,7 +101,12 @@ window.TribalFX = (function () {
     }
 
     function onInput(e) {
-        if (e.target === amtEl || e.target === selEl) renderList();
+        if (e.target === amtEl || e.target === selEl) {
+            renderList();
+            // anti-crash: el último monto/moneda se conserva
+            if (window.TribalState) TribalState.save('fxdata',
+                { a: amtEl.value, f: selEl.value });
+        }
     }
     function onClick(e) {
         if (e.target.closest('.fx-fetch')) return fetchRates();
@@ -163,12 +168,18 @@ window.TribalFX = (function () {
 
     function open() {
         boot(); build();
-        selEl.value = 'USD';
+        var last = window.TribalState ? TribalState.get('fxdata', null) : null;
+        selEl.value = (last && last.f) || 'USD';
+        if (last && last.a) amtEl.value = last.a;
         renderList();
         paintStatus(stampText());
         ov.classList.add('on');
+        if (window.TribalState) TribalState.opened('fx');
     }
-    function hide() { if (ov) ov.classList.remove('on'); }
+    function hide() {
+        if (ov) ov.classList.remove('on');
+        if (window.TribalState) TribalState.closed('fx');
+    }
 
     return { open: open, hide: hide };
 })();

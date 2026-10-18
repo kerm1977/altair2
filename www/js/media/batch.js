@@ -178,6 +178,7 @@ window.Sono.register('batch', function (S) {
         batchList = list; selList = null; running = false;
         page1.hidden = false; page2.hidden = true;
         ov.hidden = false;
+        if (window.TribalState) TribalState.opened('batch');
         renderPage1();
     });
     $('batch-all').addEventListener('click', function () {
@@ -215,5 +216,6 @@ window.Sono.register('batch', function (S) {
         if (running) return;
         ov.hidden = true;
         batchList = selList = null;
+        if (window.TribalState) TribalState.closed('batch');
     });
 });
