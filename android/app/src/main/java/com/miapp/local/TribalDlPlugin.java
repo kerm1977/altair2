@@ -85,6 +85,15 @@ public class TribalDlPlugin extends Plugin {
                 req.addOption("--newline");
                 req.addOption("--retries", "3");
                 req.addOption("--fragment-retries", "3");
+                // si el archivo ya existe (descarga anterior), yt-dlp lo
+                // salta con "already been downloaded" y devolvería el VIEJO
+                // — que puede ser el mp4 con VP9 indescifrable de antes del
+                // fix de códec. Re-bajar de verdad: el usuario lo pidió.
+                req.addOption("--force-overwrites");
+                // moov al inicio del MP4: arranque inmediato en streaming y
+                // la miniatura del primer frame no cuelga al sondeo
+                req.addOption("--postprocessor-args",
+                    "Merger+ffmpeg:-movflags +faststart");
                 // YouTube bloquea seguido el cliente web (HTTP 403); el
                 // cliente android suele esquivarlo. Solo afecta al extractor
                 // de youtube — el resto de sitios ignora el arg.

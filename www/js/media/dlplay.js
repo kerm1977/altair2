@@ -57,6 +57,22 @@ window.TribalDlPlay = (function () {
             if (!root) return;
             var old = root.querySelector('.dg-play');
             if (old) old.parentNode.removeChild(old);
+            // si el archivo ya no está en disco, decirlo claro en vez de
+            // dejar un <video> cargando en infinito
+            var FS = window.Capacitor && Capacitor.Plugins &&
+                     Capacitor.Plugins.Filesystem;
+            if (m.path && FS && FS.stat) {
+                FS.stat({ path: 'file://' + m.path }).then(function () {
+                    openPlayer(m);
+                }).catch(function () {
+                    say('✖ el archivo ya no está en el dispositivo');
+                });
+                return;
+            }
+            openPlayer(m);
+        }
+
+        function openPlayer(m) {
             deps.urlFor(m, function (url) {
                 if (!url || !ov() || !ov().isConnected)
                     return say('no pude leer el archivo');
