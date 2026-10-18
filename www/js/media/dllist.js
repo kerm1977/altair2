@@ -53,11 +53,9 @@ window.TribalDlList = (function () {
             '<div class="dg-rtxt"><b>' + esc(e.name) + '</b>' +
             '<small>' + when(e.ts) + (review && e.path
                 ? ' · ' + esc(e.path) : '') + '</small>' + st + '</div>' +
-            (e.status === 'ok'
-                ? '<button class="dg-del" data-id="' + e.id +
-                  '" data-step="0" title="Eliminar">' +
-                  '<i class="bi bi-trash3"></i></button>'
-                : '') + '</div>';
+            '<button class="dg-del" data-id="' + e.id +
+            '" data-step="0" title="Eliminar">' +
+            '<i class="bi bi-trash3"></i></button>' + '</div>';
     }
 
     function pagerHtml(total, page) {
@@ -140,17 +138,27 @@ window.TribalDlList = (function () {
         el.scrollTop = el.scrollHeight;
     }
 
-    // borrado real tras los 3 pasos: archivo nativo + registro biblioteca
+    // borrado real tras los 3 pasos: archivo nativo + TODOS los metas de
+    // la biblioteca que apunten a esa ruta (un duplicado inerte también
+    // se va). Las filas de error solo salen del historial.
     function delExec(id, c) {
         var e = window.TribalDlLog.find(id);
         if (e && e.path && c.plug && c.plug()) {
             c.plug().dlDelete({ path: e.path }).catch(function () {});
         }
-        if (e && e.metaId) {
-            window.MediaStore.remove(e.metaId).then(function () {
-                if (c.reload) c.reload();
-            });
-        }
+        var idx = (window.MediaStore && MediaStore._index)
+            ? MediaStore._index() : [];
+        var hits = 0;
+        idx.forEach(function (m) {
+            if (e && ((e.metaId && m.id === e.metaId) ||
+                      (e.path && m.path === e.path))) {
+                hits++;
+                MediaStore.remove(m.id).then(function () {
+                    if (c.reload) c.reload();
+                });
+            }
+        });
+        if (!hits && c.reload) c.reload();
         window.TribalDlLog.remove(id);
         if (c.toast) c.toast('descarga eliminada');
         if (c.repaint) c.repaint();

@@ -15,7 +15,18 @@ window.TribalDlLog = (function () {
     function load() {
         try {
             var a = JSON.parse(localStorage.getItem(KEY) || '[]');
-            return Array.isArray(a) ? a : [];
+            if (!Array.isArray(a)) return [];
+            // limpieza retroactiva: entradas duplicadas al mismo archivo
+            // (una re-descarga las creaba antes) → queda la más reciente
+            var seen = {}, out = [];
+            a.forEach(function (e) {
+                var k = e && e.path ? 'p:' + e.path
+                        : 'u:' + (e && e.url) + '|' + (e && e.name);
+                if (seen[k]) return;
+                seen[k] = 1; out.push(e);
+            });
+            if (out.length !== a.length) save(out);
+            return out;
         } catch (e) { return []; }
     }
     function save(a) {
@@ -28,6 +39,18 @@ window.TribalDlLog = (function () {
 
         add: function (e) {
             var a = load();
+            // mismo archivo ya registrado (re-descarga del mismo enlace)
+            // → refresca la entrada vieja en vez de crear un duplicado
+            if (e.path) {
+                for (var i = 0; i < a.length; i++) {
+                    if (a[i].path === e.path) {
+                        for (var k in e) a[i][k] = e[k];
+                        a[i].ts = Date.now();
+                        save(a);
+                        return a[i];
+                    }
+                }
+            }
             e.id = 'dl' + Date.now().toString(36) + '_' +
                    Math.floor(Math.random() * 999);
             e.ts = Date.now();
