@@ -8,7 +8,7 @@
 // ============================================================================
 window.TribalDlGrab = (function () {
     'use strict';
-    var ov = null, deps = {}, listener = null, player = null;
+    var ov = null, deps = {}, listener = null, player = null, tools = null;
     var page = 0, review = false, dir = '';
     var el = function (s) { return ov ? ov.querySelector(s) : null; };
 
@@ -32,6 +32,12 @@ window.TribalDlGrab = (function () {
         });
         var rb = el('.dg-rev');
         if (rb) rb.classList.toggle('on', review);
+        // acciones en vivo: visibles solo con descarga/cola/pausa activa
+        var acts = el('.dg-acts');
+        if (acts) acts.hidden = !(J.running() || J.paused() ||
+            (J.queue() && J.queue().length));
+        var pb = el('.dg-pause');
+        if (pb) pb.textContent = J.paused() ? '▶ Reanudar' : '⏸ Suspender';
     }
     function metaOf(path) {
         var idx = (window.MediaStore && MediaStore._index)
@@ -72,51 +78,6 @@ window.TribalDlGrab = (function () {
             reload: deps.reload, repaint: refresh });
     }
 
-    // texto completo de la consola de diagnóstico
-    function consoleText() {
-        var c = el('.dg-console'), out = [];
-        for (var i = 0; c && i < c.children.length; i++)
-            out.push(c.children[i].textContent);
-        return out.join('\n');
-    }
-
-    // «📋 copiar consola»: share sheet nativo (WhatsApp…) + portapapeles
-    function shareConsole() {
-        var t = consoleText();
-        if (!t) return say('la consola está vacía');
-        el('.dg-console').hidden = false;
-        el('.dg-conbtn').textContent = '▾ consola';
-        var clip = navigator.clipboard && navigator.clipboard.writeText
-            ? navigator.clipboard.writeText(t).catch(function () {})
-            : Promise.resolve();
-        var SH = window.Capacitor && Capacitor.Plugins &&
-                 Capacitor.Plugins.Share;
-        clip.then(function () {
-            if (SH && SH.share)
-                return SH.share({ title: 'TRIBALs — consola yt-dlp', text: t });
-        }).then(function () { say('✔ consola lista — pégala donde quieras'); },
-                function () { say('✔ consola copiada al portapapeles'); });
-    }
-
-    // «⟳ actualizar motor»: yt-dlp se desactualiza y los sitios empiezan a
-    // fallar (403 etc.) — la librería baja el binario nuevo en caliente
-    function updateEngine() {
-        var p = plug();
-        if (!p) return say('⚠ solo en el APK instalado');
-        el('.dg-console').hidden = false;
-        el('.dg-conbtn').textContent = '▾ consola';
-        say('actualizando yt-dlp…'); log('⟳ updateYoutubeDL (stable)…');
-        p.dlUpdate({ channel: 'stable' }).then(function (r) {
-            var st = (r && r.status) || '?';
-            log('motor: ' + st);
-            say(st === 'DONE' ? '✔ motor actualizado'
-                              : 'motor ya al día (' + st + ')');
-        }).catch(function (e) {
-            var m = String((e && e.message) || e);
-            log('✖ update: ' + m, 'err'); say('✖ no se pudo actualizar');
-        });
-    }
-
     function close() {
         if (listener && listener.remove) { listener.remove(); listener = null; }
         if (window.TribalDlJob) TribalDlJob.cancel();
@@ -138,6 +99,8 @@ window.TribalDlGrab = (function () {
         ov.className = 'tribal-dl';
         ov.innerHTML = TribalDlList.pageHtml();
         (deps.mount || document.body).appendChild(ov);
+        tools = window.TribalDlTools.make({ el: el, say: say, log: log,
+            plug: plug });
         player = window.TribalDlPlay.make(deps, function () { return ov; });
         try {
             player.healAll(function (e) {
@@ -159,25 +122,30 @@ window.TribalDlGrab = (function () {
                     // tribu_dl queda solo como staging del motor
                     dir = (r && (r.media || r.dir)) || '';
                 });
-                // auto-actualizador: si pasaron >24 h desde la última
-                // comprobación, baja el yt-dlp más reciente en el hilo
-                // del motor (va en cola tras lo que esté corriendo)
-                if (Date.now() - (+localStorage.getItem('tribu_dl_upd_ts')
-                        || 0) > 864e5) {
-                    localStorage.setItem('tribu_dl_upd_ts', '' + Date.now());
-                    plug().dlUpdate({ channel: 'stable' }).then(function (r) {
-                        log('⟳ motor: ' + ((r && r.status) || '?'));
-                    }).catch(function () {});
-                }
+                tools.autoUpdate();
             }
             el('.dg-vid').addEventListener('click',
                 function () { grab(false); });
             el('.dg-aud').addEventListener('click',
                 function () { grab(true); });
+            // ☰ lista: marca el checkbox (sigue activo para las demás) y
+            // lanza la descarga — una playlist entera en un toque
+            el('.dg-plbtn').addEventListener('click', function () {
+                el('.dg-pl').checked = true; grab(false);
+            });
             el('.dg-rev').addEventListener('click', function () {
                 review = !review; page = 0; refresh(); });
-            el('.dg-upd').addEventListener('click', updateEngine);
-            el('.dg-copy').addEventListener('click', shareConsole);
+            el('.dg-upd').addEventListener('click', tools.update);
+            el('.dg-copy').addEventListener('click', tools.share);
+            // ⏸ suspende el proceso (el .part sigue en disco) / ▶ reanuda
+            el('.dg-pause').addEventListener('click', function () {
+                var J = window.TribalDlJob;
+                if (J.paused()) J.resume(); else J.pause();
+                refresh();
+            });
+            el('.dg-cancel').addEventListener('click', function () {
+                window.TribalDlJob.cancel(); refresh();
+            });
             el('.dg-conbtn').addEventListener('click', function () {
                 var c = el('.dg-console');
                 c.hidden = !c.hidden;

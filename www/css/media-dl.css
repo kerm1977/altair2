@@ -66,6 +66,17 @@
 }
 .dg-btns button i { font-size: 1.25rem; color: var(--tb-gold); }
 .dg-btns button:active { transform: scale(.96); }
+/* playlist: ocupa la fila entera bajo Video/Audio */
+.dg-plbtn { grid-column: 1 / -1; padding: 11px 10px !important; }
+
+/* acciones en vivo: suspender / cancelar */
+.dg-acts {
+    display: flex; gap: 8px; margin: 8px 16px 0; flex-shrink: 0;
+}
+.dg-acts .dg-tool {
+    flex: 1; padding: 10px 12px; font-size: .82rem; color: var(--tb-cream);
+    border-color: rgba(240, 180, 41, .4);
+}
 
 /* progreso */
 .dg-prog {

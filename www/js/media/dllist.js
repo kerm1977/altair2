@@ -1,9 +1,9 @@
 // ============================================================================
-// ARCHIVO: media/dllist.js — pinta la cola activa + el historial de descargas
-// RESPONSABILIDAD: filas con ícono/miniatura, estado (en cola / % / ✔ / ✖),
-// ruta en modo revisión, borrado de 3 pasos y paginación de 20. Sin estado
-// propio — todo llega por render().
-// API: TribalDlList.render(el, {queue,running,items,page,review,dir,onThumb})
+// ARCHIVO: media/dllist.js — markup de la página + lista de descargas
+// RESPONSABILIDAD: página completa (input, botones, consola), filas con
+// ícono/miniatura, estado (cola/%/✔/✖), borrado de 3 pasos, página de 20.
+// API: TribalDlList.render(el, {queue,running,paused,items,page,review,dir,
+//      onThumb}) / pageHtml / logWrite / del3 / delExec / mimeOf
 // ============================================================================
 window.TribalDlList = (function () {
     'use strict';
@@ -21,9 +21,9 @@ window.TribalDlList = (function () {
         return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' ' +
                p(d.getHours()) + ':' + p(d.getMinutes());
     }
-    // acepta 'a'|'v' o booleano "esAudio"
-    function icon(k) { return (k === 'a' || k === true)
-        ? 'bi-music-note-beamed' : 'bi-camera-video-fill'; }
+    function icon(k) {   // acepta 'a'|'v' o booleano "esAudio"
+        return (k === 'a' || k === true) ? 'bi-music-note-beamed'
+                                         : 'bi-camera-video-fill'; }
 
     // fila de la cola viva (pendiente o bajando ahora)
     function qRow(j, isRun, pct, line) {
@@ -58,13 +58,11 @@ window.TribalDlList = (function () {
     function pagerHtml(total, page) {
         var pages = Math.ceil(total / PAGE);
         if (pages <= 1) return '';
-        return '<div class="dg-pager">' +
-            '<button class="dg-pg" data-pg="-1" ' +
-                (page === 0 ? 'disabled' : '') + '>‹</button>' +
-            '<span>' + (page + 1) + ' / ' + pages + '</span>' +
-            '<button class="dg-pg" data-pg="1" ' +
-                (page >= pages - 1 ? 'disabled' : '') + '>›</button>' +
-            '</div>';
+        return '<div class="dg-pager"><button class="dg-pg" data-pg="-1" ' +
+            (page === 0 ? 'disabled' : '') + '>‹</button><span>' +
+            (page + 1) + ' / ' + pages + '</span><button class="dg-pg" ' +
+            'data-pg="1" ' + (page >= pages - 1 ? 'disabled' : '') +
+            '>›</button></div>';
     }
 
     function render(el, o) {
@@ -84,15 +82,13 @@ window.TribalDlList = (function () {
         html += pagerHtml((o.items || []).length, o.page);
         el.innerHTML = html;
         // miniaturas diferidas: el dueño (dlgrab) genera el frame del video
-        if (o.onThumb) {
+        if (o.onThumb)
             el.querySelectorAll('[data-dthumb]').forEach(function (box) {
-                var id = box.getAttribute('data-dthumb'), ent = null;
+                var id = box.getAttribute('data-dthumb');
                 (o.items || []).forEach(function (x) {
-                    if (x.id === id) ent = x;
+                    if (x.id === id) o.onThumb(box, x);
                 });
-                if (ent) o.onThumb(box, ent);
             });
-        }
     }
 
     // markup de la página completa (header, buscador, toggle, botones, lista)
@@ -115,9 +111,15 @@ window.TribalDlList = (function () {
             '<button class="dg-vid"><i class="bi bi-camera-video-fill">' +
             '</i>Video MP4</button>' +
             '<button class="dg-aud"><i class="bi bi-music-note-beamed">' +
-            '</i>Solo audio MP3</button></div>' +
+            '</i>Solo audio MP3</button>' +
+            '<button class="dg-plbtn"><i class="bi ' +
+            'bi-collection-play-fill"></i>Lista completa</button></div>' +
             '<div class="dg-prog"><div class="dg-fill"></div></div>' +
             '<div class="dg-status"></div>' +
+            // acciones en vivo: solo visibles con descarga/cola activa
+            '<div class="dg-acts" hidden>' +
+            '<button class="dg-tool dg-pause">⏸ Suspender</button>' +
+            '<button class="dg-tool dg-cancel">✖ Cancelar</button></div>' +
             '<div class="dg-tools"><button type="button" ' +
             'class="dg-tool dg-conbtn">▸ consola</button>' +
             '<button type="button" class="dg-tool dg-upd">' +
@@ -142,13 +144,12 @@ window.TribalDlList = (function () {
     }
 
     // borrado real tras los 3 pasos: archivo nativo + TODOS los metas de
-    // la biblioteca que apunten a esa ruta (un duplicado inerte también
-    // se va). Las filas de error solo salen del historial.
+    // la biblioteca que apunten a esa ruta. Las filas de error solo salen
+    // del historial.
     function delExec(id, c) {
         var e = window.TribalDlLog.find(id);
-        if (e && e.path && c.plug && c.plug()) {
+        if (e && e.path && c.plug && c.plug())
             c.plug().dlDelete({ path: e.path }).catch(function () {});
-        }
         var idx = (window.MediaStore && MediaStore._index)
             ? MediaStore._index() : [], hits = 0;
         var base = e && e.path ? String(e.path).split('/').pop() : null;
@@ -162,12 +163,11 @@ window.TribalDlList = (function () {
                 m.path === e.path || m.path === e.lib ||
                 (/tribu_dl|tribu_media/.test(m.path) &&
                  (b === base || b === lib)));
-            if (same) {
-                hits++;
-                MediaStore.remove(m.id).then(function () {
-                    if (c.reload) c.reload();
-                });
-            }
+            if (!same) return;
+            hits++;
+            MediaStore.remove(m.id).then(function () {
+                if (c.reload) c.reload();
+            });
         });
         if (!hits && c.reload) c.reload();
         window.TribalDlLog.remove(id);

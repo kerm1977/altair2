@@ -12,6 +12,7 @@ window.TribalDlJob = (function () {
     'use strict';
     var ctx = {};
     var queue = [], running = null, tickT = null;
+    var pausedJob = null;   // trabajo suspendido a la espera de reanudar
     var pct = -1, lastLine = '';
 
     function init(c) { ctx = c || {}; }
@@ -74,6 +75,13 @@ window.TribalDlJob = (function () {
                         files.length ? null : '✖ yt-dlp no dejó archivo');
                 });
             }).catch(function (e) {
+                // suspendida por el usuario: el .part queda en disco y
+                // al reanudar yt-dlp continúa desde donde quedó
+                if (job._paused) {
+                    pausedJob = job; stopTick(); running = null;
+                    say('⏸ en pausa — toca ▶ Reanudar para seguir');
+                    repaint(); pump(); return;
+                }
                 var m = String((e && e.message) || e).slice(0, 140);
                 // "closed file" = bug del motor yt-dlp ya arreglado en
                 // versiones nuevas → sugerir ⟳ actualizar motor
@@ -146,16 +154,37 @@ window.TribalDlJob = (function () {
         repaint(); pump();
     }
 
+    // ⏸ suspender: mata el proceso yt-dlp — el .part queda en tribu_dl
+    // y reanudar continúa exactamente desde donde quedó. La cola sigue
+    // con el siguiente trabajo.
+    function pause() {
+        if (!running) return;
+        running._paused = true;
+        say('suspendiendo…');
+        if (ctx.plug && ctx.plug()) {
+            try { ctx.plug().dlCancel(); } catch (e) {}
+        }
+        repaint();
+    }
+    function resume() {
+        if (!pausedJob) return;
+        pausedJob._paused = false;
+        queue.unshift(pausedJob); pausedJob = null;
+        say('▶ reanudando…'); repaint(); pump();
+    }
+
     // al cerrar la página: corta el proceso nativo y vacía la cola
     function cancel() {
         stopTick();
         if (running && ctx.plug && ctx.plug()) {
             try { ctx.plug().dlCancel(); } catch (e) {}
         }
-        queue = []; running = null;
+        queue = []; running = null; pausedJob = null;
     }
 
     return { init: init, enqueue: enqueue, onProg: onProg, cancel: cancel,
+             pause: pause, resume: resume,
+             paused: function () { return pausedJob; },
              queue: function () { return queue; },
              running: function () { return running; },
              pct: function () { return pct; },
