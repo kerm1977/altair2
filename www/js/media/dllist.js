@@ -116,9 +116,44 @@ window.TribalDlList = (function () {
             '<button class="dg-aud"><i class="bi bi-music-note-beamed">' +
             '</i>Solo audio MP3</button></div>' +
             '<div class="dg-prog"><div class="dg-fill"></div></div>' +
-            '<div class="dg-status"></div><div class="dg-list"></div>' +
+            '<div class="dg-status"></div>' +
+            '<div class="dg-tools">' +
+            '<button type="button" class="dg-tool dg-conbtn">' +
+            '▸ consola</button>' +
+            '<button type="button" class="dg-tool dg-upd">' +
+            '⟳ actualizar motor</button></div>' +
+            '<div class="dg-console" hidden></div>' +
+            '<div class="dg-list"></div>' +
             '<div class="fx-foot">yt-dlp en el teléfono · los archivos ' +
             'caen en la colección «descargas»</div></div>';
+    }
+
+    // consola de diagnóstico: cada línea cruda de yt-dlp (y nuestros
+    // eventos) — tope 250 líneas, autoscroll al final
+    function logWrite(el, line, cls) {
+        if (!el) return;
+        var d = document.createElement('div');
+        d.className = 'dg-log' + (cls ? ' ' + cls : '');
+        d.textContent = String(line);
+        el.appendChild(d);
+        while (el.children.length > 250) el.removeChild(el.firstChild);
+        el.scrollTop = el.scrollHeight;
+    }
+
+    // borrado real tras los 3 pasos: archivo nativo + registro biblioteca
+    function delExec(id, c) {
+        var e = window.TribalDlLog.find(id);
+        if (e && e.path && c.plug && c.plug()) {
+            c.plug().dlDelete({ path: e.path }).catch(function () {});
+        }
+        if (e && e.metaId) {
+            window.MediaStore.remove(e.metaId).then(function () {
+                if (c.reload) c.reload();
+            });
+        }
+        window.TribalDlLog.remove(id);
+        if (c.toast) c.toast('descarga eliminada');
+        if (c.repaint) c.repaint();
     }
 
     // máquina de borrado en 3 pasos: 🗑 → «¿Eliminar?» → «Borrar archivo» →
@@ -143,6 +178,6 @@ window.TribalDlList = (function () {
                }[x] || 'application/octet-stream';
     }
 
-    return { PAGE: PAGE, render: render, del3: del3,
-             mimeOf: mimeOf, pageHtml: pageHtml };
+    return { PAGE: PAGE, render: render, del3: del3, mimeOf: mimeOf,
+             pageHtml: pageHtml, logWrite: logWrite, delExec: delExec };
 })();

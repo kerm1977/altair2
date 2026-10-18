@@ -85,6 +85,26 @@
     min-height: 1.2em; word-break: break-all; line-height: 1.4;
 }
 
+/* consola de diagnóstico */
+.dg-tools {
+    display: flex; gap: 8px; margin: 8px 16px 0; flex-shrink: 0;
+}
+.dg-tool {
+    padding: 6px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--tb-border); background: rgba(0, 0, 0, .3);
+    color: var(--tb-muted); font-size: .72rem;
+}
+.dg-tool:active { transform: scale(.96); }
+.dg-console {
+    margin: 8px 16px 0; max-height: 180px; overflow-y: auto;
+    border-radius: 10px; border: 1px solid var(--tb-border);
+    background: rgba(0, 0, 0, .55); padding: 8px 10px;
+    font-family: monospace; font-size: .66rem; line-height: 1.5;
+    color: #9fd4a0; flex-shrink: 0;
+}
+.dg-log { white-space: pre-wrap; word-break: break-all; }
+.dg-log.err { color: #ff8a6a; }
+
 /* lista de descargas — ocupa el resto de la página y scrollea */
 .dg-list { flex: 1; overflow-y: auto; margin: 10px 0 4px; }
 .dg-dir {

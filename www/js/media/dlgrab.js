@@ -1,15 +1,16 @@
 // ============================================================================
 // ARCHIVO: media/dlgrab.js — descargador de internet (página completa)
 // RESPONSABILIDAD: pega enlace/playlist y baja MP4/MP3 con yt-dlp nativo.
-// Cola secuencial + historial persistente (TribalDlLog) paginado de a 20;
-// «Mis descargas» muestra la carpeta real y borra con 3 confirmaciones.
+// La cola y la ejecución viven en dljob.js; el historial en dllog.js y el
+// render de lista/consola/borrado en dllist.js. «Mis descargas» muestra la
+// carpeta real; «consola» expone cada línea cruda del motor; «⟳ actualizar
+// motor» baja el yt-dlp más reciente (los sitios cambian y el viejo da 403).
 // API: TribalDlGrab.open(deps) / close()
 // ============================================================================
 window.TribalDlGrab = (function () {
     'use strict';
-    var ov = null, deps = {}, listener = null, tickT = null;
-    var queue = [], running = null, dir = '';
-    var pct = -1, lastLine = '', page = 0, review = false;
+    var ov = null, deps = {}, listener = null;
+    var page = 0, review = false, dir = '';
     var el = function (s) { return ov ? ov.querySelector(s) : null; };
 
     function plug() { return window.Capacitor &&
@@ -18,10 +19,14 @@ window.TribalDlGrab = (function () {
     function say(t) { var s = el('.dg-status'); if (s) s.textContent = t; }
     function bar(p) { var f = el('.dg-fill');
         if (f) f.style.width = Math.max(0, Math.min(100, p)) + '%'; }
-    function mimeOf(n) { return window.TribalDlList.mimeOf(n); }
+    function log(t, cls) {
+        window.TribalDlList.logWrite(el('.dg-console'), t, cls);
+    }
     function refresh() {
+        var J = window.TribalDlJob;
         window.TribalDlList.render(el('.dg-list'), {
-            queue: queue, running: running, pct: pct, line: lastLine,
+            queue: J.queue(), running: J.running(),
+            pct: J.pct(), line: J.line(),
             items: window.TribalDlLog.list(), page: page,
             review: review, dir: review ? dir : ''
         });
@@ -35,99 +40,47 @@ window.TribalDlGrab = (function () {
         return m;
     }
 
-    // heartbeat: si el motor no emite líneas (init lento), el estado sigue vivo
-    function startTick(t0) {
-        stopTick();
-        tickT = setInterval(function () {
-            if (!running) return stopTick();
-            var s = Math.floor((Date.now() - t0) / 1000);
-            say(lastLine || ('preparando motor yt-dlp… ' + s + 's'));
-            refresh();
-        }, 1000);
-    }
-    function stopTick() { if (tickT) { clearInterval(tickT); tickT = null; } }
-
     function grab(audio) {
         var url = (el('.dg-url').value || '').trim();
         var bad = !url || !/^https?:\/\//i.test(url);
         if (bad) return say(url ? 'Eso no parece un enlace — usa http(s)'
                                 : 'Pega primero el enlace del video o playlist');
-        queue.push({ url: url, audio: audio, playlist: el('.dg-pl').checked });
+        var pl = el('.dg-pl').checked;
+        log('▶ ' + url + '  [' + (audio ? 'audio mp3' : 'video mp4') +
+            (pl ? ' · playlist' : '') + ']');
+        window.TribalDlJob.enqueue({ url: url, audio: audio, playlist: pl });
         el('.dg-url').value = '';
-        say('en cola — ' + (queue.length + (running ? 1 : 0)) + ' trabajo(s)');
-        refresh(); pump();
-    }
-
-    function pump() {
-        if (running || !queue.length) return;
-        running = queue.shift(); pct = -1; lastLine = ''; bar(0);
-        runJob(running);
-    }
-
-    function runJob(job) {
-        var p = plug();
-        if (!p) return finish(null,
-            '✖ la descarga corre solo en el APK instalado');
-        startTick(Date.now());
-        try {
-            p.dlStart({ url: job.url, audio: job.audio,
-                        playlist: job.playlist }).then(function (r) {
-                var files = (r && r.files && r.files.length) ? r.files
-                    : (r && r.path ? [r] : []);
-                files.forEach(function (f) {
-                    try {
-                        MediaStore.addRefs([{ path: f.path, name: f.name,
-                            size: f.size, mime: mimeOf(f.name),
-                            mtime: Date.now() }]);
-                    } catch (e) {}
-                    var m = metaOf(f.path);
-                    TribalDlLog.add({ name: f.name, path: f.path,
-                        size: f.size, url: job.url,
-                        kind: job.audio ? 'a' : 'v', status: 'ok',
-                        metaId: m ? m.id : null });
-                });
-                finish(files.length ? files.length +
-                    ' archivo(s) en «descargas»' : null,
-                    files.length ? null : '✖ yt-dlp no dejó archivo');
-            }).catch(function (e) {
-                TribalDlLog.add({ name: job.url, url: job.url,
-                    kind: job.audio ? 'a' : 'v', status: 'fail',
-                    err: String((e && e.message) || e).slice(0, 140) });
-                finish(null, '✖ ' + String((e && e.message) || e)
-                    .slice(0, 140));
-            });
-        } catch (e) { finish(null, '✖ ' + String(e)); }
-    }
-
-    function finish(ok, err) {
-        stopTick(); running = null;
-        if (ok) { bar(100); say('✔ ' + ok); toast('⬇ descarga lista'); }
-        else say(err || '');
-        if (deps.reload) deps.reload();
-        refresh(); pump();
-    }
-
-    // borrado real (tras los 3 pasos de dllist): archivo + registro
-    function doDelete(id) {
-        var e = TribalDlLog.find(id);
-        if (e && e.path && plug()) {
-            plug().dlDelete({ path: e.path }).catch(function () {});
-        }
-        if (e && e.metaId) {
-            MediaStore.remove(e.metaId).then(function () {
-                if (deps.reload) deps.reload();
-            });
-        }
-        TribalDlLog.remove(id);
-        toast('descarga eliminada');
         refresh();
     }
 
+    // borrado real tras los 3 pasos (la máquina de pasos vive en dllist.js)
+    function doDelete(id) {
+        TribalDlList.delExec(id, { plug: plug, toast: toast,
+            reload: deps.reload, repaint: refresh });
+    }
+
+    // «⟳ actualizar motor»: yt-dlp se desactualiza y los sitios empiezan a
+    // fallar (403 etc.) — la librería baja el binario nuevo en caliente
+    function updateEngine() {
+        var p = plug();
+        if (!p) return say('⚠ solo en el APK instalado');
+        el('.dg-console').hidden = false;
+        el('.dg-conbtn').textContent = '▾ consola';
+        say('actualizando yt-dlp…'); log('⟳ updateYoutubeDL (stable)…');
+        p.dlUpdate({ channel: 'stable' }).then(function (r) {
+            var st = (r && r.status) || '?';
+            log('motor: ' + st);
+            say(st === 'DONE' ? '✔ motor actualizado'
+                              : 'motor ya al día (' + st + ')');
+        }).catch(function (e) {
+            var m = String((e && e.message) || e);
+            log('✖ update: ' + m, 'err'); say('✖ no se pudo actualizar');
+        });
+    }
+
     function close() {
-        stopTick();
         if (listener && listener.remove) { listener.remove(); listener = null; }
-        if (running && plug()) { try { plug().dlCancel(); } catch (e) {} }
-        queue = []; running = null;
+        if (window.TribalDlJob) TribalDlJob.cancel();
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
         ov = null;
         if (window.TribalState) TribalState.closed('dl');
@@ -138,6 +91,10 @@ window.TribalDlGrab = (function () {
         deps = d || {};
         if (window.TribalState) TribalState.opened('dl');
         try { TribalDlLog.markDead(); } catch (e) {}
+        TribalDlJob.init({ plug: plug, say: say, log: log, bar: bar,
+            toast: toast, refresh: refresh, reload: deps.reload,
+            store: window.MediaStore, mimeOf: TribalDlList.mimeOf,
+            metaOf: metaOf });
         ov = document.createElement('div');
         ov.className = 'tribal-dl';
         ov.innerHTML = TribalDlList.pageHtml();
@@ -149,13 +106,8 @@ window.TribalDlGrab = (function () {
             if (plug()) {
                 // addListener devuelve el handle DIRECTO en este Capacitor
                 // (no promesa — un .then() aquí mataba open() entero)
-                var h = plug().addListener('dlProgress', function (p) {
-                    if (p.pct >= 0) { pct = p.pct; bar(pct); }
-                    if (p.line) {
-                        lastLine = p.line; say(p.line.slice(0, 120));
-                    }
-                    refresh();
-                });
+                var h = plug().addListener('dlProgress',
+                    window.TribalDlJob.onProg);
                 if (h && h.then) h.then(function (x) { listener = x; });
                 else listener = h;
                 plug().dlDir().then(function (r) { dir = r.dir || ''; });
@@ -166,6 +118,13 @@ window.TribalDlGrab = (function () {
                 function () { grab(true); });
             el('.dg-rev').addEventListener('click', function () {
                 review = !review; page = 0; refresh();
+            });
+            el('.dg-upd').addEventListener('click', updateEngine);
+            el('.dg-conbtn').addEventListener('click', function () {
+                var c = el('.dg-console');
+                c.hidden = !c.hidden;
+                el('.dg-conbtn').textContent =
+                    (c.hidden ? '▸' : '▾') + ' consola';
             });
             el('.dg-paste').addEventListener('click', function () {
                 if (navigator.clipboard && navigator.clipboard.readText) {

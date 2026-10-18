@@ -83,6 +83,13 @@ public class TribalDlPlugin extends Plugin {
                 req.addOption("--no-mtime");
                 req.addOption("--restrict-filenames");
                 req.addOption("--newline");
+                req.addOption("--retries", "3");
+                req.addOption("--fragment-retries", "3");
+                // YouTube bloquea seguido el cliente web (HTTP 403); el
+                // cliente android suele esquivarlo. Solo afecta al extractor
+                // de youtube — el resto de sitios ignora el arg.
+                req.addOption("--extractor-args",
+                    "youtube:player_client=android,ios");
                 // en playlist el índice mantiene el orden del autor
                 req.addOption("-o", dir.getAbsolutePath() + "/" +
                     (playlist ? "%(playlist_index)s-%(title)s.%(ext)s"
@@ -167,6 +174,31 @@ public class TribalDlPlugin extends Plugin {
         } catch (Exception e) {
             call.reject(String.valueOf(e.getMessage()));
         }
+    }
+
+    // yt-dlp se desactualiza rápido (los sitios cambian y el motor viejo
+    // empieza a fallar con 403/«unable to download») — actualización en
+    // caliente del binario python: estable por defecto, nightly si lo piden.
+    @PluginMethod
+    public void dlUpdate(PluginCall call) {
+        final String ch = call.getString("channel", "stable");
+        ex.execute(() -> {
+            try {
+                ensureInit();
+                notifyProg(-1, -1, "actualizando yt-dlp (" + ch + ")…");
+                YoutubeDL.UpdateChannel c = "nightly".equals(ch)
+                    ? YoutubeDL.UpdateChannel._NIGHTLY
+                    : YoutubeDL.UpdateChannel._STABLE;
+                YoutubeDL.UpdateStatus st =
+                    YoutubeDL.getInstance().updateYoutubeDL(getContext(), c);
+                JSObject r = new JSObject();
+                r.put("status", String.valueOf(st));
+                r.put("channel", ch);
+                call.resolve(r);
+            } catch (Exception e) {
+                call.reject(cleanErr(e));
+            }
+        });
     }
 
     @PluginMethod
