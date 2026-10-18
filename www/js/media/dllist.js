@@ -18,11 +18,9 @@ window.TribalDlList = (function () {
     function mb(n) { return n > 0 ? (n / 1048576).toFixed(1) + ' MB' : ''; }
     function when(ts) {
         if (!ts) return '';
-        var d = new Date(ts);
-        return ('0' + d.getDate()).slice(-2) + '/' +
-               ('0' + (d.getMonth() + 1)).slice(-2) + ' ' +
-               ('0' + d.getHours()).slice(-2) + ':' +
-               ('0' + d.getMinutes()).slice(-2);
+        var d = new Date(ts), p = function (n) { return ('0' + n).slice(-2); };
+        return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' ' +
+               p(d.getHours()) + ':' + p(d.getMinutes());
     }
     // acepta 'a'|'v' o booleano "esAudio"
     function icon(k) {
@@ -48,13 +46,16 @@ window.TribalDlList = (function () {
         var st = e.status === 'ok'
             ? '<b class="dg-ok">✔ ' + mb(e.size) + '</b>'
             : '<b class="dg-bad">✖ ' + esc(e.err || 'falló') + '</b>';
-        return '<div class="dg-row" data-id="' + e.id + '">' +
-            '<i class="bi ' + icon(e.kind === 'a') + '"></i>' +
+        // video descargado → casilla de miniatura (la rellena onThumb)
+        var lead = (e.status === 'ok' && e.kind === 'v')
+            ? '<span class="dg-thumb" data-dthumb="' + e.id + '">' +
+              '<i class="bi bi-camera-video-fill"></i></span>'
+            : '<i class="bi ' + icon(e.kind === 'a') + '"></i>';
+        return '<div class="dg-row" data-id="' + e.id + '">' + lead +
             '<div class="dg-rtxt"><b>' + esc(e.name) + '</b>' +
             '<small>' + when(e.ts) + (review && e.path
                 ? ' · ' + esc(e.path) : '') + '</small>' + st + '</div>' +
-            '<button class="dg-del" data-id="' + e.id +
-            '" data-step="0" title="Eliminar">' +
+            '<button class="dg-del" data-id="' + e.id + '" data-step="0">' +
             '<i class="bi bi-trash3"></i></button>' + '</div>';
     }
 
@@ -79,9 +80,8 @@ window.TribalDlList = (function () {
         // cola viva: la que corre primero, luego pendientes
         if (o.running) html += qRow(o.running, true, o.pct, o.line);
         (o.queue || []).forEach(function (j) { html += qRow(j, false); });
-        if ((o.running || (o.queue && o.queue.length)) && o.items.length) {
+        if ((o.running || (o.queue && o.queue.length)) && o.items.length)
             html += '<div class="dg-hr"></div>';
-        }
         var slice = (o.items || []).slice(o.page * PAGE, (o.page + 1) * PAGE);
         if (!slice.length && !o.running && !(o.queue && o.queue.length)) {
             html += '<div class="dg-empty">Sin descargas todavía — ' +
@@ -90,6 +90,16 @@ window.TribalDlList = (function () {
         slice.forEach(function (e) { html += hRow(e, o.review); });
         html += pagerHtml((o.items || []).length, o.page);
         el.innerHTML = html;
+        // miniaturas diferidas: el dueño (dlgrab) genera el frame del video
+        if (o.onThumb) {
+            el.querySelectorAll('[data-dthumb]').forEach(function (box) {
+                var id = box.getAttribute('data-dthumb'), ent = null;
+                (o.items || []).forEach(function (x) {
+                    if (x.id === id) ent = x;
+                });
+                if (ent) o.onThumb(box, ent);
+            });
+        }
     }
 
     // markup de la página completa (header, buscador, toggle, botones, lista)
@@ -147,8 +157,7 @@ window.TribalDlList = (function () {
             c.plug().dlDelete({ path: e.path }).catch(function () {});
         }
         var idx = (window.MediaStore && MediaStore._index)
-            ? MediaStore._index() : [];
-        var hits = 0;
+            ? MediaStore._index() : [], hits = 0;
         idx.forEach(function (m) {
             if (e && ((e.metaId && m.id === e.metaId) ||
                       (e.path && m.path === e.path))) {

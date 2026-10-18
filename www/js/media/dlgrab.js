@@ -9,7 +9,7 @@
 // ============================================================================
 window.TribalDlGrab = (function () {
     'use strict';
-    var ov = null, deps = {}, listener = null;
+    var ov = null, deps = {}, listener = null, player = null;
     var page = 0, review = false, dir = '';
     var el = function (s) { return ov ? ov.querySelector(s) : null; };
 
@@ -28,7 +28,8 @@ window.TribalDlGrab = (function () {
             queue: J.queue(), running: J.running(),
             pct: J.pct(), line: J.line(),
             items: window.TribalDlLog.list(), page: page,
-            review: review, dir: review ? dir : ''
+            review: review, dir: review ? dir : '',
+            onThumb: function (box, e) { if (player) player.fillThumb(box, e); }
         });
         var rb = el('.dg-rev');
         if (rb) rb.classList.toggle('on', review);
@@ -40,45 +41,14 @@ window.TribalDlGrab = (function () {
         return m;
     }
 
-    // reproductor inline EN PRIMER PLANO dentro de la página — el visor
-    // tribal monta en S.root (z-index menor) y quedaba tapado por la
-    // página de descargas (se oía pero no se veía)
-    function playInline(m) {
-        var old = el('.dg-play');
-        if (old) old.parentNode.removeChild(old);
-        deps.urlFor(m, function (url) {
-            if (!url || !ov) return say('no pude leer el archivo');
-            var p = document.createElement('div');
-            p.className = 'dg-play';
-            p.innerHTML =
-                '<button class="dg-play-x">‹</button>' +
-                '<div class="dg-play-name">' + (m.name || '') + '</div>' +
-                '<video class="dg-play-v" controls autoplay playsinline' +
-                ' src="' + url + '"></video>';
-            ov.appendChild(p);
-            var v = p.querySelector('video');
-            v.addEventListener('error', function () {
-                say('✖ el archivo no se pudo reproducir');
-            });
-            p.querySelector('.dg-play-x').addEventListener('click',
-                function () {
-                    v.pause(); v.removeAttribute('src'); v.load();
-                    p.parentNode.removeChild(p);
-                });
-        });
-    }
-
-    // tocar una descarga terminada la reproduce en el reproductor inline
+    // tocar una descarga terminada la reproduce en el reproductor inline;
+    // si su meta desapareció se re-registra del archivo en disco
     function openEntry(id) {
         var e = window.TribalDlLog.find(id);
         if (!e || e.status !== 'ok') return;
-        var idx = MediaStore._index ? MediaStore._index() : [];
-        var m = null;
-        idx.forEach(function (x) {
-            if (x.id === e.metaId || (e.path && x.path === e.path)) m = x;
-        });
-        if (!m) return say('ya no está en la biblioteca');
-        if (m.kind === 'video' || m.kind === 'audio') playInline(m);
+        var m = player.metaFor(e);
+        if (!m) return say('el archivo ya no está en el dispositivo');
+        if (m.kind === 'video' || m.kind === 'audio') player.play(m);
         else if (deps.sono && deps.sono.openItem) deps.sono.openItem(m);
         else say('no sé cómo abrir este tipo de archivo');
     }
@@ -142,6 +112,7 @@ window.TribalDlGrab = (function () {
         ov.className = 'tribal-dl';
         ov.innerHTML = TribalDlList.pageHtml();
         (deps.mount || document.body).appendChild(ov);
+        player = window.TribalDlPlay.make(deps, function () { return ov; });
         // el ‹ se conecta ANTES que todo lo demás — si algo falla abajo,
         // la página igual se puede cerrar y no queda una pantalla muerta
         el('.dg-x').addEventListener('click', close);

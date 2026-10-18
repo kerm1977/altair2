@@ -99,9 +99,17 @@ public class TribalDlPlugin extends Plugin {
                     req.addOption("--audio-format", "mp3");
                     req.addOption("--audio-quality", "0");
                 } else {
-                    // mejor calidad ≤1080p con audio; fallback al mejor unificado
+                    // H.264+AAC obligatorio: el "mejor" formato de YouTube es
+                    // VP9/AV1 → fusionado a .mp4 queda un archivo que el
+                    // MediaPlayer de Android NO decodifica (se rompe, sin
+                    // miniatura, solo audio). Preferimos avc+m4a en todos los
+                    // niveles; lo genérico queda como último recurso.
                     req.addOption("-f",
-                        "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b");
+                        "bv*[height<=1080][vcodec^=avc]+ba[ext=m4a]" +
+                        "/b[height<=1080][ext=mp4]" +
+                        "/bv*[vcodec^=avc]+ba[ext=m4a]" +
+                        "/bv*[vcodec^=avc]+ba" +
+                        "/bv*+ba/b");
                     req.addOption("--merge-output-format", "mp4");
                 }
 

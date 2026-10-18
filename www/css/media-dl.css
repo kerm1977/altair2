@@ -120,6 +120,14 @@
 .dg-row[data-id] { cursor: pointer; }
 .dg-row[data-id]:active { background: rgba(240, 180, 41, .08); }
 .dg-row > i { font-size: 1.2rem; color: var(--tb-gold); flex: 0 0 auto; }
+.dg-thumb {
+    width: 52px; height: 38px; flex: 0 0 52px; border-radius: 8px;
+    overflow: hidden; display: flex; align-items: center;
+    justify-content: center; background: rgba(0, 0, 0, .45);
+    border: 1px solid var(--tb-border);
+}
+.dg-thumb i { color: var(--tb-gold); font-size: 1rem; }
+.dg-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .dg-rtxt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .dg-rtxt b {
     font-size: .9rem; color: var(--tb-cream); font-weight: 600;
