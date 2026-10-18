@@ -122,20 +122,41 @@ public class TribalDlPlugin extends Plugin {
                     req.addOption("--merge-output-format", "mp4");
                 }
 
-                procId = "dl_" + System.currentTimeMillis();
                 // el callback es kotlin.Function3<Float, Long, String, Unit>
                 final List<String> lines = new ArrayList<>();
-                YoutubeDL.getInstance().execute(req, procId,
-                    new Function3<Float, Long, String, Unit>() {
-                        public Unit invoke(Float progress, Long eta, String line) {
-                            if (line != null && !line.isEmpty())
-                                lines.add(line);
-                            notifyProg(progress == null ? -1 : progress,
-                                       eta == null ? -1 : eta, line);
-                            return Unit.INSTANCE;
+                // "I/O operation on closed file": bug interno de yt-dlp
+                // (handler urllib leyendo respuestas gzip tras el cierre).
+                // Puede ser transitorio → un reintento automático.
+                Exception lastErr = null;
+                for (int att = 0; att < 2; att++) {
+                    procId = "dl_" + System.currentTimeMillis() + "_" + att;
+                    try {
+                        YoutubeDL.getInstance().execute(req, procId,
+                            new Function3<Float, Long, String, Unit>() {
+                                public Unit invoke(Float progress, Long eta,
+                                                   String line) {
+                                    if (line != null && !line.isEmpty())
+                                        lines.add(line);
+                                    notifyProg(progress == null ? -1 : progress,
+                                               eta == null ? -1 : eta, line);
+                                    return Unit.INSTANCE;
+                                }
+                            });
+                        lastErr = null;
+                        break;
+                    } catch (Exception ex2) {
+                        lastErr = ex2;
+                        String lm = String.valueOf(ex2.getMessage())
+                                        .toLowerCase();
+                        if (att == 0 && lm.contains("closed file")) {
+                            notifyProg(-1, -1,
+                                "fallo del motor — reintentando…");
+                            continue;
                         }
-                    });
+                    }
+                }
                 procId = null;
+                if (lastErr != null) throw lastErr;
 
                 // (a) archivos nuevos por mtime; (b) si yt-dlp dijo "ya se
                 // había descargado" / "Destination:", el archivo ya existía

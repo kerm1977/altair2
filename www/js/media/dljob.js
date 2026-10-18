@@ -75,6 +75,14 @@ window.TribalDlJob = (function () {
                 });
             }).catch(function (e) {
                 var m = String((e && e.message) || e).slice(0, 140);
+                // "closed file" = bug del motor yt-dlp ya arreglado en
+                // versiones nuevas → sugerir ⟳ actualizar motor
+                if (/closed file/i.test(m)) {
+                    log('✖ ' + m, 'err');
+                    log('→ bug conocido de yt-dlp — toca «⟳ actualizar ' +
+                        'motor» y reintenta', 'err');
+                    m += ' — actualiza el motor (⟳)';
+                }
                 window.TribalDlLog.add({ name: job.url, url: job.url,
                     kind: job.audio ? 'a' : 'v', status: 'fail', err: m });
                 log('✖ ' + m, 'err');
