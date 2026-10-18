@@ -107,9 +107,12 @@ public class TribalDlPlugin extends Plugin {
 
                 procId = "dl_" + System.currentTimeMillis();
                 // el callback es kotlin.Function3<Float, Long, String, Unit>
+                final List<String> lines = new ArrayList<>();
                 YoutubeDL.getInstance().execute(req, procId,
                     new Function3<Float, Long, String, Unit>() {
                         public Unit invoke(Float progress, Long eta, String line) {
+                            if (line != null && !line.isEmpty())
+                                lines.add(line);
                             notifyProg(progress == null ? -1 : progress,
                                        eta == null ? -1 : eta, line);
                             return Unit.INSTANCE;
@@ -117,9 +120,18 @@ public class TribalDlPlugin extends Plugin {
                     });
                 procId = null;
 
+                // (a) archivos nuevos por mtime; (b) si yt-dlp dijo "ya se
+                // había descargado" / "Destination:", el archivo ya existía
+                // — lo devolvemos igual para registrarlo en la biblioteca
                 List<File> news = newsSince(dir, before);
+                for (String l : lines) {
+                    File f = destFile(dir, l);
+                    if (f != null && !news.contains(f)) news.add(f);
+                }
                 if (news.isEmpty()) {
-                    call.reject("yt-dlp terminó sin dejar archivo");
+                    String t = tail(lines, 6);
+                    call.reject("yt-dlp terminó sin dejar archivo"
+                        + (t.isEmpty() ? "" : " — " + t));
                     return;
                 }
                 JSArray arr = new JSArray();
@@ -229,6 +241,42 @@ public class TribalDlPlugin extends Plugin {
         }
         out.sort(Comparator.comparingLong(File::lastModified));
         return out;
+    }
+
+    // líneas de yt-dlp que nombran el archivo de destino (ya existente o
+    // recién escrito) — solo aceptamos rutas dentro de tribu_dl
+    private static File destFile(File dir, String line) {
+        String p = null;
+        int d = line.indexOf("Destination: ");
+        if (d >= 0) p = line.substring(d + 13).trim();
+        int a = line.indexOf(" has already been downloaded");
+        if (a > 0 && line.startsWith("[download]"))
+            p = line.substring(10, a).trim();
+        int m = line.indexOf("Merging formats into \"");
+        if (m >= 0) {
+            int e = line.indexOf('"', m + 22);
+            if (e > m + 22) p = line.substring(m + 22, e);
+        }
+        if (p == null || p.isEmpty()) return null;
+        try {
+            File f = new File(p).getCanonicalFile();
+            if (f.isFile() && f.getAbsolutePath().startsWith(
+                    dir.getCanonicalFile().getAbsolutePath()
+                        + File.separator)) return f;
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    // las últimas líneas del motor — para que el error diga el porqué
+    private static String tail(List<String> ls, int n) {
+        StringBuilder b = new StringBuilder();
+        for (int i = Math.max(0, ls.size() - n); i < ls.size(); i++) {
+            String l = ls.get(i).trim();
+            if (l.isEmpty()) continue;
+            if (b.length() > 0) b.append(" | ");
+            b.append(l);
+        }
+        return b.length() > 400 ? b.substring(b.length() - 400) : b.toString();
     }
 
     // yt-dlp devuelve trazas enormes — quedarnos con la línea útil

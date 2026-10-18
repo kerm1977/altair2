@@ -40,7 +40,35 @@ window.TribalDlGrab = (function () {
         return m;
     }
 
-    // tocar una descarga terminada la abre en el visor/reproductor tribal
+    // reproductor inline EN PRIMER PLANO dentro de la página — el visor
+    // tribal monta en S.root (z-index menor) y quedaba tapado por la
+    // página de descargas (se oía pero no se veía)
+    function playInline(m) {
+        var old = el('.dg-play');
+        if (old) old.parentNode.removeChild(old);
+        deps.urlFor(m, function (url) {
+            if (!url || !ov) return say('no pude leer el archivo');
+            var p = document.createElement('div');
+            p.className = 'dg-play';
+            p.innerHTML =
+                '<button class="dg-play-x">‹</button>' +
+                '<div class="dg-play-name">' + (m.name || '') + '</div>' +
+                '<video class="dg-play-v" controls autoplay playsinline' +
+                ' src="' + url + '"></video>';
+            ov.appendChild(p);
+            var v = p.querySelector('video');
+            v.addEventListener('error', function () {
+                say('✖ el archivo no se pudo reproducir');
+            });
+            p.querySelector('.dg-play-x').addEventListener('click',
+                function () {
+                    v.pause(); v.removeAttribute('src'); v.load();
+                    p.parentNode.removeChild(p);
+                });
+        });
+    }
+
+    // tocar una descarga terminada la reproduce en el reproductor inline
     function openEntry(id) {
         var e = window.TribalDlLog.find(id);
         if (!e || e.status !== 'ok') return;
@@ -50,9 +78,8 @@ window.TribalDlGrab = (function () {
             if (x.id === e.metaId || (e.path && x.path === e.path)) m = x;
         });
         if (!m) return say('ya no está en la biblioteca');
-        var S = deps.sono;
-        if (S && S.openItem) S.openItem(m);
-        else if (deps.play && m.kind === 'audio') deps.play(m);
+        if (m.kind === 'video' || m.kind === 'audio') playInline(m);
+        else if (deps.sono && deps.sono.openItem) deps.sono.openItem(m);
         else say('no sé cómo abrir este tipo de archivo');
     }
 
