@@ -16,40 +16,73 @@ window.TribalDlPlay = (function () {
         function el(s) { var r = ov && ov(); return r ? r.querySelector(s) : null; }
         function say(t) { var s = el('.dg-status'); if (s) s.textContent = t; }
 
-        // metas que apuntan al MISMO archivo de tribu_dl — por basename:
-        // el plugin puede haber registrado /data/user/0/… y /data/data/…
-        // (symlink del mismo archivo) como dos metas distintos
+        // metas que apuntan al MISMO archivo — por basename, porque el
+        // mismo file puede tener ruta /data/user/0 ↔ /data/data (symlink)
+        // o vivir en tribu_dl (descargas viejas, ref) o tribu_media
+        // (adoptados, path relativo "tribu_media/dl_x.mp4").
         function metasFor(e) {
             var idx = (window.MediaStore && MediaStore._index)
                 ? MediaStore._index() : [], hits = [];
             var base = e.path ? String(e.path).split('/').pop() : null;
+            var lib = e.lib ? String(e.lib).split('/').pop() : null;
             idx.forEach(function (x) {
                 if (e.metaId && x.id === e.metaId) return hits.push(x);
-                if (!base || !x.path) return;
+                if (!x.path) return;
+                if (e.lib && x.path === e.lib) return hits.unshift(x);
                 if (x.path === e.path) return hits.unshift(x);
-                if (x.path.indexOf('tribu_dl') >= 0 &&
-                    String(x.path).split('/').pop() === base) hits.push(x);
+                if (!base) return;
+                var b = String(x.path).split('/').pop();
+                if ((x.path.indexOf('tribu_dl') >= 0 ||
+                     x.path.indexOf('tribu_media') >= 0) &&
+                    (b === base || (lib && b === lib))) hits.push(x);
             });
             return hits;
         }
 
         // meta de la descarga; si el índice lo perdió pero el archivo sigue
-        // en tribu_dl → se re-registra sobre la marcha y queda en Videos.
+        // en disco → se re-registra sobre la marcha y queda en Videos.
         // Y si hay metas gemelos del mismo archivo → queda solo el primero.
         function metaFor(e) {
             var hits = metasFor(e), m = hits[0] || null;
             for (var i = 1; i < hits.length; i++) {
-                try { MediaStore.remove(hits[i].id); } catch (x) {}
-            }
-            if (!m && e.path) {
                 try {
-                    MediaStore.addRefs([{ path: e.path, name: e.name,
-                        size: e.size || 0,
-                        mime: window.TribalDlList.mimeOf(e.name) }]);
-                    m = metasFor(e)[0] || null;
+                    // dropPaths quita el meta SIN tocar el archivo (un
+                    // meta adoptado es propio — remove() lo borraría y
+                    // mataría al gemelo que sobrevive si comparten file)
+                    if (hits[i].path && hits[i].path !== m.path)
+                        MediaStore.dropPaths([hits[i].path]);
+                    else MediaStore.remove(hits[i].id);
+                } catch (x) {}
+            }
+            if (!m && (e.lib || e.path)) {
+                try {
+                    if (e.lib) {
+                        m = MediaStore.adoptLocal({ path: e.lib,
+                            name: e.name, size: e.size || 0, dl: true,
+                            mime: window.TribalDlList.mimeOf(e.name) });
+                    } else {
+                        MediaStore.addRefs([{ path: e.path, name: e.name,
+                            size: e.size || 0,
+                            mime: window.TribalDlList.mimeOf(e.name) }]);
+                    }
+                    m = m || metasFor(e)[0] || null;
                 } catch (x) {}
             }
             return m;
+        }
+
+        // stat flexible: ruta absoluta → file:// ; relativa → DATA
+        function exists(path) {
+            var FS = window.Capacitor && Capacitor.Plugins &&
+                     Capacitor.Plugins.Filesystem;
+            if (!FS || !FS.stat || !path) return Promise.resolve(false);
+            var q = String(path);
+            if (q.charAt(0) === '/') return FS.stat({ path: 'file://' + q })
+                .then(function () { return true; })
+                .catch(function () { return false; });
+            return FS.stat({ path: q, directory: 'DATA' })
+                .then(function () { return true; })
+                .catch(function () { return false; });
         }
 
         function play(m) {
@@ -58,14 +91,12 @@ window.TribalDlPlay = (function () {
             var old = root.querySelector('.dg-play');
             if (old) old.parentNode.removeChild(old);
             // si el archivo ya no está en disco, decirlo claro en vez de
-            // dejar un <video> cargando en infinito
-            var FS = window.Capacitor && Capacitor.Plugins &&
-                     Capacitor.Plugins.Filesystem;
-            if (m.path && FS && FS.stat) {
-                FS.stat({ path: 'file://' + m.path }).then(function () {
-                    openPlayer(m);
-                }).catch(function () {
-                    say('✖ el archivo ya no está en el dispositivo');
+            // dejar un <video> cargando en infinito (el meta puede ser
+            // absoluto —ref vieja— o relativo tribu_media —adoptado—)
+            if (m.path) {
+                exists(m.path).then(function (ok) {
+                    if (ok) openPlayer(m);
+                    else say('✖ el archivo ya no está en el dispositivo');
                 });
                 return;
             }
@@ -125,16 +156,14 @@ window.TribalDlPlay = (function () {
         // un meta de un archivo ya muerto sería una tarjeta inerte.
         function healAll(onHeal) {
             var L = window.TribalDlLog; if (!L) return;
-            var FS = window.Capacitor && Capacitor.Plugins &&
-                     Capacitor.Plugins.Filesystem;
             L.list().forEach(function (e) {
-                if (e.status !== 'ok' || !e.path || metasFor(e).length)
-                    return;
-                if (FS && FS.stat) {
-                    FS.stat({ path: 'file://' + e.path }).then(function () {
-                        if (metaFor(e) && onHeal) onHeal(e);
-                    }).catch(function () {});   // el archivo ya no existe
-                } else if (metaFor(e) && onHeal) onHeal(e);
+                if (e.status !== 'ok' || !(e.path || e.lib) ||
+                    metasFor(e).length) return;
+                // el archivo adoptado vive en e.lib (tribu_media/…);
+                // las entradas viejas usan e.path absoluto (tribu_dl)
+                exists(e.lib || e.path).then(function (ok) {
+                    if (ok && metaFor(e) && onHeal) onHeal(e);
+                });
             });
         }
 

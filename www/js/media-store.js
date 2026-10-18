@@ -220,6 +220,32 @@ window.MediaStore = (function () {
             return { added: added, skipped: skipped };
         },
 
+        // Registra un archivo YA dentro de tribu_media/ (ruta RELATIVA a
+        // DATA, ej. tribu_media/dl_x.mp4) como PROPIO: igual que add() pero
+        // sin copiar el blob — lo usa el descargador tras dlAdopt, que ya
+        // movió el archivo físicamente. remove() sí borra el archivo.
+        // f.dl marca el origen «descargas» para origins.js.
+        adoptLocal: function (f) {
+            var index = getIndex();
+            for (var i = 0; i < index.length; i++)
+                if (index[i].path === f.path) return index[i];
+            var mime = f.mime || IO.mimeFromName(f.name, '');
+            var meta = {
+                id: 'm_' + Date.now().toString(36) + '_' +
+                    Math.random().toString(36).slice(2, 8),
+                name: f.name,
+                mime: mime,
+                kind: f.kind || kindFromMime(mime, f.name),
+                size: f.size || 0,
+                addedAt: Date.now(),
+                path: f.path
+            };
+            if (f.dl) meta.dl = true;
+            index.push(meta);
+            saveIndex(index);
+            return meta;
+        },
+
         // Quita del índice los metas cuya ruta ya no existe (p. ej. borrados
         // por el limpiador) → cantidad de entradas retiradas
         dropPaths: function (paths) {

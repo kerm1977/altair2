@@ -45,6 +45,9 @@ window.TribalOrigins = (function () {
         if (!m || m.kind !== 'audio') return null;
         if (isVN(m)) return 'vn';
         if (m.builtin) return 'tribu';
+        // descarga adoptada: vive en tribu_media como archivo propio —
+        // el flag meta.dl la mantiene agrupada en «descargas»
+        if (m.dl) return 'dl';
         return pathKey(m.ref ? m.path : null);
     }
 

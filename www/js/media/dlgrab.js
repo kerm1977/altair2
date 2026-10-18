@@ -129,7 +129,11 @@ window.TribalDlGrab = (function () {
                     window.TribalDlJob.onProg);
                 if (h && h.then) h.then(function (x) { listener = x; });
                 else listener = h;
-                plug().dlDir().then(function (r) { dir = r.dir || ''; });
+                plug().dlDir().then(function (r) {
+                    // los archivos terminan adoptados en tribu_media —
+                    // tribu_dl queda solo como staging del motor
+                    dir = (r && (r.media || r.dir)) || '';
+                });
             }
             el('.dg-vid').addEventListener('click',
                 function () { grab(false); });

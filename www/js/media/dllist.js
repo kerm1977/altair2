@@ -40,9 +40,8 @@ window.TribalDlList = (function () {
 
     // fila del historial (persistente) — review=true muestra la ruta real
     function hRow(e, review) {
-        var st = e.status === 'ok'
-            ? '<b class="dg-ok">✔ ' + mb(e.size) + '</b>'
-            : '<b class="dg-bad">✖ ' + esc(e.err || 'falló') + '</b>';
+        var st = e.status === 'ok' ? '<b class="dg-ok">✔ ' + mb(e.size) +
+            '</b>' : '<b class="dg-bad">✖ ' + esc(e.err || 'falló') + '</b>';
         // video descargado → casilla de miniatura (la rellena onThumb)
         var lead = (e.status === 'ok' && e.kind === 'v')
             ? '<span class="dg-thumb" data-dthumb="' + e.id + '">' +
@@ -71,9 +70,7 @@ window.TribalDlList = (function () {
     function render(el, o) {
         if (!el) return;
         var html = '';
-        if (o.dir) {
-            html += '<div class="dg-dir">📁 ' + esc(o.dir) + '</div>';
-        }
+        if (o.dir) html += '<div class="dg-dir">📁 ' + esc(o.dir) + '</div>';
         // cola viva: la que corre primero, luego pendientes
         if (o.running) html += qRow(o.running, true, o.pct, o.line);
         (o.queue || []).forEach(function (j) { html += qRow(j, false); });
@@ -82,7 +79,7 @@ window.TribalDlList = (function () {
         var slice = (o.items || []).slice(o.page * PAGE, (o.page + 1) * PAGE);
         if (!slice.length && !o.running && !(o.queue && o.queue.length))
             html += '<div class="dg-empty">Sin descargas todavía — ' +
-                'pega un enlace arriba.</div>';
+                    'pega un enlace arriba.</div>';
         slice.forEach(function (e) { html += hRow(e, o.review); });
         html += pagerHtml((o.items || []).length, o.page);
         el.innerHTML = html;
@@ -129,11 +126,10 @@ window.TribalDlList = (function () {
             '<div class="dg-console" hidden></div>' +
             '<div class="dg-list"></div>' +
             '<div class="fx-foot">yt-dlp en el teléfono · los archivos ' +
-            'caen en la colección «descargas»</div></div>';
+            'quedan en tu biblioteca (Videos/Música)</div></div>';
     }
 
-    // consola de diagnóstico: cada línea cruda de yt-dlp (y nuestros
-    // eventos) — tope 250 líneas, autoscroll al final
+    // consola de diagnóstico: líneas crudas de yt-dlp — tope 250, autoscroll
     function logWrite(el, line, cls) {
         if (!el) return;
         var d = document.createElement('div');
@@ -155,13 +151,16 @@ window.TribalDlList = (function () {
         var idx = (window.MediaStore && MediaStore._index)
             ? MediaStore._index() : [], hits = 0;
         var base = e && e.path ? String(e.path).split('/').pop() : null;
+        var lib = e && e.lib ? String(e.lib).split('/').pop() : null;
         idx.forEach(function (m) {
-            // mismo archivo: id, ruta exacta, o mismo basename en tribu_dl
-            // (/data/user/0/… y /data/data/… son el mismo archivo)
-            var same = e && ((e.metaId && m.id === e.metaId) ||
-                (e.path && m.path === e.path) ||
-                (base && m.path && m.path.indexOf('tribu_dl') >= 0 &&
-                 String(m.path).split('/').pop() === base));
+            // mismo archivo: id, ruta exacta, o mismo basename en
+            // tribu_dl/tribu_media (/data/user/0 ↔ /data/data son el
+            // mismo file; los adoptados viven como tribu_media/dl_*)
+            var b = m.path ? String(m.path).split('/').pop() : null;
+            var same = e && m.path && ((e.metaId && m.id === e.metaId) ||
+                m.path === e.path || m.path === e.lib ||
+                (/tribu_dl|tribu_media/.test(m.path) &&
+                 (b === base || b === lib)));
             if (same) {
                 hits++;
                 MediaStore.remove(m.id).then(function () {

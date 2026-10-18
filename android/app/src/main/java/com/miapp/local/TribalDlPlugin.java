@@ -187,15 +187,17 @@ public class TribalDlPlugin extends Plugin {
         call.resolve();
     }
 
-    // borra SOLO dentro de tribu_dl — nunca acepta una ruta de fuera
+    // borra SOLO dentro de tribu_dl o tribu_media — nunca fuera de ahí
     @PluginMethod
     public void dlDelete(PluginCall call) {
         String p = call.getString("path", "");
         try {
-            File dir = dlDirFile().getCanonicalFile();
+            String dl = dlDirFile().getCanonicalPath() + File.separator;
+            String md = new File(getContext().getFilesDir(), "tribu_media")
+                .getCanonicalPath() + File.separator;
             File f = new File(p).getCanonicalFile();
-            if (!f.getAbsolutePath()
-                    .startsWith(dir.getAbsolutePath() + File.separator)) {
+            String fp = f.getAbsolutePath();
+            if (!fp.startsWith(dl) && !fp.startsWith(md)) {
                 call.reject("la ruta no está dentro de las descargas");
                 return;
             }
@@ -237,7 +239,52 @@ public class TribalDlPlugin extends Plugin {
     public void dlDir(PluginCall call) {
         JSObject r = new JSObject();
         r.put("dir", dlDirFile().getAbsolutePath());
+        r.put("media", new File(getContext().getFilesDir(), "tribu_media")
+            .getAbsolutePath());
         call.resolve(r);
+    }
+
+    // mueve una descarga de tribu_dl (staging) a tribu_media — la carpeta
+    // propia de la biblioteca. El JS lo registra como archivo PROPIO
+    // (path relativo, sin ref): igual que uno subido por el selector,
+    // entra de una vez a Videos/Música y remove() borra el archivo.
+    // Devuelve "path" RELATIVO a filesDir (Directory.DATA).
+    @PluginMethod
+    public void dlAdopt(PluginCall call) {
+        String p = call.getString("path", "");
+        String name = call.getString("name", "");
+        try {
+            File src = new File(p).getCanonicalFile();
+            File dl = dlDirFile().getCanonicalFile();
+            if (!src.isFile() || !src.getAbsolutePath().startsWith(
+                    dl.getAbsolutePath() + File.separator)) {
+                call.reject("la ruta no está dentro de las descargas");
+                return;
+            }
+            File media = new File(getContext().getFilesDir(), "tribu_media");
+            //noinspection ResultOfMethodCallIgnored
+            media.mkdirs();
+            String safe = (name.isEmpty() ? src.getName() : name)
+                    .replaceAll("[^\\w.\\-]+", "_");
+            // nombre estable por título: re-descargar lo mismo pisa el
+            // archivo viejo en vez de amontonar duplicados
+            File dst = new File(media, "dl_" + safe);
+            if (dst.exists()) { //noinspection ResultOfMethodCallIgnored
+                dst.delete();
+            }
+            if (!src.renameTo(dst)) {
+                call.reject("no se pudo mover el archivo");
+                return;
+            }
+            JSObject r = new JSObject();
+            r.put("path", "tribu_media/" + dst.getName());
+            r.put("abs", dst.getAbsolutePath());
+            r.put("name", dst.getName());
+            r.put("size", dst.length());
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
+        }
     }
 
     // ------------------------------------------------------------- helpers

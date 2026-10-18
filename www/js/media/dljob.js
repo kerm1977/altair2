@@ -66,21 +66,13 @@ window.TribalDlJob = (function () {
                         playlist: job.playlist }).then(function (r) {
                 var files = (r && r.files && r.files.length) ? r.files
                     : (r && r.path ? [r] : []);
-                files.forEach(function (f) {
-                    try {
-                        ctx.store.addRefs([{ path: f.path, name: f.name,
-                            size: f.size, mime: ctx.mimeOf(f.name),
-                            mtime: Date.now() }]);
-                    } catch (e) {}
-                    var m = ctx.metaOf(f.path);
-                    window.TribalDlLog.add({ name: f.name, path: f.path,
-                        size: f.size, url: job.url,
-                        kind: job.audio ? 'a' : 'v', status: 'ok',
-                        metaId: m ? m.id : null });
+                Promise.all(files.map(function (f) {
+                    return adoptOne(f, job);
+                })).then(function () {
+                    finish(files.length ? files.length +
+                        ' archivo(s) en tu biblioteca' : null,
+                        files.length ? null : '✖ yt-dlp no dejó archivo');
                 });
-                finish(files.length ? files.length +
-                    ' archivo(s) en «descargas»' : null,
-                    files.length ? null : '✖ yt-dlp no dejó archivo');
             }).catch(function (e) {
                 var m = String((e && e.message) || e).slice(0, 140);
                 window.TribalDlLog.add({ name: job.url, url: job.url,
@@ -89,6 +81,50 @@ window.TribalDlJob = (function () {
                 finish(null, '✖ ' + m);
             });
         } catch (e) { finish(null, '✖ ' + String(e)); }
+    }
+
+    // el archivo bajó a tribu_dl (staging) → dlAdopt lo mueve a
+    // tribu_media/ y queda registrado como archivo PROPIO de la
+    // biblioteca (meta.path relativo, sin ref): igual que subirlo por
+    // el selector — entra a Videos/Música de una y persiste.
+    // Si la adopción falla, queda como ref externa (comportamiento viejo).
+    function adoptOne(f, job) {
+        var mime = ctx.mimeOf(f.name);
+        function done(pathForLog, metaId, absForLog) {
+            window.TribalDlLog.add({ name: f.name,
+                path: absForLog || pathForLog,
+                lib: pathForLog.indexOf('tribu_media') === 0
+                     ? pathForLog : null,
+                size: f.size, url: job.url,
+                kind: job.audio ? 'a' : 'v', status: 'ok',
+                metaId: metaId });
+        }
+        var p = ctx.plug && ctx.plug();
+        if (!p || !p.dlAdopt) {          // fallback: solo ref
+            var m = null;
+            try {
+                ctx.store.addRefs([{ path: f.path, name: f.name,
+                    size: f.size, mime: mime, mtime: Date.now() }]);
+                m = ctx.metaOf(f.path);
+            } catch (e) {}
+            return Promise.resolve(done(f.path, m ? m.id : null));
+        }
+        return p.dlAdopt({ path: f.path, name: f.name }).then(function (r) {
+            var m2 = null;
+            try {
+                m2 = ctx.store.adoptLocal({ path: r.path, name: f.name,
+                    size: r.size || f.size, mime: mime, dl: true });
+            } catch (e) {}
+            done(r.path, m2 ? m2.id : null, r.abs || f.path);
+        }).catch(function () {
+            var m3 = null;
+            try {
+                ctx.store.addRefs([{ path: f.path, name: f.name,
+                    size: f.size, mime: mime, mtime: Date.now() }]);
+                m3 = ctx.metaOf(f.path);
+            } catch (e) {}
+            done(f.path, m3 ? m3.id : null);
+        });
     }
 
     function finish(ok, err) {
