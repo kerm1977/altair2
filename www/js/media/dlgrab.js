@@ -40,6 +40,22 @@ window.TribalDlGrab = (function () {
         return m;
     }
 
+    // tocar una descarga terminada la abre en el visor/reproductor tribal
+    function openEntry(id) {
+        var e = window.TribalDlLog.find(id);
+        if (!e || e.status !== 'ok') return;
+        var idx = MediaStore._index ? MediaStore._index() : [];
+        var m = null;
+        idx.forEach(function (x) {
+            if (x.id === e.metaId || (e.path && x.path === e.path)) m = x;
+        });
+        if (!m) return say('ya no está en la biblioteca');
+        var S = deps.sono;
+        if (S && S.openItem) S.openItem(m);
+        else if (deps.play && m.kind === 'audio') deps.play(m);
+        else say('no sé cómo abrir este tipo de archivo');
+    }
+
     function grab(audio) {
         var url = (el('.dg-url').value || '').trim();
         var bad = !url || !/^https?:\/\//i.test(url);
@@ -139,7 +155,9 @@ window.TribalDlGrab = (function () {
                     page += +pg.getAttribute('data-pg'); refresh(); return;
                 }
                 var del = e.target.closest('.dg-del');
-                if (del) TribalDlList.del3(del, doDelete, refresh);
+                if (del) { TribalDlList.del3(del, doDelete, refresh); return; }
+                var row = e.target.closest('.dg-row[data-id]');
+                if (row) openEntry(row.getAttribute('data-id'));
             });
             refresh();
             if (!plug()) say('⚠ disponible solo en el APK instalado');
