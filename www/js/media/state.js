@@ -39,9 +39,12 @@ window.TribalState = (function () {
     // ---- qué herramienta estaba abierta (una a la vez, la última gana) ----
     var openers = {};
     function opened(name, payload) { save('tool', { n: name, p: payload || null }); }
+    // closed() flushea al instante: si el usuario cierra la herramienta y
+    // mata la app en <300ms, el flag no debe quedar vivo o la herramienta
+    // reaparecería sola en el próximo arranque
     function closed(name) {
         var t = get('tool', null);
-        if (t && t.n === name) del('tool');
+        if (t && t.n === name) { del('tool'); flush(); }
     }
     function reg(name, fn) { openers[name] = fn; }
     function restoreTools() {

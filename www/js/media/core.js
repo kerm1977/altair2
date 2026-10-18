@@ -27,7 +27,15 @@ window.Sono = (function () {
         if (!root || root.dataset.init === '1') return;
         root.dataset.init = '1';
         bindRefs();
-        modOrder.forEach(function (k) { mods[k](S); });
+        // cada módulo se inicializa en su propio try: si uno revienta,
+        // el resto de la app arranca igual (anti-crash de arranque)
+        modOrder.forEach(function (k) {
+            try { mods[k](S); }
+            catch (e) {
+                try { console.error('[sono] init falló: ' + k, e); }
+                catch (_) {}
+            }
+        });
         S.reload();
     };
 

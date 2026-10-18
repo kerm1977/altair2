@@ -137,41 +137,48 @@ window.TribalDlGrab = (function () {
         close();
         deps = d || {};
         if (window.TribalState) TribalState.opened('dl');
-        TribalDlLog.markDead();
+        try { TribalDlLog.markDead(); } catch (e) {}
         ov = document.createElement('div');
         ov.className = 'tribal-dl';
         ov.innerHTML = TribalDlList.pageHtml();
         (deps.mount || document.body).appendChild(ov);
-
-        if (plug()) {
-            plug().addListener('dlProgress', function (p) {
-                if (p.pct >= 0) { pct = p.pct; bar(pct); }
-                if (p.line) { lastLine = p.line; say(p.line.slice(0, 120)); }
-                refresh();
-            }).then(function (h) { listener = h; });
-            plug().dlDir().then(function (r) { dir = r.dir || ''; });
-        }
+        // el ‹ se conecta ANTES que todo lo demás — si algo falla abajo,
+        // la página igual se puede cerrar y no queda una pantalla muerta
         el('.dg-x').addEventListener('click', close);
-        el('.dg-vid').addEventListener('click', function () { grab(false); });
-        el('.dg-aud').addEventListener('click', function () { grab(true); });
-        el('.dg-rev').addEventListener('click', function () {
-            review = !review; page = 0; refresh();
-        });
-        el('.dg-paste').addEventListener('click', function () {
-            if (navigator.clipboard && navigator.clipboard.readText) {
-                navigator.clipboard.readText().then(function (t) {
-                    if (t) el('.dg-url').value = t.trim();
-                }).catch(function () {});
+        try {
+            if (plug()) {
+                plug().addListener('dlProgress', function (p) {
+                    if (p.pct >= 0) { pct = p.pct; bar(pct); }
+                    if (p.line) { lastLine = p.line; say(p.line.slice(0, 120)); }
+                    refresh();
+                }).then(function (h) { listener = h; });
+                plug().dlDir().then(function (r) { dir = r.dir || ''; });
             }
-        });
-        el('.dg-list').addEventListener('click', function (e) {
-            var pg = e.target.closest('.dg-pg');
-            if (pg) { page += +pg.getAttribute('data-pg'); refresh(); return; }
-            var del = e.target.closest('.dg-del');
-            if (del) TribalDlList.del3(del, doDelete, refresh);
-        });
-        refresh();
-        if (!plug()) say('⚠ disponible solo en el APK instalado');
+            el('.dg-vid').addEventListener('click',
+                function () { grab(false); });
+            el('.dg-aud').addEventListener('click',
+                function () { grab(true); });
+            el('.dg-rev').addEventListener('click', function () {
+                review = !review; page = 0; refresh();
+            });
+            el('.dg-paste').addEventListener('click', function () {
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    navigator.clipboard.readText().then(function (t) {
+                        if (t) el('.dg-url').value = t.trim();
+                    }).catch(function () {});
+                }
+            });
+            el('.dg-list').addEventListener('click', function (e) {
+                var pg = e.target.closest('.dg-pg');
+                if (pg) {
+                    page += +pg.getAttribute('data-pg'); refresh(); return;
+                }
+                var del = e.target.closest('.dg-del');
+                if (del) TribalDlList.del3(del, doDelete, refresh);
+            });
+            refresh();
+            if (!plug()) say('⚠ disponible solo en el APK instalado');
+        } catch (e) { say('✖ ' + String(e)); }
     }
 
     return { open: open, close: close };
