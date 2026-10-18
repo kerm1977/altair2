@@ -17,7 +17,7 @@ import java.io.File;
 // pantalla se apague o la app quede en segundo plano. Escribe un .m4a (AAC)
 // en filesDir/recs/ — el archivo mismo ES el borrador a prueba de cierres.
 public class TribalRecService extends Service {
-    static final String CH = "tribu_rec", ACT = "acc";
+    static final String CH = "tribu_rec", ACT = "acc", SRC = "src";
     static final int ACT_START = 1, ACT_PAUSE = 2, ACT_RESUME = 3,
                        ACT_STOP = 4, ACT_CANCEL = 5;
     private static final int FG_ID = 73;
@@ -26,6 +26,7 @@ public class TribalRecService extends Service {
     private File outFile;
     private long startedAt, accMs;
     private boolean paused;
+    private int src;   // 0=MIC · 1=llamada en curso (VOICE_COMMUNICATION)
 
     static volatile File lastFile;      // lo consulta el plugin
     static volatile long lastDurMs;
@@ -38,6 +39,7 @@ public class TribalRecService extends Service {
         channel();
         goForeground();
         int act = i != null ? i.getIntExtra(ACT, 0) : 0;
+        if (act == ACT_START) src = i.getIntExtra(SRC, 0);
         try {
             if (act == ACT_START) doStart();
             else if (act == ACT_PAUSE) doPause();
@@ -65,7 +67,10 @@ public class TribalRecService extends Service {
         dir.mkdirs();
         outFile = new File(dir, "nota_" + System.currentTimeMillis() + ".m4a");
         rec = new MediaRecorder();
-        rec.setAudioSource(MediaRecorder.AudioSource.MIC);
+        // llamada en curso → fuente de comunicación (mejor captura por el
+        // altavoz); si no → micrófono normal para notas de voz
+        rec.setAudioSource(src == 1 ? MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                                  : MediaRecorder.AudioSource.MIC);
         rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
         rec.setAudioEncodingBitRate(128000);

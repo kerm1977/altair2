@@ -1,6 +1,9 @@
 // === media/vnotes.js — Notas de audio (grabador tipo podcast) ==========
-// Mic: toca→graba / grabando→pausa / pausa→reanuda. Stop → confirmación:
-// guardar / seguir / eliminar (triple confirmación). Guarda «Mi grabación N».
+// Abrir el panel → empieza a grabar SOLA (sin selector): el micrófono
+// siempre; si hay una llamada en curso, el servicio graba con fuente de
+// comunicación y capta la llamada por el altavoz. Tocar el micrófono o
+// el efecto (canvas) mientras graba → detiene y pregunta: guardar /
+// seguir / eliminar (triple confirmación). Guarda «Mi grabación N».
 // Si el sistema se pega o la app se oculta, queda en pausa con borrador
 // persistente (vndraft.js + vnotesav.js) para seguir / guardar / eliminar.
 // Viz: vnotesviz.js · fila: vnotesrow.js.
@@ -9,8 +12,7 @@ window.TribalVNotes = (function () {
     var ov, deps, rec, stream, viz, tickT, draftT,
         ctx = { chunks: null, mime: '', elapsed: 0, startedAt: 0,
                 pendingBuf: null, pendingBlobs: [], pendingExt: '',
-                mode: 'mic', fmt: 'm4a' };   // mode: mic|call|screen · fmt: mp3|m4a|mp4
-    function isScreen() { return ctx.mode === 'screen'; }
+                fmt: 'm4a' };
     function noop() {}
 
     var MIMES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
@@ -75,11 +77,7 @@ window.TribalVNotes = (function () {
         recB.querySelector('i').className = 'bi bi-' +
             (s === 'rec' ? 'pause' : s === 'paused' ? 'play' : 'mic') + '-fill';
         stopB.hidden = (s === 'idle' || s === 'draft');
-        var minB = ov.querySelector('#vn-min');
-        if (minB) minB.hidden = !(isScreen() && window.TribalVScreen &&
-            TribalVScreen.native() && (s === 'rec' || s === 'paused'));
-        st.textContent = s === 'rec' ? (isScreen() ? 'Grabando la pantalla — toca para pausar'
-                                                   : 'Grabando — toca para pausar') :
+        st.textContent = s === 'rec' ? 'Grabando — toca el micrófono o el efecto para detener' :
             s === 'paused' ? 'En pausa — toca para seguir' :
             s === 'draft' ? 'Borrador recuperado — decide abajo' :
                              'Toca el micrófono para grabar';
@@ -151,76 +149,34 @@ window.TribalVNotes = (function () {
         finishAudio(blob, ctx.liveSecs());
     }
 
-    // ---- selector de modo: micrófono · llamada · pantalla y sonido ---------
     function pauseAny() {
-        if (isScreen()) TribalVScreen.pause();
-        else if (isNative()) REC.recPause().catch(noop);
+        if (isNative()) REC.recPause().catch(noop);
         else if (rec) rec.pause();
     }
     function resumeAny() {
-        if (isScreen()) TribalVScreen.resume();
-        else if (isNative()) REC.recResume().catch(noop);
+        if (isNative()) REC.recResume().catch(noop);
         else if (rec) rec.resume();
     }
-    function begin(sel) {
-        ctx.mode = sel.mode; ctx.fmt = sel.fmt;
-        if (!isScreen()) return startRec();
-        if (!window.TribalVScreen || !TribalVScreen.supported())
-            return deps.toast('Este dispositivo no permite grabar la pantalla');
-        TribalVScreen.start(onScreenEnded).then(function () {
-            ctx.mime = ''; ctx.chunks = []; ctx.elapsed = 0; ctx.startedAt = Date.now();
-            setState('rec'); tickT = setInterval(tick, 250);
-            if (TribalVScreen.native()) {
-                deps.toast('Grabando la pantalla — detén desde la notificación ■');
-                setTimeout(TribalVScreen.minimize, 700);   // app al fondo, como el grabador de Samsung
-            }
-        }).catch(function () { deps.toast('No se pudo iniciar la grabación de pantalla'); });
+    // detener: pausa + pregunta guardar/seguir/eliminar — se dispara al
+    // tocar el micrófono, el botón ■ o el efecto mientras graba
+    function stopAsk() {
+        if (ctx.state === 'rec') {
+            ctx.elapsed += (Date.now() - ctx.startedAt) / 1000;
+            pauseAny();
+        }
+        setState('paused'); saveDraft(); askStop();
     }
-    function pickMode() {
-        if (!window.TribalVMode) { ctx.mode = 'mic'; ctx.fmt = 'm4a'; return startRec(); }
-        TribalVMode.pick(ov, begin);
-    }
-    function onScreenEnded() {                  // web: dejó de compartirse la pantalla
-        if (!ov || ctx.state !== 'rec') return;
-        ctx.elapsed += (Date.now() - ctx.startedAt) / 1000;
-        setState('paused'); askStop();
-    }
-    function syncScreen() {                     // nativo: ¿se detuvo desde la notificación?
-        TribalVScreen.peek().then(function (r) {
-            if (r && !r.live && ctx.state === 'rec' && ov) {
-                ctx.elapsed += (Date.now() - ctx.startedAt) / 1000;
-                setState('paused'); askStop();
-            }
-        }).catch(noop);
-    }
-    function saveScreen() {
-        var secs = ctx.elapsed;
-        TribalVScreen.stop().then(function (r) {
-            endStream(); setState('idle'); ctx.elapsed = 0;
-            if (ov) ov.querySelector('#vn-time').textContent = '00:00';
-            if (!r || !r.blob) return deps.toast('No quedó nada que guardar');
-            if (!r.durMs) r.durMs = secs * 1000;
-            return TribalVScreen.save(deps, r, ctx.fmt,
-                ctx.fmt === 'mp3' ? ctx.nextName() : '', ctx.fillList);
-        }).catch(function () { deps.toast('No se pudo guardar la grabación de pantalla'); });
-    }
-    function restoreScreen(r) {                 // MP4 que quedó sin guardar (cierre / notificación)
-        ctx.mode = 'screen'; ctx.fmt = 'mp4'; ctx.elapsed = 0; setState('draft');
-        ov.querySelector('#vn-time').textContent = fmtT((r.durMs || 0) / 1000);
-        var box = ov.querySelector('#vn-ask');
-        box.innerHTML = '<p><i class="bi bi-display"></i> Grabación de pantalla sin guardar' +
-            (r.durMs ? ' (' + fmtT(r.durMs / 1000) + ')' : '') + ' — ¿qué hago?</p>' +
-            '<div class="vn-ask-btns"><button data-a="d-save"><i class="bi bi-check2"></i> Guardar en Videos</button>' +
-            '<button data-a="del" class="danger"><i class="bi bi-trash3"></i> Eliminar</button></div>';
-        box.hidden = false;
+    // reanudar tras la pausa (tap en mic o efecto estando en pausa)
+    function resumeNow() {
+        resumeAny();
+        ctx.startedAt = Date.now(); setState('rec');
     }
 
     // stop → confirmar: guardar / seguir / eliminar (eliminar = 3 pasos)
     function askStop() {
         var box = ov.querySelector('#vn-ask');
         box.innerHTML = '<p><i class="bi bi-question-circle"></i> ' +
-            '¿Qué hago con ' + (isScreen() ? 'la grabación de pantalla' :
-                '«Mi grabación ' + peekN() + '»') + '?</p>' +
+            '¿Qué hago con «Mi grabación ' + peekN() + '»?</p>' +
             '<div class="vn-ask-btns"><button data-a="save"><i class="bi bi-check2"></i> Guardar</button>' +
             '<button data-a="more"><i class="bi bi-play"></i> Seguir grabando</button>' +
             '<button data-a="del" class="danger"><i class="bi bi-trash3"></i> Eliminar memo</button></div>';
@@ -239,14 +195,6 @@ window.TribalVNotes = (function () {
     }
     function dropRec() {                        // tirar el memo sin guardar
         window.TribalVNav.clearPending(ctx); ctx.chunks = [];
-        if (isScreen()) {
-            TribalVScreen.peek().then(function (r) {
-                TribalVScreen.cancel(); if (r) TribalVScreen.drop(r.rel);
-            }).catch(noop);
-            endStream(); setState('idle');
-            ov.querySelector('#vn-time').textContent = '00:00';
-            ctx.elapsed = 0; return;
-        }
         if (isNative()) {
             REC.recCancel().catch(function () {});
             endStream(); setState('idle');
@@ -269,7 +217,6 @@ window.TribalVNotes = (function () {
         box.hidden = true;
         if (a === 'del3') return dropRec();
         if (a === 'd-save') {                   // guardar el borrador tal cual
-            if (isScreen()) return saveScreen();
             return window.TribalVNav.savePending(deps, ctx)
                 .then(function () { window.TribalVNav.clearPending(ctx); })
                 .then(function () {
@@ -278,16 +225,6 @@ window.TribalVNotes = (function () {
                 });
         }
         if (a === 'more') {                     // seguir: reanuda la grabación
-            if (isScreen()) {
-                return TribalVScreen.peek().then(function (r) {
-                    if (r && r.live) {
-                        TribalVScreen.resume(); ctx.startedAt = Date.now(); setState('rec');
-                    } else {
-                        deps.toast('La grabación ya terminó — guárdala o elimínala');
-                        askStop();
-                    }
-                }).catch(noop);
-            }
             if (isNative()) {
                 if (ctx.state === 'paused') REC.recResume().catch(function () {});
                 else { startRec(); return; }    // borrador nativo → toma nueva
@@ -296,7 +233,6 @@ window.TribalVNotes = (function () {
             else if (!rec) { startRec(); return; }
             ctx.startedAt = Date.now(); setState('rec'); return;
         }
-        if (isScreen()) return saveScreen();
         if (isNative()) {                       // save (ruta nativa)
             REC.recStop().then(recFileBlob).then(function (r) {
                 endStream(); setState('idle');
@@ -384,9 +320,7 @@ window.TribalVNotes = (function () {
             '<div class="lk-body"><canvas id="vn-canvas" width="360" height="300"></canvas>' +
             '<div id="vn-time" class="vn-time">00:00</div><div id="vn-state" class="vn-state"></div>' +
             '<div class="vn-btns"><button id="vn-rec" class="vn-rec"><i class="bi bi-mic-fill"></i></button>' +
-            '<button id="vn-stop" class="vn-stop" hidden><i class="bi bi-stop-fill"></i></button>' +
-            '<button id="vn-min" class="vn-stop" hidden title="Minimizar y seguir grabando">' +
-            '<i class="bi bi-box-arrow-down-left"></i></button></div>' +
+            '<button id="vn-stop" class="vn-stop" hidden><i class="bi bi-stop-fill"></i></button></div>' +
             '<div id="vn-ask" class="vn-ask" hidden></div><div id="vn-list" class="vn-list"></div>' +
             '</div></div>';
         (deps.mount || document.body).appendChild(ov);
@@ -395,31 +329,21 @@ window.TribalVNotes = (function () {
         ov.querySelector('#vn-ask').addEventListener('click', onAsk);
         ov.querySelector('#vn-rec').addEventListener('click', function () {
             if (ctx.state === 'draft') return;   // decide en el aviso primero
-            if (ctx.state === 'idle') return pickMode();
-            if (ctx.state === 'rec') {
-                ctx.elapsed += (Date.now() - ctx.startedAt) / 1000;
-                pauseAny();
-                setState('paused'); saveDraft();
-            } else {
-                resumeAny();
-                ctx.startedAt = Date.now(); setState('rec'); }
+            if (ctx.state === 'idle') return startRec();
+            if (ctx.state === 'rec') return stopAsk();
+            resumeNow();
         });
-        ov.querySelector('#vn-stop').addEventListener('click', function () {
-            if (ctx.state === 'rec') {
-                ctx.elapsed += (Date.now() - ctx.startedAt) / 1000;
-                pauseAny();
-            }
-            setState('paused'); saveDraft(); askStop();
+        // tocar el efecto detiene igual que el micrófono — objetivo grande
+        ov.querySelector('#vn-canvas').addEventListener('click', function () {
+            if (ctx.state === 'rec') return stopAsk();
+            if (ctx.state === 'paused') resumeNow();
         });
-        ov.querySelector('#vn-min').addEventListener('click', function () {
-            if (window.TribalVScreen) TribalVScreen.minimize();
-        });
+        ov.querySelector('#vn-stop').addEventListener('click', stopAsk);
     }
     // si el sistema se pega / la app se oculta → pausa + borrador salvo.
     // Se registran UNA vez a nivel de módulo (no dentro de build, que corre
     // cada vez que se abre el panel).
     document.addEventListener('visibilitychange', function () {
-        if (!document.hidden && ov && isScreen() && ctx.state === 'rec') syncScreen();
         if (isNative()) return;   // nativo sigue grabando con pantalla apagada
         if (document.hidden && ctx.state === 'rec' && rec) {
             ctx.elapsed += (Date.now() - ctx.startedAt) / 1000;
@@ -460,27 +384,21 @@ window.TribalVNotes = (function () {
     function open(d) {
         deps = d;
         if (ov) close(); build();
-        ctx.mode = 'mic'; ctx.fmt = 'm4a'; listPage = 0;
+        ctx.fmt = 'm4a'; listPage = 0;
         ctx.elapsed = 0; ctx.state = 'idle'; setState('idle'); fillList();
-        if (window.TribalVDraft && TribalVDraft.meta()) restoreDraft();
-        else if (isNative()) (window.TribalVScreen ? TribalVScreen.peek() : Promise.resolve({}))
-            .then(function (sr) {
-                if (sr && sr.live) {              // pantalla grabándose en segundo plano
-                    ctx.mode = 'screen'; ctx.fmt = 'mp4';
-                    ctx.elapsed = (sr.durMs || 0) / 1000; ctx.startedAt = Date.now();
-                    setState(sr.paused ? 'paused' : 'rec');
+        // hay algo pendiente de decidir → el aviso manda, no se graba
+        if (window.TribalVDraft && TribalVDraft.meta()) return restoreDraft();
+        if (isNative()) {
+            return REC.recPeek().then(function (r) {
+                if (r && r.live) {                    // ya graba en segundo plano
+                    ctx.elapsed = (r.durMs || 0) / 1000; ctx.mime = 'audio/mp4';
+                    ctx.startedAt = Date.now(); setState('rec');
                     tickT = setInterval(tick, 250);
-                    return;
-                }
-                if (sr && sr.rel) return restoreScreen(sr);
-                return REC.recPeek().then(function (r) {
-                    if (r && r.live) {                // sigue grabando en segundo plano
-                        ctx.elapsed = (r.durMs || 0) / 1000; ctx.mime = 'audio/mp4';
-                        ctx.startedAt = Date.now(); setState('rec');
-                        tickT = setInterval(tick, 250); }
-                    else if (r && r.rel) restoreNative(r);
-                });
+                } else if (r && r.rel) restoreNative(r);
+                else startRec();
             }).catch(noop);
+        }
+        startRec();   // se abre grabando — sin selector, micrófono directo
     }
     return { open: open };
 })();

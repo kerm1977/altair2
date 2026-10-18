@@ -77,7 +77,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <!-- Grabar notas de audio con la pantalla apagada (servicio de micrófono) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
     <!-- Visibilidad de paquetes (Android 11+): sin esto queryIntentActivities
          no ve la app Bluetooth Share ni los demás destinos de ACTION_SEND -->
@@ -156,11 +155,6 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
-        <!-- Grabación de pantalla: MediaProjection + micrófono, con la app minimizada -->
-        <service
-            android:name=".TribalScreenService"
-            android:exported="false"
-            android:foregroundServiceType="mediaProjection|microphone" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

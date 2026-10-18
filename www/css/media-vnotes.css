@@ -75,30 +75,6 @@
 }
 .vn-ask-btns button.danger { border-color: var(--tb-terra); color: #ff9d7a;
     background: rgba(226, 96, 46, .12); }
-/* selector de qué grabar: micrófono · llamada · pantalla y sonido */
-/* sin recuadro: solo los botones, en flujo normal (nunca bajo la lista) */
-.vn-mode { width: 100%; max-width: 420px; margin: 8px 0; padding: 0;
-    background: none; border: 0; }
-.vn-mode[hidden] { display: none; }
-.vn-mode .vn-ask-btns { margin-top: 2px; }
-.vn-mode-btns { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
-.vn-mode-btns button {
-    display: grid; grid-template-columns: auto 1fr; column-gap: 12px; align-items: center;
-    text-align: left; padding: 11px 14px; border-radius: 14px;
-    border: 1px solid var(--tb-border); background: rgba(240, 180, 41, .08);
-    color: var(--tb-cream); cursor: pointer;
-}
-.vn-mode-btns button i { grid-row: span 2; font-size: 1.4rem; color: var(--tb-gold); }
-.vn-mode-btns button b { font-size: .92rem; color: var(--tb-gold); }
-.vn-mode-btns button small { font-size: .74rem; color: var(--tb-muted); }
-.vn-mode-btns button:not(:has(i)) { grid-template-columns: 1fr; }
-.vn-mode-btns button:not(:has(i)) b,
-.vn-mode-btns button:not(:has(i)) small { grid-column: 1; }
-.vn-mode-btns button:active { transform: scale(.98); background: rgba(226, 96, 46, .2); }
-.vn-mode-btns button.sug { border-color: var(--tb-terra);
-    box-shadow: 0 0 12px rgba(226, 96, 46, .45); }
-.vn-mode .vn-mode-note { margin: 0 0 10px; font-size: .76rem; line-height: 1.4;
-    color: var(--tb-muted); text-align: left; }
 /* el cuerpo es columna con scroll: nada se comprime ni se pinta encima de
    los botones de arriba (selector, aviso, Cancelar) */
 .vn-panel .lk-body > * { flex-shrink: 0; }
