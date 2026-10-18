@@ -40,6 +40,7 @@ window.TribalDlGrab = (function () {
         return m;
     }
 
+
     // tocar una descarga terminada la reproduce en el reproductor inline;
     // si su meta desapareció se re-registra del archivo en disco
     function openEntry(id) {
@@ -140,8 +141,7 @@ window.TribalDlGrab = (function () {
         player = window.TribalDlPlay.make(deps, function () { return ov; });
         try {
             player.healAll(function (e) {
-                log('↺ re-registrado: ' + e.name, 'ok');
-            });
+                log('↺ re-registrado: ' + e.name, 'ok'); });
         } catch (e) {}
         // el ‹ se conecta ANTES que todo lo demás — si algo falla abajo,
         // la página igual se puede cerrar y no queda una pantalla muerta
@@ -185,11 +185,10 @@ window.TribalDlGrab = (function () {
                     (c.hidden ? '▸' : '▾') + ' consola';
             });
             el('.dg-paste').addEventListener('click', function () {
-                if (navigator.clipboard && navigator.clipboard.readText) {
+                if (navigator.clipboard && navigator.clipboard.readText)
                     navigator.clipboard.readText().then(function (t) {
                         if (t) el('.dg-url').value = t.trim();
                     }).catch(function () {});
-                }
             });
             el('.dg-list').addEventListener('click', function (e) {
                 var pg = e.target.closest('.dg-pg');
