@@ -147,11 +147,17 @@ window.TribalDlGrab = (function () {
         el('.dg-x').addEventListener('click', close);
         try {
             if (plug()) {
-                plug().addListener('dlProgress', function (p) {
+                // addListener devuelve el handle DIRECTO en este Capacitor
+                // (no promesa — un .then() aquí mataba open() entero)
+                var h = plug().addListener('dlProgress', function (p) {
                     if (p.pct >= 0) { pct = p.pct; bar(pct); }
-                    if (p.line) { lastLine = p.line; say(p.line.slice(0, 120)); }
+                    if (p.line) {
+                        lastLine = p.line; say(p.line.slice(0, 120));
+                    }
                     refresh();
-                }).then(function (h) { listener = h; });
+                });
+                if (h && h.then) h.then(function (x) { listener = x; });
+                else listener = h;
                 plug().dlDir().then(function (r) { dir = r.dir || ''; });
             }
             el('.dg-vid').addEventListener('click',
