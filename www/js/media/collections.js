@@ -102,66 +102,8 @@ window.Sono.register('collections', function (S) {
     });
 
     // ------------------------------------------- diálogo asignar colección
-    function renderColList() {
-        var cols = window.MediaStore.listCollections();
-        if (!cols.length) {
-            S.colsList.innerHTML = '<p class="tmeta-empty">Aún no hay colecciones. Crea una con «Nueva».</p>';
-            return;
-        }
-        window.MediaStore.list().then(function (list) {
-            var m = list.filter(function (x) { return x.id === S.colAssignId; })[0];
-            if (!m) { S.colsOv.hidden = true; return; }
-            S.colsList.innerHTML = cols.map(function (c) {
-                var on = m.cols && m.cols.indexOf(c.id) >= 0;
-                return '<div class="tribal-col-row">' +
-                    '<button class="tribal-col-check' + (on ? ' on' : '') + '" data-col="' + c.id + '">' +
-                        '<i class="bi ' + (on ? 'bi-check-circle-fill' : 'bi-circle') + '"></i>' +
-                        '<span>' + S.esc(c.name) + '</span>' +
-                    '</button>' +
-                    '<button class="tribal-col-del" data-del="' + c.id + '" title="Eliminar colección">' +
-                        '<i class="bi bi-trash3"></i></button>' +
-                '</div>';
-            }).join('');
-        });
-    }
-
-    S.openColAssign = function (id) {
-        S.colAssignId = id;
-        renderColList();
-        S.colsOv.hidden = false;
-    };
-
-    S.colsList.addEventListener('click', function (e) {
-        var del = e.target.closest('[data-del]');
-        if (del) {
-            var cName = window.MediaStore.listCollections()
-                .filter(function (x) { return x.id === del.dataset.del; })[0];
-            S.confirm('Eliminar colección',
-                '¿Borrar «' + (cName ? cName.name : 'esta colección') + '»? Los archivos siguen en la tribu.',
-                'Eliminar', function () {
-                window.MediaStore.deleteCollection(del.dataset.del).then(function () {
-                    S.showToast('Colección eliminada');
-                    S.reload();
-                    renderColList();
-                });
-            });
-            return;
-        }
-        var chk = e.target.closest('[data-col]');
-        if (!chk) return;
-        window.MediaStore.toggleInCollection(S.colAssignId, chk.dataset.col).then(function () {
-            renderColList();
-            S.reload();
-        });
-    });
-    $('cols-ok').addEventListener('click', function () {
-        S.colsOv.hidden = true;
-        S.colAssignId = null;
-    });
-    $('cols-new').addEventListener('click', function () { S.openNewCol('create'); });
-    S.colsOv.addEventListener('click', function (e) {
-        if (e.target === S.colsOv) { S.colsOv.hidden = true; S.colAssignId = null; }
-    });
+    // la lógica vive en colassign.js (acepta 1 id o un array → envío en lote)
+    if (window.TribalColAssign) window.TribalColAssign.attach(S);
 
     // -------------------------------------- clics del grid en modo carpetas
     S.grid.addEventListener('click', function (e) {

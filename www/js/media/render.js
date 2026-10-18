@@ -58,6 +58,15 @@ window.Sono.register('render', function (S) {
 
     S.reload = function () {
         return window.MediaStore.list().then(function (list) {
+            // colecciones automáticas por procedencia (notas, whatsapp…):
+            // sync etiqueta cada audio una vez; si tocó el índice hay que
+            // releer para que las tarjetas ya traigan sus cols
+            var O = window.TribalOrigins;
+            var p = O && O.sync ? O.sync(list) : Promise.resolve(false);
+            return p.then(function (changed) {
+                return changed ? window.MediaStore.list() : list;
+            });
+        }).then(function (list) {
             S.items = list;
             S.render();
         });

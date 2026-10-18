@@ -390,6 +390,46 @@ window.MediaStore = (function () {
             return Promise.resolve(meta);
         },
 
+        // Marca / desmarca una colección para MUCHOS archivos de una vez
+        // (una sola escritura del índice). on=true agrega, on=false quita.
+        setInCollections: function (ids, colId, on) {
+            var index = getIndex();
+            (ids || []).forEach(function (id) {
+                var meta = findMeta(index, id);
+                if (!meta) return;
+                meta.cols = meta.cols || [];
+                var i = meta.cols.indexOf(colId);
+                if (on && i < 0) meta.cols.push(colId);
+                if (!on && i >= 0) meta.cols.splice(i, 1);
+            });
+            saveIndex(index);
+            return Promise.resolve();
+        },
+
+        // Reemplazo directo de la lista de colecciones (origins.js crea las
+        // automáticas con id fijo org_<k>)
+        saveCollections: function (cols) {
+            saveCols(cols);
+        },
+
+        // Aplica en lote la procedencia detectada por origins.js:
+        // entries = [{id, origin, colId?}] — marca meta.origin y mete el
+        // archivo en su colección automática. Una sola escritura del índice.
+        applyOrigins: function (entries) {
+            var index = getIndex();
+            (entries || []).forEach(function (e) {
+                var meta = findMeta(index, e.id);
+                if (!meta) return;
+                meta.origin = e.origin;
+                if (e.colId) {
+                    meta.cols = meta.cols || [];
+                    if (meta.cols.indexOf(e.colId) < 0) meta.cols.push(e.colId);
+                }
+            });
+            saveIndex(index);
+            return Promise.resolve();
+        },
+
         toggleFavorite: function (id) {
             var index = getIndex();
             var meta = findMeta(index, id);

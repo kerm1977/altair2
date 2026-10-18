@@ -156,27 +156,10 @@ window.Sono.register('multisel', function (S) {
     });
 
     // long-press sobre una tarjeta EN modo selección → menú contextual
+    // (la implementación vive en msctx.js para mantener este archivo chico)
     S.msLongPress = function () {
         if (!S.msMode || !count()) return;
-        var ov = document.createElement('div');
-        ov.className = 'tribal-overlay';
-        ov.innerHTML = '<div class="tribal-dialog">' +
-            '<h4><i class="bi bi-check2-square"></i> ' + count() +
-                ' seleccionado' + (count() > 1 ? 's' : '') + '</h4>' +
-            '<div class="ms-ctx">' +
-                '<button class="tribal-btn primary" id="msa-art">' +
-                    '<i class="bi bi-image"></i> Aplicar la misma carátula ' +
-                    'a las seleccionadas</button>' +
-                '<button class="tribal-btn" id="msa-close">Cerrar</button>' +
-            '</div></div>';
-        (S.root || document.body).appendChild(ov);
-        var kill = function () { ov.remove(); };
-        ov.querySelector('#msa-close').addEventListener('click', kill);
-        ov.querySelector('#msa-art').addEventListener('click', function () {
-            kill();
-            $('ms-art-input').click();
-        });
-        ov.addEventListener('click', function (e) { if (e.target === ov) kill(); });
+        if (window.TribalMsCtx) window.TribalMsCtx.open(S, count);
     };
 
     // ------------------------------------------------------------ cableado --
@@ -191,6 +174,12 @@ window.Sono.register('multisel', function (S) {
         S.msSel = {};
         syncBar();
         S.render();
+    });
+    // enviar las seleccionadas a una colección (o a varias marcando checks)
+    $('ms-col').addEventListener('click', function () {
+        var ids = Object.keys(S.msSel);
+        if (!ids.length) return S.showToast('Nada seleccionado');
+        S.openColAssign(ids);
     });
     $('ms-del').addEventListener('click', function () {
         var n = count();

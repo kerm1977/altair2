@@ -147,11 +147,14 @@ window.Sono.register('menus', function (S) {
             S.reload();
         });
     });
+    // colecciones: con selección múltiple activa aplica a TODO lo marcado;
+    // sin selección, solo a la tarjeta del ⋮
     $('menu-col').addEventListener('click', function () {
-        if (!S.menuItem) return closeMenu();
-        var id = S.menuItem.id;
+        var sel = (S.msMode && S.msSel) ? Object.keys(S.msSel) : [];
+        var ids = sel.length ? sel : (S.menuItem ? [S.menuItem.id] : []);
+        if (!ids.length) return closeMenu();
         closeMenu();
-        S.openColAssign(id);
+        S.openColAssign(ids);
     });
     // selección múltiple: entra al modo y marca la tarjeta del ⋮
     $('menu-multi').addEventListener('click', function () {
