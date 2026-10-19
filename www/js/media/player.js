@@ -309,6 +309,20 @@ window.Sono.register('player', function (S) {
         S.closeVideo();
     });
     $('image-close').addEventListener('click', S.closeImage);
+    // descarga discreta desde el visor: siempre formato ORIGINAL, la
+    // barra mini (dlmini.js) muestra el progreso encima de todo
+    var vdl = $('video-dl'), idl = $('image-dl');
+    if (vdl) vdl.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var m = S.byId(S.activeItemId);   // el meta real (no el proxy)
+        if (m && window.TribalDlMini)
+            window.TribalDlMini.saveOrig(m, S.showToast);
+    });
+    if (idl) idl.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (S.imageItem && window.TribalDlMini)
+            window.TribalDlMini.saveOrig(S.imageItem, S.showToast);
+    });
     videoOv.addEventListener('click', function (e) {
         if (e.target !== videoOv) return;
         // con el menú ⋮ abierto, el fondo solo cierra el menú

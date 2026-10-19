@@ -13,6 +13,7 @@ window.TribalVinyl = (function () {
     var ov = null, disc, titleEl, subEl, curEl, durEl, fill, bar, btnPlay;
     var btnRep, btnShuf, volRange;
     var el = null, cb = {}, bound = false, vizBound = false;
+    var cur = null;   // meta de la pista abierta (para el botón descargar)
 
     // el mismo sol tribal de la cabecera, como avatar por defecto del disco
     function sunSvg() {
@@ -49,6 +50,9 @@ window.TribalVinyl = (function () {
         ov.id = 'vinyl-overlay';
         ov.innerHTML =
             '<button class="tribal-close" data-v="close"><i class="bi bi-x-lg"></i></button>' +
+            // descarga discreta: formato original, progreso en la barra mini
+            '<button class="tribal-dlbtn" data-v="dl" title="Descargar">' +
+                '<i class="bi bi-download"></i></button>' +
             '<div class="tribal-vinyl-brand">T<span class="tr-sm">R</span>I' +
                 '<span class="tr-b">B</span>AL<span>s</span>' +
                 '<small>El fuego guarda tu música</small></div>' +
@@ -115,6 +119,9 @@ window.TribalVinyl = (function () {
                 cb.prefs.shuffle = !cb.prefs.shuffle;
                 if (cb.onPref) cb.onPref();
                 syncModes();
+            }
+            else if (k === 'dl' && cur && window.TribalDlMini) {
+                window.TribalDlMini.saveOrig(cur);
             }
         });
         volRange.addEventListener('input', function () {
@@ -226,6 +233,7 @@ window.TribalVinyl = (function () {
             paintVol();
         }
         var m = opts.meta || {};
+        cur = m.id ? m : null;
         var info = m.info || {};
         titleEl.textContent = info.titulo || m.name || '—';
         subEl.textContent = [info.artista, info.album].filter(Boolean).join(' · ');
@@ -246,7 +254,7 @@ window.TribalVinyl = (function () {
     function close() {
         if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) {} }
         if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
-        el = null;
+        el = null; cur = null;
         if (cb.onClose) cb.onClose();
         cb = {};
     }
@@ -254,6 +262,7 @@ window.TribalVinyl = (function () {
     // Actualiza título cuando cambia de pista sin cerrar
     function setMeta(m, artUrl) {
         if (!ov || !m) return;
+        cur = m;
         var info = m.info || {};
         titleEl.textContent = info.titulo || m.name || '—';
         subEl.textContent = [info.artista, info.album].filter(Boolean).join(' · ');

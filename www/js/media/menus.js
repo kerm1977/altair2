@@ -347,20 +347,25 @@ window.Sono.register('menus', function (S) {
     dlList.addEventListener('click', function (e) {
         var b = e.target.closest('[data-fmt]');
         if (!b || !dlItem) return;
-        var fmt = b.dataset.fmt;
+        var fmt = b.dataset.fmt, mini = window.TribalDlMini;
         dlStatus.textContent = 'Preparando…';
+        if (mini) mini.begin(dlItem.name);   // barra global también visible
         window.TribalDownld.produce(dlItem, fmt, function (t) {
             dlStatus.textContent = t;
+            if (mini) mini.feed(t);
         }).then(function (out) {
             var name = dlItem.name.replace(/\.[^.]+$/, '') + out.ext;
             dlStatus.textContent = 'Guardando en Descargas…';
+            if (mini) mini.feed('Guardando en Descargas…');
             return window.TribalDownld.saveToDevice(out.blob, name);
         }).then(function () {
             dlStatus.textContent = '';
             dlOv.hidden = true;
+            if (mini) mini.end(true);
             S.showToast('⬇ Guardado en Descargas');
         }).catch(function (err) {
             dlStatus.textContent = (err && err.message) || 'No se pudo descargar';
+            if (mini) mini.end(false);
         });
     });
     $('dl-cancel').addEventListener('click', function () { dlOv.hidden = true; });

@@ -220,3 +220,63 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     text-shadow: 0 1px 3px #000;
 }
+
+/* ===== barra mini de descarga + botón discreto en visores fullscreen ===== */
+/* píldora flotante arriba-centro; dlmini.js la re-ubica dentro del
+   fullscreenElement (vinilo / stage de video) para que siga visible */
+.dl-mini {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    left: 50%; transform: translateX(-50%);
+    z-index: 2000;
+    display: flex; align-items: center; gap: 8px;
+    width: max-content; max-width: min(86vw, 420px);
+    padding: 7px 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(240, 180, 41, .5);
+    background: rgba(22, 14, 7, .88);
+    color: var(--tb-cream);
+    font-size: .78rem;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, .55);
+    backdrop-filter: blur(6px);
+}
+.dl-mini > i { color: var(--tb-gold); font-size: .9rem; flex: 0 0 auto; }
+.dl-mini-body { flex: 1 1 auto; min-width: 0; }
+.dl-mini-txt {
+    display: block; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+.dl-mini-track {
+    height: 3px; margin-top: 4px;
+    border-radius: 2px; overflow: hidden;
+    background: rgba(255, 255, 255, .14);
+}
+.dl-mini-fill {
+    height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--tb-terra), var(--tb-gold));
+    transition: width .3s ease;
+}
+.dl-mini.ok { border-color: var(--tb-teal); }
+.dl-mini.ok > i { color: var(--tb-teal); }
+.dl-mini.err { border-color: var(--tb-danger); }
+.dl-mini.err > i { color: var(--tb-danger); }
+
+/* botón de descarga discreto dentro de los visores (video, imagen, vinilo):
+   círculo fantasma semi-transparente que se enciende al tocarlo */
+.tribal-dlbtn {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 16px);
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(240, 180, 41, .38);
+    background: rgba(0, 0, 0, .32);
+    color: var(--tb-cream);
+    font-size: .95rem;
+    opacity: .55;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 5;
+}
+.tribal-dlbtn:active { opacity: 1; border-color: var(--tb-gold); }
+#video-overlay .tribal-dlbtn { left: 126px; }   /* tras ⋮ (18) y ⛶ (72) */
+#image-overlay .tribal-dlbtn { left: 18px; }
+.tribal-vinyl .tribal-dlbtn { left: 18px; }
